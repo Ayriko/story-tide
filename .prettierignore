@@ -1,0 +1,8 @@
+node_modules
+.next
+coverage
+public
+package-lock.json
+
+# Documentation en prose (docs-as-code, non soumise au style Prettier)
+*.md
