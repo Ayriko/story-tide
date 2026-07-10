@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RelationOrigin {
+  MANUAL
+  AUTO
+}
+
+model World {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String
+  ownerId     String // FK vers User ajoutee a l'etape 4 (Better Auth)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  entities    Entity[]
+  relations   Relation[]
+  linkIgnores LinkIgnore[]
+
+  @@unique([ownerId, slug])
+  @@index([ownerId])
+}
+
+model Entity {
+  id        String   @id @default(cuid())
+  worldId   String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  name      String
+  type      String // "character"|"place"|... - donnee, pas schema
+  aliases   String[] // des la v1 : dictionnaire de l'automate
+  content   Json // JSON ProseMirror (Tiptap)
+  plainText String // texte extrait, pour scan + recherche
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sourceRelations Relation[]   @relation("RelationSource")
+  targetRelations Relation[]   @relation("RelationTarget")
+  linkIgnoresFrom LinkIgnore[] @relation("LinkIgnoreEntity")
+  linkIgnoresTo   LinkIgnore[] @relation("LinkIgnoreTarget")
+
+  @@index([worldId])
+}
+
+model Relation {
+  id        String         @id @default(cuid())
+  worldId   String
+  world     World          @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  sourceId  String
+  source    Entity         @relation("RelationSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    Entity         @relation("RelationTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  origin    RelationOrigin
+  createdAt DateTime       @default(now())
+
+  @@unique([sourceId, targetId, origin])
+  @@index([worldId])
+  @@index([targetId])
+}
+
+model LinkIgnore {
+  id        String   @id @default(cuid())
+  worldId   String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity   @relation("LinkIgnoreEntity", fields: [entityId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    Entity   @relation("LinkIgnoreTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([entityId, targetId])
+  @@index([worldId])
+}

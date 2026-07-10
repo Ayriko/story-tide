@@ -3,6 +3,10 @@ node_modules
 coverage
 public
 package-lock.json
+src/generated
+
+# fichiers locaux Claude Code (non versionnes)
+.claude/settings.local.json
 
 # Documentation en prose (docs-as-code, non soumise au style Prettier)
 *.md
