@@ -19,7 +19,11 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
+// Record<string, string | undefined> plutot que NodeJS.ProcessEnv : Next.js
+// affine NODE_ENV en union litterale ('development'|'test'|'production'), ce qui
+// empeche de simuler en test une variable absente ou invalide sans cast. Le
+// type plus generique reste compatible avec process.env (plus specifique).
+export function loadEnv(source: Record<string, string | undefined> = process.env): Env {
   const parsed = envSchema.safeParse(source);
 
   if (!parsed.success) {
