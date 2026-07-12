@@ -14,3 +14,4 @@
 | 0004 | Better Auth pour l'authentification email + mot de passe | accepté | 2026-07-03 |
 | 0005 | pg-boss comme implémentation de JobQueue (+ policy « short ») | accepté | 2026-07-03 |
 | 0006 | Prisma 7 (générateur `prisma-client` + adapter-pg) | accepté | 2026-07-10 |
+| 0007 | Exclusion des wrappers SDK fins du calcul de couverture Vitest | accepté | 2026-07-11 |

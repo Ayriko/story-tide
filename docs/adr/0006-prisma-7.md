@@ -6,14 +6,17 @@
 
 ## Contexte et problème
 
-Au moment d'écrire le schéma Prisma v1 (session du 2026-07-10), la version
-disponible sur npm était Prisma **7.8.0** — une rupture majeure par rapport aux
-versions précédentes : le générateur `prisma-client-js` est déprécié au profit de
-`prisma-client`, qui **exige** un `output` explicite (le client est émis dans
-l'arbre source, ex. `src/generated/prisma`, plus dans `node_modules`) ; le champ
-`datasource.url` n'est plus supporté dans `schema.prisma` (déplacé vers
-`prisma.config.ts`) ; `PrismaClient` exige désormais un `adapter` explicite
-(`@prisma/adapter-pg` pour PostgreSQL).
+Prisma est déjà acté comme ORM depuis le Bloc 1 (C1.3.2, choix figé : contexte
+conteneur long-running sur VPS). Au moment d'écrire le schéma Prisma v1 (session du
+2026-07-10), la version disponible sur npm était Prisma **7.8.0** — une rupture
+majeure par rapport aux versions précédentes : le générateur `prisma-client-js` est
+déprécié au profit de `prisma-client`, qui **exige** un `output` explicite (le
+client est émis dans l'arbre source, ex. `src/generated/prisma`, plus dans
+`node_modules`) ; le champ `datasource.url` n'est plus supporté dans
+`schema.prisma` (déplacé vers `prisma.config.ts`) ; `PrismaClient` exige désormais
+un `adapter` explicite (`@prisma/adapter-pg` pour PostgreSQL). Rencontré en
+conditions réelles : l'erreur **`P1012`** (« The datasource property 'url' is no
+longer supported in schema files ») tant que l'adapter n'était pas câblé.
 
 ## Options envisagées
 
@@ -43,5 +46,5 @@ régénéré automatiquement via le script npm `postinstall`).
 ## Compétence(s) servie(s)
 
 C2.2.1 (choix technologique tracé) ; C2.4.1 (justification des choix). **Codé et
-vérifié** cette session (migration réelle appliquée sur PostgreSQL, confirmée via
-`psql`).
+vérifié** cette session (commit `f750efe`, migration réelle appliquée sur
+PostgreSQL, confirmée via `psql`).

@@ -24,9 +24,14 @@ stade (`[Unreleased]`).
 - Vitest + Testing Library, seuil de couverture bloquant (80 % sur `src/lib` +
   `src/services`), premiers tests (`env.ts`, schémas Zod auth, fakes mémoire
   queue/storage, `LoginForm`).
-- Documentation : ADR 0001-0006 (ligatures du linker, full Next.js, Tiptap, Better
-  Auth, pg-boss, Prisma 7), premiers scénarios du cahier de recettes (`TST-AUT-*`,
-  `TST-SEC-001`), mapping OWASP partiel, dossier RGAA partiel.
+- Documentation : ADR 0001-0007 (ligatures du linker, full Next.js, Tiptap, Better
+  Auth, pg-boss, Prisma 7, exclusion de couverture des wrappers SDK), premiers
+  scénarios du cahier de recettes (`TST-AUT-*`, `TST-SEC-001`), mapping OWASP
+  partiel, dossier RGAA partiel.
+- Skill projet `.claude/skills/pgboss-singleton-dedup/` : documente le piège
+  `singletonKey` (ne déduplique pas avec la policy pg-boss par défaut) et la
+  correction (policy `short`), avec la procédure de vérification par script
+  d'intégration réel avant commit.
 
 ### Corrigé
 

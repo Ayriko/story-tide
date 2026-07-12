@@ -20,6 +20,6 @@
 | `manuels/deploiement.md` | C2.4.1 | Manuel de déploiement | non | ⬜ pas commencé |
 | `manuels/utilisation.md` | C2.4.1 | Manuel d'utilisation | non | ⬜ pas commencé |
 | `manuels/mise-a-jour.md` | C2.4.1 | Manuel de mise à jour | non | ⬜ pas commencé |
-| `adr/` | C2.4.1 | Justification des choix (technos, langages) | non | ✅ 6 ADR rédigés |
+| `adr/` | C2.4.1 | Justification des choix (technos, langages) | non | ✅ 7 ADR rédigés |
 | `../CHANGELOG.md` (racine) | C2.2.4 | Historique des versions | non | ✅ créé (`[Unreleased]`) |
 | `dossier/plan.md` | — | Plan d'assemblage des 30 p. | — | ✅ ossature posée |

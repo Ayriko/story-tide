@@ -16,6 +16,9 @@ besoin que PostgreSQL — déjà présent — peut porter.
 - **BullMQ + Redis** : écarté explicitement (stack actée, Redis interdit sans accord).
 - **pg-boss** (file d'attente sur PostgreSQL) : retenu — zéro conteneur en plus, ACID,
   migration de schéma interne automatique (`pgboss`).
+- **Dédup applicative** (vérifier en base l'absence de job en attente avant
+  d'`enqueue`) : écartée — réintroduit une condition de course que la queue est
+  précisément censée absorber ; plus de code applicatif, moins sûr.
 
 ## Décision
 
@@ -36,9 +39,13 @@ exactement à « 1 job de liaison en attente par fiche » de la spec.
   lecture des types.
 - **Négatives (dette assumée)** : pg-boss ajoute de la charge sur la même instance
   Postgres que les données applicatives — assumé, un seul système stateful à
-  sauvegarder (spec §4.1).
+  sauvegarder (spec §4.1). La policy est fixée à la **création** de la queue :
+  la changer impose de la recréer. Piège silencieux (aucun type/lint ne l'attrape)
+  → documenté dans la skill projet `.claude/skills/pgboss-singleton-dedup/`, qui
+  impose une vérification par script d'intégration réel avant tout commit touchant
+  au câblage des queues.
 
 ## Compétence(s) servie(s)
 
 C2.2.1 (patron ports & adapters, point d'extension) ; C2.4.1. **Codé et vérifié**
-cette session.
+cette session (commit `2471829`).
