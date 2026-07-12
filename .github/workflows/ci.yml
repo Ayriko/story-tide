@@ -35,7 +35,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # node 24 (Active LTS) : aligne sur le dev local et l'image Docker,
+          # satisfait l'engine pg-boss (>=22.12).
+          node-version: 24
           cache: npm
 
       - run: npm ci

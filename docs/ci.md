@@ -9,7 +9,7 @@
 Un seul job (`ci`), déclenché sur push `main` et sur toute pull request
 (`concurrency` annule les runs superseded d'une même branche) :
 
-1. `actions/checkout` + `actions/setup-node` (Node 20, cache npm sur
+1. `actions/checkout` + `actions/setup-node` (Node 24, cache npm sur
    `package-lock.json`).
 2. `npm ci` — installe les dépendances et régénère le client Prisma
    (`postinstall: prisma generate`).
