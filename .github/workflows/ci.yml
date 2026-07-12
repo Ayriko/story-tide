@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders Zod-valides (src/env.ts), pas des secrets : rien ne se
+      # connecte reellement a Postgres/MinIO au build ni aux tests unitaires
+      # (fakes memoire). Ces valeurs documentent aussi l'env attendu.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide?schema=public"
+      BETTER_AUTH_SECRET: "ci-placeholder-secret-at-least-32-characters"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      S3_ENDPOINT: "localhost"
+      S3_PORT: "9000"
+      S3_USE_SSL: "false"
+      S3_REGION: "us-east-1"
+      S3_ACCESS_KEY: "ci"
+      S3_SECRET_KEY: "ci-secret-placeholder"
+      S3_BUCKET: "story-tide-ci"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run format:check
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm run test:coverage
+
+      - run: npm run build
+
+      - name: Publier le rapport de couverture en artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Commenter la couverture sur la PR
+        if: always() && github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
