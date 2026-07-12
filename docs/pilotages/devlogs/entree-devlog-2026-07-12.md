@@ -30,7 +30,7 @@
 **Livrables produits :**
 - **PR #1 (mergée)** : `.github/workflows/ci.yml`, `vitest.config.ts` (reporters json/json-summary), `README.md` (quickstart), `docs/ci.md`, `docs/qualite-performance.md`, `docs/accessibilite-rgaa.md`, `docs/README.md`, `CHANGELOG.md`. Commentaire de couverture PR vérifié fonctionnel (100/100/88,9/100).
 - **Commit direct main (réconciliation ADR)** : `docs/adr/0005-pg-boss-jobqueue.md`, `0006-prisma-7.md` enrichis, `0007-exclusion-couverture-wrappers-sdk.md` créé, `docs/adr/README.md`, `.claude/skills/pgboss-singleton-dedup/SKILL.md` importé.
-- **PR #2 (ouverte, CI verte, non mergée)** : `Dockerfile`, `.dockerignore`, `next.config.ts` (`output: "standalone"`), `src/worker/index.ts` (squelette), `package.json`/`package-lock.json` (Node `engines>=24`, `tsx` en dépendance, `@types/node@24`), `.github/workflows/ci.yml` (node-version 24), `docs/architecture.md`, `docs/ci.md`, `docs/README.md`, `docs/adr/README.md`, `docs/adr/0008-node-24-slim-debian.md`, `README.md`, `CHANGELOG.md`.
+- **PR #2 (mergée)** : `Dockerfile`, `.dockerignore`, `next.config.ts` (`output: "standalone"`), `src/worker/index.ts` (squelette), `package.json`/`package-lock.json` (Node `engines>=24`, `tsx` en dépendance, `@types/node@24`), `.github/workflows/ci.yml` (node-version 24), `docs/architecture.md`, `docs/ci.md`, `docs/README.md`, `docs/adr/README.md`, `docs/adr/0008-node-24-slim-debian.md`, `README.md`, `CHANGELOG.md`.
 - Gates en fin de session : lint ✅ 0 warning · typecheck ✅ · tests ✅ 30/30 · couverture 100 %/100 %/88,9 %/100 % (statements/branches/fonctions/lignes, seuil 80 % actif) · build ✅ (`next build` + 2 images Docker) · CI PR #2 : ✅ success (1 annotation informative sans rapport, dépréciation Node 20 des runners GitHub Actions).
 
 **Avancement certification :**
@@ -42,7 +42,6 @@
 - **C2.2.4** / traçabilité solo (parade Bloc 3) : premier cycle réel `feat/*` → PR → CI → merge exercé deux fois.
 
 **À faire / suite :**
-- **Merger PR #2** (Docker multi-stage + worker + Node 24) — CI verte, en attente de décision Aymeric.
 - Prochaine étape logique explicitement nommée par Aymeric : **bloc produit de la semaine** — moteur Aho-Corasick maison (`src/lib/linker`, TDD) puis branchement réel dans le handler stub du worker, relations AUTO, surlignage, backlinks, garde-fous (ignore/homonymes).
 - Audit axe pleine-page toujours à outiller (probable futur job Playwright smoke).
 - `docs/cd.md` et les manuels (déploiement/utilisation/mise-à-jour) restent volontairement non commencés — VPS pas encore commandé (~13-15 juillet).
@@ -69,4 +68,6 @@
 
 ---
 
-⚠️ Tout est committé et pushé ; **PR #2 (Docker multi-stage + worker + Node 24) reste ouverte, non mergée** en fin de session.
+⚠️ PR #1 et PR #2 sont mergées sur `main`. Reste à committer : ce fichier dev-log
+lui-même et l'édition de `.claude/commands/devlog.md` (écriture automatique de
+l'entrée) — pas encore staged/committés en fin de session.
