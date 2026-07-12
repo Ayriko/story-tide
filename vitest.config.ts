@@ -14,7 +14,8 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      // json-summary : consomme par vitest-coverage-report-action (commentaire de PR)
+      reporter: ["text", "html", "lcov", "json", "json-summary"],
       include: ["src/lib/**", "src/services/**"],
       exclude: [
         // Wrappers fins autour de SDK externes : verifies par test

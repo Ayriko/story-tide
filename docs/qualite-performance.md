@@ -1,6 +1,6 @@
 # Critères de qualité et de performance — C2.1.1
 
-> État au 2026-07-11 : qualité statique en place et vérifiée. Performance = cibles de la spec, pas encore mesurées (rien n'est déployé).
+> État au 2026-07-12 : qualité statique en place et vérifiée, désormais **bloquante en CI**. Performance = cibles de la spec, pas encore mesurées (rien n'est déployé).
 
 ## Qualité (statique)
 
@@ -35,6 +35,12 @@ Taille de bundle / requêtes N+1 : rien à mesurer, une seule route dynamique
 
 ## Outils de suivi intégrés
 
-<!-- TODO : ce qui tournera en CI (rapport de couverture en artefact, commentaire de
-PR) + monitoring léger côté VPS. Arrivera avec ci.md et le déploiement, pas construits
-à ce stade. -->
+- **CI GitHub Actions** (`.github/workflows/ci.yml`, détail dans `ci.md`) : lint,
+  typecheck, format, couverture bloquante et build s'exécutent sur chaque push
+  `main` et chaque pull request.
+- **Rapport de couverture en artefact** : le dossier `coverage/` (HTML + lcov +
+  json-summary) est publié comme artefact du run (14 j de rétention).
+- **Commentaire de couverture sur les PR** : `davelosert/vitest-coverage-report-action`
+  poste/actualise un résumé de couverture directement sur la pull request.
+- Monitoring runtime léger côté VPS (healthcheck, uptime) : <!-- TODO, arrivera avec
+  le déploiement staging/prod, VPS pas encore commandé -->.

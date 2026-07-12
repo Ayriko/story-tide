@@ -32,6 +32,11 @@ stade (`[Unreleased]`).
   `singletonKey` (ne déduplique pas avec la policy pg-boss par défaut) et la
   correction (policy `short`), avec la procédure de vérification par script
   d'intégration réel avant commit.
+- CI GitHub Actions (`.github/workflows/ci.yml`) : lint, typecheck, format,
+  couverture bloquante (80 %) et build sur chaque push `main` et pull request ;
+  rapport de couverture publié en artefact + commentaire automatique sur les PR.
+- README avec démarrage rapide (compose dev, migrations, `npm run dev`) et tableau
+  des scripts npm, à la place du gabarit `create-next-app`.
 
 ### Corrigé
 

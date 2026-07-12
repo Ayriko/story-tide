@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Story Tide
 
-## Getting Started
+Plateforme SaaS de worldbuilding (wiki d'entités + éditeur riche + graphe de
+relations + liaison automatique des entités via un automate Aho-Corasick maison).
+Projet de certification RNCP39583 (Bloc 2). Voir `CLAUDE.md` (règles de travail) et
+`docs/spec-technique-bloc2.md` (spécification complète) pour le contexte produit et
+les contraintes d'architecture.
 
-First, run the development server:
+## Prérequis
+
+- [Node.js](https://nodejs.org/) 20+
+- [Docker](https://www.docker.com/) + Docker Compose (PostgreSQL + MinIO en local)
+
+## Démarrage
 
 ```bash
+cp .env.example .env
+docker compose -f docker-compose.dev.yml up -d
+npm install
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrir [http://localhost:3000](http://localhost:3000). `npm install` régénère aussi
+le client Prisma (`postinstall`) ; `npm run db:migrate` applique les migrations sur
+la base PostgreSQL du compose dev. Le bucket MinIO est créé automatiquement par le
+service `minio-setup` de `docker-compose.dev.yml`, rien à faire à la main.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts npm
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | Rôle |
+|---|---|
+| `npm run dev` | Serveur de dev Next.js |
+| `npm run build` / `npm run start` | Build de prod / lancement |
+| `npm run lint` | ESLint, 0 warning toléré |
+| `npm run typecheck` | `tsc --noEmit` (TS strict) |
+| `npm run format` / `format:check` | Prettier (écrit / vérifie) |
+| `npm run test` / `test:watch` | Vitest (une passe / watch) |
+| `npm run test:coverage` | Vitest + couverture (seuil 80 % bloquant sur `src/lib` + `src/services`) |
+| `npm run db:migrate` | Applique les migrations Prisma (dev) |
+| `npm run db:generate` | Régénère le client Prisma |
+| `npm run db:studio` | Prisma Studio |
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+L'ensemble de la documentation (architecture, sécurité OWASP, accessibilité RGAA,
+cahier de recettes, ADR, CI…) vit dans [`docs/`](./docs/README.md), tenue à jour au
+fil du développement.
