@@ -1,7 +1,7 @@
 # Accessibilité — Dossier RGAA — C2.2.3 (ÉLIMINATOIRE)
 
-> Référentiel présenté ET justifié (RGAA retenu). Audit tracé (axe-core en CI + contrôle manuel Ara/NVDA).
-> État au 2026-07-11 : actions vérifiées manuellement sur les pages existantes (login/register). Audit outillé pas encore en place.
+> Référentiel présenté ET justifié (RGAA retenu). Audit tracé (contrôle manuel Ara/NVDA à planifier ; axe-core automatisé tenté puis reporté, voir ci-dessous).
+> État au 2026-07-12 : actions vérifiées manuellement sur les pages existantes (login/register). Audit outillé pas encore en place.
 
 ## Référentiel retenu & périmètre
 
@@ -38,5 +38,15 @@ sur images utilisateur (pas de feature d'upload), rendu sémantique du contenu T
 
 ## Audit & résultats
 
-<!-- TODO : axe-core arrivera avec la CI (job dédié, cf. ci.md — pas encore construit).
-Passage manuel Ara + NVDA à planifier avant la recette sur staging (spec §6). -->
+- **Axe automatisé au niveau composant** : tenté (`jest-axe` dans le job test
+  Vitest) à l'étape CI du 2026-07-12, **abandonné** — le matcher
+  `toHaveNoViolations` échoue sous Vitest 4 (`expectAssertion.call is not a
+  function`, dépendance à des internals Jest non fournis par le package). Pas de
+  fix jugé utile d'insister à ce stade (voir `ci.md`).
+- **Audit pleine-page à outiller** : probablement via le futur job Playwright
+  smoke (axe fonctionne nativement avec un vrai navigateur, contourne le souci
+  Vitest/jsdom) — <!-- TODO, pas encore construit -->. Note : jsdom ne calcule de
+  toute façon pas les contrastes (axe les ignore en environnement jsdom), donc le
+  contrôle contraste restera de toute façon manuel ou Playwright.
+- **Passage manuel Ara + NVDA** : à planifier avant la recette sur staging
+  (spec §6) — <!-- TODO, pas encore fait -->.
