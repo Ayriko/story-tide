@@ -1,16 +1,21 @@
 # Architecture logicielle — C2.2.1 (ÉLIMINATOIRE)
 
 > Posture actée : « l'architecture la plus simple qui couvre le besoin, justifiée. » Pas de microservices.
-> État au 2026-07-11 : socle (auth + infra ports) posé, moteur de liaison et features monde/entité pas encore codés.
+> État au 2026-07-12 : socle (auth + infra ports + CI + images Docker) posé, moteur de liaison et features monde/entité pas encore codés.
 
 ## Vue d'ensemble
 
 Monolithe **Next.js App Router** (RSC + Server Actions), un seul déploiement pour l'app,
-un **worker Node séparé** consommera la file de jobs (`src/worker/`, pas encore créé —
-arrivera avec le moteur Aho-Corasick). Un seul système stateful : **PostgreSQL**, qui
-porte à la fois les données applicatives (Prisma) et la file `pg-boss` (schéma `pgboss`,
-géré par pg-boss lui-même). **MinIO** (S3-compatible) pour les binaires utilisateurs
-uniquement, buckets privés.
+un **worker Node séparé** (`src/worker/index.ts`) consomme la file de jobs pg-boss —
+squelette en place (souscription à la file `entity-linking`, arrêt gracieux SIGTERM),
+le traitement réel (scan Aho-Corasick) arrivera avec le moteur de liaison. Un seul
+système stateful : **PostgreSQL**, qui porte à la fois les données applicatives
+(Prisma) et la file `pg-boss` (schéma `pgboss`, géré par pg-boss lui-même). **MinIO**
+(S3-compatible) pour les binaires utilisateurs uniquement, buckets privés.
+
+Deux images Docker construites depuis le même `Dockerfile` multi-stage (`node:24-slim`,
+non-root) : cible `app` (sortie `next build` standalone) et cible `worker` (exécuté via
+`tsx`) — voir ADR-0008.
 
 Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas encore refait
 à ce stade de l'implémentation.

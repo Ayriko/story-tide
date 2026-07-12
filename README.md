@@ -8,7 +8,7 @@ les contraintes d'architecture.
 
 ## Prérequis
 
-- [Node.js](https://nodejs.org/) 20+
+- [Node.js](https://nodejs.org/) 24+ (Active LTS ; requis par pg-boss)
 - [Docker](https://www.docker.com/) + Docker Compose (PostgreSQL + MinIO en local)
 
 ## Démarrage

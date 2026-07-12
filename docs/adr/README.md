@@ -15,3 +15,4 @@
 | 0005 | pg-boss comme implémentation de JobQueue (+ policy « short ») | accepté | 2026-07-03 |
 | 0006 | Prisma 7 (générateur `prisma-client` + adapter-pg) | accepté | 2026-07-10 |
 | 0007 | Exclusion des wrappers SDK fins du calcul de couverture Vitest | accepté | 2026-07-11 |
+| 0008 | `node:24-slim` (Debian/glibc) comme base des images Docker | accepté | 2026-07-12 |

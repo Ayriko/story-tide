@@ -24,10 +24,10 @@ stade (`[Unreleased]`).
 - Vitest + Testing Library, seuil de couverture bloquant (80 % sur `src/lib` +
   `src/services`), premiers tests (`env.ts`, schémas Zod auth, fakes mémoire
   queue/storage, `LoginForm`).
-- Documentation : ADR 0001-0007 (ligatures du linker, full Next.js, Tiptap, Better
-  Auth, pg-boss, Prisma 7, exclusion de couverture des wrappers SDK), premiers
-  scénarios du cahier de recettes (`TST-AUT-*`, `TST-SEC-001`), mapping OWASP
-  partiel, dossier RGAA partiel.
+- Documentation : ADR 0001-0008 (ligatures du linker, full Next.js, Tiptap, Better
+  Auth, pg-boss, Prisma 7, exclusion de couverture des wrappers SDK, base Docker
+  `node:24-slim`), premiers scénarios du cahier de recettes (`TST-AUT-*`,
+  `TST-SEC-001`), mapping OWASP partiel, dossier RGAA partiel.
 - Skill projet `.claude/skills/pgboss-singleton-dedup/` : documente le piège
   `singletonKey` (ne déduplique pas avec la policy pg-boss par défaut) et la
   correction (policy `short`), avec la procédure de vérification par script
@@ -37,6 +37,11 @@ stade (`[Unreleased]`).
   rapport de couverture publié en artefact + commentaire automatique sur les PR.
 - README avec démarrage rapide (compose dev, migrations, `npm run dev`) et tableau
   des scripts npm, à la place du gabarit `create-next-app`.
+- `Dockerfile` multi-stage (`node:24-slim`, non-root) : cible `app` (Next.js en
+  sortie `standalone`) et cible `worker` (squelette `src/worker/index.ts`, souscrit
+  à la file `entity-linking` via le port `JobQueue`, arrêt gracieux `SIGTERM`).
+  `.dockerignore` ajouté. Node passé de 20 à 24 (Active LTS, requis par pg-boss
+  `>=22.12`) en dev/CI/Docker — voir ADR-0008.
 
 ### Corrigé
 
