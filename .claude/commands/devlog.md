@@ -1,10 +1,14 @@
 ---
-description: Clôture de session — propose une entrée dev-log complète, prête à coller
+description: Clôture de session — écrit une entrée dev-log complète dans docs/pilotages/devlogs/
 ---
 
-La session de travail se termine. Produis une **proposition d'entrée dev-log**, prête à
-copier-coller. Le fichier `dev-log.md` vit HORS du repo : tu ne crées ni ne modifies
-aucun fichier — tu proposes du texte, c'est Aymeric qui le colle.
+La session de travail se termine. Produis une entrée dev-log et **écris-la directement**
+dans `docs/pilotages/devlogs/entree-devlog-AAAA-MM-JJ.md` (AAAA-MM-JJ = date du jour),
+via l'outil Write — ne te contente pas de l'afficher en texte à coller. Si un fichier de
+ce nom existe déjà pour aujourd'hui, ne l'écrase pas silencieusement : signale-le à
+Aymeric et complète/ajuste plutôt que remplacer.
+Le fichier `dev-log.md` racine (hors repo) reste, lui, hors de ta portée : c'est Aymeric
+qui y reporte l'entrée lui-même (rappelé dans la section « À faire / suite » ci-dessous).
 
 ## Avant d'écrire, passe la session en revue et collecte :
 - Ce qui a été **réellement fait** (étapes du plan terminées / entamées, commits préparés
@@ -57,13 +61,16 @@ aucun fichier — tu proposes du texte, c'est Aymeric qui le colle.
 
 ## Règles
 - **Français**, factuel, dense — pas de remplissage, pas d'auto-congratulation.
-- **Append-only** : tu proposes UNE entrée datée du jour ; jamais de réécriture de
-  l'existant, jamais de résumé des sessions passées.
+- **Un fichier par session** : `docs/pilotages/devlogs/entree-devlog-AAAA-MM-JJ.md`,
+  daté du jour. Jamais de réécriture d'un fichier d'entrée existant d'une session
+  passée, jamais de résumé des sessions passées.
 - Si la session a produit une **décision technique structurante** (choix d'outil, de
-  patron, de config non triviale), propose EN PLUS de l'entrée une ligne au format de la
-  table « Décisions techniques » du dev-log :
-  `| AAAA-MM-JJ | **décision** | alternatives | justification |`
-- Si un bug/piège vaut d'être retrouvé vite, propose EN PLUS une ligne au format de la
-  table « Erreurs rencontrées & Solutions » :
+  patron, de config non triviale), ajoute dans le même fichier, après un séparateur
+  `---` en pied de page, une section « **Décisions techniques** » avec une ligne au
+  format : `| AAAA-MM-JJ | **décision** | alternatives | justification |`
+- Si un bug/piège vaut d'être retrouvé vite, ajoute de la même façon une section
+  « **Erreurs rencontrées & Solutions** » avec une ligne au format :
   `| AAAA-MM-JJ | symptôme (message exact) | cause | solution |`
-- Termine par un rappel d'une ligne si des choses n'ont PAS été committées.
+- Termine le fichier par un rappel d'une ligne si des choses n'ont PAS été committées.
+- Une fois le fichier écrit, confirme à Aymeric son chemin exact et résume en 2-3
+  lignes ce qu'il contient — ne recolle pas tout le contenu dans le chat.
