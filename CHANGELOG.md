@@ -50,6 +50,15 @@ stade (`[Unreleased]`).
   entre mondes de propriétaires différents. Layout applicatif protégé
   (`src/app/(app)/layout.tsx`, redirection `/login`). Scénarios `TST-MND-*` et
   `TST-SEC-002` au cahier de recettes, ligne A01 du mapping OWASP concrétisée.
+- Entités (CRUD) : création, liste, modification, suppression au sein d'un monde
+  (`src/services/entity-service.ts`), avec `type` en donnée libre (liste close
+  Zod/UI) et `aliases[]` éditables dès la v1 (nettoyage/dédup côté schéma).
+  Autorisation vérifiée **en cascade** (réutilise `getWorld()` de
+  `world-service.ts`, pas de duplication) : une fiche d'un monde non possédé est
+  inatteignable, même avec un `entityId` valide. `content`/`plainText`
+  initialisés vides en attendant l'éditeur Tiptap. Page
+  `/worlds/[slug]/entities/[entityId]`. Scénarios `TST-ENT-*` et `TST-SEC-003`
+  au cahier de recettes, ligne A01 étendue.
 
 ### Corrigé
 
@@ -58,3 +67,8 @@ stade (`[Unreleased]`).
   `<form action>` dès résolution de l'action, même en erreur). Nom et e-mail sont
   désormais conservés ; le mot de passe reste volontairement vide. Voir
   `docs/plan-correction-bogues.md` (BUG-001).
+- Textes affichés à l'utilisateur (auth : messages d'erreur, libellés de bouton)
+  sans accents français par mimétisme avec la convention des commentaires de code
+  (évitée là pour une vraie raison d'encodage Windows, non pertinente pour du
+  texte UI). Corrigé avec de vrais accents ; tout le texte UI livré depuis
+  (mondes, entités) en tient compte dès l'origine.

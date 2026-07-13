@@ -5,11 +5,11 @@
 > Préconditions, Étapes, Résultat attendu, Critères d'acceptation). Cas passants ET
 > cas d'échec. Statut : ⬜ à faire / ✅ OK / ❌ KO (→ `plan-correction-bogues.md`).
 >
-> État au 2026-07-13 : scénarios **AUT**, **SEC** et **MND** (mondes) exécutés en
-> conditions réelles (base Postgres réelle, deux comptes réels via l'API Better
-> Auth) — pas encore exécutés sur staging (pas de staging à ce stade). Autres
-> catégories (ENT/LNK/GRF/QOT) : pas encore de scénario, les features
-> correspondantes n'existent pas.
+> État au 2026-07-14 : scénarios **AUT**, **SEC**, **MND** (mondes) et **ENT**
+> (entités) exécutés en conditions réelles (base Postgres réelle, deux comptes
+> réels via l'API Better Auth) — pas encore exécutés sur staging (pas de staging
+> à ce stade). Autres catégories (LNK/GRF/QOT) : pas encore de scénario, les
+> features correspondantes n'existent pas.
 
 ## TST-AUT-001 — Inscription avec des identifiants valides
 
@@ -150,3 +150,53 @@
 - **Résultat attendu** : page 404 (`notFound()`), identique à celle d'un monde réellement inexistant.
 - **Critères d'acceptation** : aucune information ne permet de distinguer « monde inexistant » de « monde d'autrui » ; `getWorldBySlug` filtre systématiquement sur `ownerId`.
 - **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`)
+
+## TST-ENT-001 — Création d'une fiche (entité) avec type et alias
+
+- **Description** : le propriétaire d'un monde crée une fiche (personnage, lieu, faction, objet ou événement) avec des alias.
+- **Objectif** : vérifier la création, le type libre (donnée, pas schéma) et le nettoyage des alias.
+- **Préconditions** : un monde existe pour ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Renseigner nom, type, alias (un par ligne) dans « Nouvelle fiche ». 3) Soumettre.
+- **Résultat attendu** : redirection vers `/worlds/<slug>/entities/<id>`, fiche visible dans la liste avec son type.
+- **Critères d'acceptation** : `Entity.worldId` correct ; alias vidés des doublons/entrées vides ; `content`/`plainText` initialisés vides (éditeur pas encore branché).
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `entity-service.ts` + `GET /worlds/<slug>` et `GET /worlds/<slug>/entities/<id>`)
+
+## TST-ENT-002 — Modification du nom, du type et des alias d'une fiche
+
+- **Description** : le propriétaire modifie une fiche existante depuis sa page « Paramètres ».
+- **Objectif** : vérifier la mise à jour complète (nom, type, alias) sans casser l'appartenance au monde.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Modifier nom/type/alias dans « Modifier la fiche ». 3) Soumettre.
+- **Résultat attendu** : redirection vers la même page, valeurs mises à jour affichées.
+- **Critères d'acceptation** : les trois champs sont bien persistés ; `worldId` inchangé.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles)
+
+## TST-ENT-003 — Création d'une fiche avec un nom vide ou un type inconnu
+
+- **Description** : un utilisateur soumet le formulaire de création sans nom, ou avec un type hors liste.
+- **Objectif** : vérifier le rejet côté serveur (Zod) avant tout appel au service.
+- **Préconditions** : aucune.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Laisser le nom vide (ou forcer un type invalide). 3) Soumettre.
+- **Résultat attendu** : erreur affichée sous le champ concerné, reliée via `aria-describedby`.
+- **Critères d'acceptation** : aucune `Entity` créée en base.
+- **Type** : cas d'échec · **Statut** : ✅ (couvert par `entity-schemas.test.ts` + `create-entity-form.test.tsx`)
+
+## TST-ENT-004 — Suppression d'une fiche
+
+- **Description** : le propriétaire supprime une fiche après confirmation en deux étapes.
+- **Objectif** : vérifier la confirmation avant suppression irréversible, entièrement au clavier.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Cliquer « Supprimer cette fiche ». 3) Confirmer.
+- **Résultat attendu** : la fiche disparaît de la liste, redirection vers `/worlds/<slug>`.
+- **Critères d'acceptation** : navigable sans souris ; « Annuler » n'entraîne aucune suppression.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteEntity` + `listEntities` après suppression)
+
+## TST-SEC-003 — Accès à une fiche via un monde qui ne vous appartient pas ou un mauvais monde
+
+- **Description** : un utilisateur connecté tente d'atteindre l'URL `/worlds/<slug-d-autrui>/entities/<id>` d'une fiche appartenant à un monde qu'il ne possède pas.
+- **Objectif** : vérifier que l'autorisation en cascade (monde → fiche) ne fuit aucune existence, y compris quand l'`entityId` est valide.
+- **Préconditions** : deux comptes existent, chacun avec son propre monde ; une fiche existe dans le monde du premier compte.
+- **Étapes** : 1) Se connecter avec le second compte. 2) Naviguer vers l'URL de la fiche du premier compte.
+- **Résultat attendu** : page 404, identique à une fiche réellement inexistante.
+- **Critères d'acceptation** : `entity-service.ts` vérifie systématiquement l'appartenance du monde (`getWorld`) avant de chercher la fiche ; un `worldId` correct mais non possédé par l'appelant lève `WorldNotFoundError`, jamais `EntityNotFoundError` (pas de distinction exploitable).
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes, `GET /worlds/<slug-d-autrui>/entities/<id>` → `404` ; cas mauvais `worldId` du même propriétaire testé au service)

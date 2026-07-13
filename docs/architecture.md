@@ -1,9 +1,9 @@
 # Architecture logicielle — C2.2.1 (ÉLIMINATOIRE)
 
 > Posture actée : « l'architecture la plus simple qui couvre le besoin, justifiée. » Pas de microservices.
-> État au 2026-07-13 : socle (auth + infra ports + CI + images Docker) posé,
-> première feature métier (Mondes) livrée avec sa couche service ; entités,
-> éditeur et moteur de liaison pas encore codés.
+> État au 2026-07-14 : socle (auth + infra ports + CI + images Docker) posé,
+> Mondes et Entités (CRUD) livrés avec autorisation en cascade ; éditeur et
+> moteur de liaison pas encore codés.
 
 ## Vue d'ensemble
 
@@ -40,6 +40,11 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
   (`src/services/world-service.ts`) : logique métier + autorisation (appartenance au
   monde vérifiée par `ownerId` à chaque opération, jamais seulement en UI). Les Server
   Actions et les RSC appellent le service, jamais Prisma directement.
+- **Autorisation en cascade entre services** : `entity-service.ts` ne duplique pas la
+  vérification d'appartenance au monde, il **réutilise** `getWorld()` de
+  `world-service.ts` avant tout accès à une fiche — un monde non possédé bloque l'accès
+  à ses entités avant même de les chercher. Patron à reproduire pour toute ressource
+  imbriquée dans un monde (relations, futur graphe).
 
 ## Prototype fonctionnel
 
@@ -50,14 +55,21 @@ Fonctionnalités livrées à ce jour :
   étapes). Slug dérivé automatiquement du nom (`src/lib/slugify.ts`), jamais saisi.
   Pages `/worlds` et `/worlds/[slug]` sous un layout applicatif protégé
   (`src/app/(app)/layout.tsx`, redirection `/login` si session absente).
+- **Entités (CRUD)** : création, liste, modification, suppression au sein d'un monde.
+  `type` en donnée libre (`String`, pas d'enum Prisma — liste close côté Zod/UI
+  `src/lib/entity-schemas.ts`), `aliases[]` éditables dès la v1 (alias par ligne dans
+  une textarea, nettoyage/dédup côté schéma). `content`/`plainText` initialisés vides
+  (document ProseMirror vide) en attendant l'éditeur Tiptap. Page
+  `/worlds/[slug]/entities/[entityId]`.
 
 Composants d'interface : formulaires accessibles avec `useActionState`/`useFormStatus`,
 erreurs reliées aux champs. Vérifié en conditions réelles (script `tsx` contre la base
-de dev réelle + `curl` avec deux comptes distincts pour l'autorisation cross-monde) et
-par la suite de tests automatisés (couverture 100 % sur `src/services/world-service.ts`).
+de dev réelle + `curl` avec deux comptes distincts pour l'autorisation cross-monde,
+cross-monde-et-cross-fiche) et par la suite de tests automatisés (couverture 100 % sur
+`src/services/world-service.ts` et `src/services/entity-service.ts`).
 
-Pas encore construit : CRUD entités, éditeur Tiptap, moteur de liaison automatique,
-graphe de relations, recherche, quotas freemium.
+Pas encore construit : éditeur Tiptap, moteur de liaison automatique, graphe de
+relations, recherche, quotas freemium.
 
 ## Prise en compte de la sécurité (renvoi)
 

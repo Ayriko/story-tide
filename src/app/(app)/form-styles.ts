@@ -4,6 +4,11 @@
 export const inputClassName =
   "h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus-visible:outline-zinc-50";
 
+// Meme habillage que inputClassName mais sans hauteur fixe (h-11) - la hauteur
+// d'une textarea doit suivre l'attribut rows, pas etre ecrasee.
+export const textareaClassName =
+  "rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus-visible:outline-zinc-50";
+
 export const labelClassName = "text-sm font-medium text-zinc-900 dark:text-zinc-100";
 
 export const fieldErrorClassName = "text-sm text-red-700 dark:text-red-400";
