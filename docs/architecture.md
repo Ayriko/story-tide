@@ -1,7 +1,9 @@
 # Architecture logicielle — C2.2.1 (ÉLIMINATOIRE)
 
 > Posture actée : « l'architecture la plus simple qui couvre le besoin, justifiée. » Pas de microservices.
-> État au 2026-07-12 : socle (auth + infra ports + CI + images Docker) posé, moteur de liaison et features monde/entité pas encore codés.
+> État au 2026-07-13 : socle (auth + infra ports + CI + images Docker) posé,
+> première feature métier (Mondes) livrée avec sa couche service ; entités,
+> éditeur et moteur de liaison pas encore codés.
 
 ## Vue d'ensemble
 
@@ -32,19 +34,30 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
 - **Repository via Prisma** : point d'accès unique `src/db/client.ts` (singleton,
   adapter-pg — cf. ADR-0006). Aucun autre fichier n'importe Prisma directement.
 - **Frontière Zod + session** sur les Server Actions : `src/actions/auth.ts` parse via
-  `src/lib/auth-schemas.ts` avant tout appel métier (`auth.api.*`).
-- Découpage par feature pas encore nécessaire (une seule feature — l'auth — existe).
+  `src/lib/auth-schemas.ts` avant tout appel métier (`auth.api.*`) ; `src/actions/world.ts`
+  suit le même patron via `requireSession()` (`src/lib/auth-session.ts`).
+- **Couche `src/services/`** introduite avec la feature Mondes
+  (`src/services/world-service.ts`) : logique métier + autorisation (appartenance au
+  monde vérifiée par `ownerId` à chaque opération, jamais seulement en UI). Les Server
+  Actions et les RSC appellent le service, jamais Prisma directement.
 
 ## Prototype fonctionnel
 
-Fonctionnalité livrée à ce jour : **authentification** (inscription, connexion,
-déconnexion via l'API Better Auth, session en base, redirection si déjà connecté).
-Pages `/login` et `/register` (composants d'interface : formulaires accessibles avec
-`useActionState`/`useFormStatus`, erreurs reliées aux champs). Vérifié en conditions
-réelles (curl sur l'API Better Auth + inspection Postgres) et manuellement par Aymeric.
+Fonctionnalités livrées à ce jour :
+- **Authentification** (inscription, connexion, déconnexion via l'API Better Auth,
+  session en base, redirection si déjà connecté). Pages `/login` et `/register`.
+- **Mondes (CRUD)** : création, liste, renommage, suppression (confirmation en deux
+  étapes). Slug dérivé automatiquement du nom (`src/lib/slugify.ts`), jamais saisi.
+  Pages `/worlds` et `/worlds/[slug]` sous un layout applicatif protégé
+  (`src/app/(app)/layout.tsx`, redirection `/login` si session absente).
 
-Pas encore construit : mondes, CRUD entités, éditeur Tiptap, moteur de liaison
-automatique, graphe de relations, recherche, quotas freemium.
+Composants d'interface : formulaires accessibles avec `useActionState`/`useFormStatus`,
+erreurs reliées aux champs. Vérifié en conditions réelles (script `tsx` contre la base
+de dev réelle + `curl` avec deux comptes distincts pour l'autorisation cross-monde) et
+par la suite de tests automatisés (couverture 100 % sur `src/services/world-service.ts`).
+
+Pas encore construit : CRUD entités, éditeur Tiptap, moteur de liaison automatique,
+graphe de relations, recherche, quotas freemium.
 
 ## Prise en compte de la sécurité (renvoi)
 

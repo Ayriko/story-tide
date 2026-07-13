@@ -5,10 +5,11 @@
 > Préconditions, Étapes, Résultat attendu, Critères d'acceptation). Cas passants ET
 > cas d'échec. Statut : ⬜ à faire / ✅ OK / ❌ KO (→ `plan-correction-bogues.md`).
 >
-> État au 2026-07-11 : premiers scénarios **AUT** (authentification) et **SEC**,
-> exécutés manuellement (Aymeric) et via l'API Better Auth (curl) — pas encore
-> exécutés sur staging (pas de staging à ce stade). Autres catégories (MND/ENT/LNK/
-> GRF/QOT) : pas encore de scénario, les features correspondantes n'existent pas.
+> État au 2026-07-13 : scénarios **AUT**, **SEC** et **MND** (mondes) exécutés en
+> conditions réelles (base Postgres réelle, deux comptes réels via l'API Better
+> Auth) — pas encore exécutés sur staging (pas de staging à ce stade). Autres
+> catégories (ENT/LNK/GRF/QOT) : pas encore de scénario, les features
+> correspondantes n'existent pas.
 
 ## TST-AUT-001 — Inscription avec des identifiants valides
 
@@ -90,5 +91,62 @@
 - **Critères d'acceptation** : aucune occurrence du mot de passe en clair dans `account.password` ni dans les logs serveur.
 - **Type** : sécurité · **Statut** : ✅ (vérifié via `psql` après `TST-AUT-001`)
 
-<!-- TODO : scénarios MND (mondes), ENT (entités/éditeur), LNK (liaison auto/backlinks),
-GRF (graphe), QOT (quotas freemium) — features pas encore construites. -->
+## TST-MND-001 — Création d'un monde avec un nom valide
+
+- **Description** : un utilisateur connecté crée un nouveau monde.
+- **Objectif** : vérifier la création du monde, l'appartenance au bon propriétaire et la dérivation automatique du slug.
+- **Préconditions** : une session valide est active.
+- **Étapes** : 1) Aller sur `/worlds`. 2) Renseigner un nom dans « Nouveau monde ». 3) Soumettre.
+- **Résultat attendu** : le monde apparaît dans la liste, redirection vers `/worlds/<slug>`.
+- **Critères d'acceptation** : `World.ownerId` = l'utilisateur courant ; `World.slug` dérivé du nom (minuscules, sans accents, tirets).
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `world-service.ts` en conditions réelles : création + apparition dans `GET /worlds`)
+
+## TST-MND-002 — Création d'un monde avec un nom déjà utilisé par le même propriétaire
+
+- **Description** : un utilisateur crée un second monde dont le nom produit le même slug qu'un monde existant.
+- **Objectif** : vérifier qu'aucune collision de slug ne se produit (contrainte `@@unique([ownerId, slug])`).
+- **Préconditions** : un monde existe déjà pour ce propriétaire avec ce nom.
+- **Étapes** : 1) Créer un monde « Eldoria ». 2) Créer un second monde « Eldoria ».
+- **Résultat attendu** : les deux mondes coexistent, le second reçoit un slug suffixé (`eldoria-2`).
+- **Critères d'acceptation** : aucune erreur de contrainte unique remontée à l'utilisateur ; les deux mondes restent distincts et accessibles.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `eldoria` puis `eldoria-2`)
+
+## TST-MND-003 — Création d'un monde avec un nom vide
+
+- **Description** : un utilisateur soumet le formulaire de création sans renseigner de nom.
+- **Objectif** : vérifier le rejet côté serveur (Zod) avant tout appel au service.
+- **Préconditions** : aucune.
+- **Étapes** : 1) Aller sur `/worlds`. 2) Laisser le champ nom vide. 3) Soumettre.
+- **Résultat attendu** : erreur affichée sous le champ, reliée via `aria-describedby` : « Le nom est requis. »
+- **Critères d'acceptation** : aucun `World` créé en base.
+- **Type** : cas d'échec · **Statut** : ✅ (couvert par `world-schemas.test.ts` + `create-world-form.test.tsx`)
+
+## TST-MND-004 — Renommer un monde
+
+- **Description** : le propriétaire d'un monde modifie son nom depuis la page « Paramètres ».
+- **Objectif** : vérifier que le nom et le slug sont mis à jour, sans casser l'appartenance.
+- **Préconditions** : un monde existe pour ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Modifier le nom dans « Renommer ». 3) Soumettre.
+- **Résultat attendu** : redirection vers la nouvelle URL `/worlds/<nouveau-slug>`, nom mis à jour dans la liste.
+- **Critères d'acceptation** : le renommage vers le slug déjà occupé par le monde lui-même ne déclenche pas de suffixe inutile.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles + `world-service.test.ts`)
+
+## TST-MND-005 — Suppression d'un monde
+
+- **Description** : le propriétaire supprime un monde après une confirmation en deux étapes.
+- **Objectif** : vérifier que la suppression est bien confirmée avant d'être irréversible, et entièrement au clavier.
+- **Préconditions** : un monde existe pour ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Cliquer « Supprimer ce monde ». 3) Confirmer.
+- **Résultat attendu** : le monde disparaît de la liste, redirection vers `/worlds`.
+- **Critères d'acceptation** : navigable sans souris (boutons natifs, pas de `window.confirm` bloquant) ; un clic sur « Annuler » n'entraîne aucune suppression.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteWorld` + `listWorlds` après suppression)
+
+## TST-SEC-002 — Accès à un monde d'autrui via URL directe
+
+- **Description** : un utilisateur connecté saisit directement l'URL `/worlds/<slug>` d'un monde qui ne lui appartient pas.
+- **Objectif** : vérifier l'autorisation en couche service (OWASP A01) et l'absence de fuite d'existence.
+- **Préconditions** : deux comptes existent ; le monde ciblé appartient au second compte.
+- **Étapes** : 1) Se connecter avec le premier compte. 2) Naviguer vers l'URL du monde du second compte.
+- **Résultat attendu** : page 404 (`notFound()`), identique à celle d'un monde réellement inexistant.
+- **Critères d'acceptation** : aucune information ne permet de distinguer « monde inexistant » de « monde d'autrui » ; `getWorldBySlug` filtre systématiquement sur `ownerId`.
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`)

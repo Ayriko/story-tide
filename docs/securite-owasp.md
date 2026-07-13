@@ -2,13 +2,13 @@
 
 > Remplir au fil de l'eau, une ligne par catégorie. Les 10 catégories sont le référentiel externe fixe.
 
-> État au 2026-07-11 : lignes remplies = mesure réellement codée et vérifiée. Les
+> État au 2026-07-13 : lignes remplies = mesure réellement codée et vérifiée. Les
 > autres portent une note explicite sur ce qui manque encore et à quelle étape ça
 > arrive — pas de TODO muet.
 
 | # | Catégorie OWASP 2021 | Risque pour Story Tide | Mesure mise en œuvre | Preuve (code/config/test) |
 |---|---|---|---|---|
-| A01 | Broken Access Control | Un utilisateur accède au monde/aux entités d'un autre | <!-- TODO : pas encore construit (aucun service World/Entity). Autorisation prévue en couche service (appartenance au monde vérifiée à chaque action), cf. CLAUDE.md §Architecture. --> | — |
+| A01 | Broken Access Control | Un utilisateur accède au monde/aux entités d'un autre | Autorisation vérifiée en couche service (`world-service.ts`) : toute lecture/écriture filtre sur `ownerId` ; un monde d'autrui rend la même erreur (`WorldNotFoundError` → 404) qu'un monde inexistant, aucune fuite d'existence. Entités : autorisation prévue en cascade via l'appartenance du monde (à construire). | `src/services/world-service.ts` (`getWorld`, `getWorldBySlug`) ; tests dédiés `world-service.test.ts` (cas « monde d'autrui ») ; vérifié en conditions réelles avec deux comptes (`TST-SEC-002`) |
 | A02 | Cryptographic Failures | Mot de passe récupérable en clair (fuite DB) | Hash par Better Auth (scrypt, config par défaut) ; secrets (`BETTER_AUTH_SECRET`, credentials S3) uniquement via `.env`, jamais en dur ; TLS bout en bout : pas encore (pas de déploiement) | `src/lib/auth.ts` ; vérifié via `psql` : colonne `account.password` = `salt:hash`, jamais en clair |
 | A03 | Injection | Injection SQL / payload non validé | Prisma (requêtes paramétrées, aucune concaténation SQL) ; Zod à chaque frontière (env, Server Actions) | `src/env.ts`, `src/lib/auth-schemas.ts`, `src/actions/auth.ts` |
 | A04 | Insecure Design | Abus (brute force, spam d'inscriptions) | Rate limiting par défaut de Better Auth (config fine pas encore ajustée) ; quotas freemium : <!-- TODO, pas construits --> | `src/lib/auth.ts` |

@@ -1,16 +1,30 @@
 # Accessibilité — Dossier RGAA — C2.2.3 (ÉLIMINATOIRE)
 
 > Référentiel présenté ET justifié (RGAA retenu). Audit tracé (contrôle manuel Ara/NVDA à planifier ; axe-core automatisé tenté puis reporté, voir ci-dessous).
-> État au 2026-07-12 : actions vérifiées manuellement sur les pages existantes (login/register). Audit outillé pas encore en place.
+> État au 2026-07-13 : actions vérifiées manuellement sur les pages existantes
+> (login/register/mondes). Audit outillé pas encore en place.
 
 ## Référentiel retenu & périmètre
 
 **RGAA** retenu (vs OPQUAST) : référentiel officiel français, aligné WCAG, déjà
 introduit au Bloc 1 — continuité assumée plutôt que de changer de référentiel en
-cours de route. Pages/écrans audités à ce jour : `/login`, `/register` (les deux
-seules pages fonctionnelles existantes).
+cours de route. Pages/écrans audités à ce jour : `/login`, `/register`, `/worlds`,
+`/worlds/[slug]`.
 
 ## Actions mises en œuvre
+
+Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`) :
+
+- **Landmarks** : `<header><nav aria-label="Navigation principale">`, `<main
+  id="main-content">`, sections `<section aria-labelledby="...">` pour les
+  paramètres du monde.
+- **Lien d'évitement** (« Aller au contenu principal ») visible au focus clavier,
+  premier élément atteignable au Tab.
+- **Formulaires** (création, renommage) : mêmes conventions que `(auth)` — labels
+  natifs, `aria-invalid`/`aria-describedby`, erreurs dans une région `role="alert"`.
+- **Suppression** : confirmation en deux étapes avec des `<button type="button">`
+  natifs (« Supprimer ce monde » → « Confirmer la suppression » / « Annuler »),
+  jamais de `window.confirm` bloquant — entièrement navigable au clavier.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
@@ -31,9 +45,8 @@ Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 - **Redirection annoncée** : `/login` et `/register` redirigent immédiatement vers
   `/` si une session est déjà active (pas de contenu inutile affiché puis retiré).
 
-Pas encore construit (n'existe pas dans le code) : structure de landmarks sur
-l'ensemble de l'app (une seule page `(auth)` layout existe), alternatives textuelles
-sur images utilisateur (pas de feature d'upload), rendu sémantique du contenu Tiptap
+Pas encore construit (n'existe pas dans le code) : alternatives textuelles sur
+images utilisateur (pas de feature d'upload), rendu sémantique du contenu Tiptap
 (éditeur pas codé), navigation clavier du graphe (pas codé).
 
 ## Audit & résultats

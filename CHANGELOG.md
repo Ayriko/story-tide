@@ -42,6 +42,14 @@ stade (`[Unreleased]`).
   à la file `entity-linking` via le port `JobQueue`, arrêt gracieux `SIGTERM`).
   `.dockerignore` ajouté. Node passé de 20 à 24 (Active LTS, requis par pg-boss
   `>=22.12`) en dev/CI/Docker — voir ADR-0008.
+- Mondes (CRUD) : création, liste, renommage, suppression (confirmation en deux
+  étapes, entièrement au clavier). Slug dérivé automatiquement du nom
+  (`src/lib/slugify.ts`), jamais saisi ; collision gérée par suffixe (`-2`, `-3`...).
+  Introduit la couche `src/services/` (`world-service.ts`) : autorisation par
+  appartenance (`ownerId`) vérifiée à chaque opération, aucune fuite d'existence
+  entre mondes de propriétaires différents. Layout applicatif protégé
+  (`src/app/(app)/layout.tsx`, redirection `/login`). Scénarios `TST-MND-*` et
+  `TST-SEC-002` au cahier de recettes, ligne A01 du mapping OWASP concrétisée.
 
 ### Corrigé
 

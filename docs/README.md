@@ -6,13 +6,13 @@
 
 ## Cartographie brique → compétence → livrable imposé du dossier
 
-| Brique (`/docs/…`) | Compétence | Livrable dossier (règlement spécial) | Éliminatoire | État (2026-07-12) |
+| Brique (`/docs/…`) | Compétence | Livrable dossier (règlement spécial) | Éliminatoire | État (2026-07-13) |
 |---|---|---|---|---|
-| `architecture.md` | C2.2.1 | Architecture maintenable · prototype · framework/paradigmes | **OUI** | 🟡 démarré (auth seule) |
-| `tests-unitaires.md` | C2.2.2 | Jeu de tests unitaires couvrant une fonctionnalité | **OUI** | 🟡 démarré (env, schémas, fakes, LoginForm) |
-| `securite-owasp.md` | C2.2.3 | Mesures de sécurité (OWASP Top 10) | **OUI** | 🟡 3/10 catégories (A02, A03, A07) |
-| `accessibilite-rgaa.md` | C2.2.3 | Actions d'accessibilité (RGAA) | **OUI** | 🟡 démarré (login/register), audit outillé pas fait |
-| `cahier-recettes.md` | C2.3.1 | Cahier de recettes | **OUI** | 🟡 8 scénarios (AUT + SEC) |
+| `architecture.md` | C2.2.1 | Architecture maintenable · prototype · framework/paradigmes | **OUI** | 🟡 démarré (auth + mondes) |
+| `tests-unitaires.md` | C2.2.2 | Jeu de tests unitaires couvrant une fonctionnalité | **OUI** | 🟡 démarré (env, schémas, fakes, LoginForm, world-service) |
+| `securite-owasp.md` | C2.2.3 | Mesures de sécurité (OWASP Top 10) | **OUI** | 🟡 4/10 catégories (A01, A02, A03, A07) |
+| `accessibilite-rgaa.md` | C2.2.3 | Actions d'accessibilité (RGAA) | **OUI** | 🟡 démarré (login/register + mondes), audit outillé pas fait |
+| `cahier-recettes.md` | C2.3.1 | Cahier de recettes | **OUI** | 🟡 14 scénarios (AUT + SEC + MND) |
 | `cd.md` | C2.1.1 | Protocole de déploiement continu | non | ⬜ pas commencé |
 | `qualite-performance.md` | C2.1.1 | Critères de qualité et de performance | non | 🟡 qualité statique bloquante en CI, perf = cibles |
 | `ci.md` | C2.1.2 | Protocole d'intégration continue | non | ✅ workflow GitHub Actions en place |
