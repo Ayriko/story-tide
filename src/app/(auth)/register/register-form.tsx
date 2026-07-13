@@ -17,7 +17,7 @@ function SubmitButton() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" disabled={pending} aria-busy={pending} className={submitButtonClassName}>
-      {pending ? "Creation..." : "Creer mon compte"}
+      {pending ? "Création..." : "Créer mon compte"}
     </button>
   );
 }

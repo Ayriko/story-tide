@@ -51,9 +51,9 @@ export async function registerAction(
     await auth.api.signUpEmail({ body: parsed.data });
   } catch (error) {
     if (error instanceof APIError && error.body?.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
-      return { errors: { email: "Un compte existe deja avec cette adresse e-mail." }, values };
+      return { errors: { email: "Un compte existe déjà avec cette adresse e-mail." }, values };
     }
-    return { formError: "Inscription impossible pour le moment. Reessayez.", values };
+    return { formError: "Inscription impossible pour le moment. Réessayez.", values };
   }
 
   redirect("/");
@@ -82,7 +82,7 @@ export async function loginAction(
       // passe qui est incorrect (OWASP A07 - pas d'enumeration de comptes).
       return { formError: "E-mail ou mot de passe incorrect.", values };
     }
-    return { formError: "Connexion impossible pour le moment. Reessayez.", values };
+    return { formError: "Connexion impossible pour le moment. Réessayez.", values };
   }
 
   redirect("/");
