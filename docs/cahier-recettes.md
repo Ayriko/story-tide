@@ -5,10 +5,11 @@
 > Préconditions, Étapes, Résultat attendu, Critères d'acceptation). Cas passants ET
 > cas d'échec. Statut : ⬜ à faire / ✅ OK / ❌ KO (→ `plan-correction-bogues.md`).
 >
-> État au 2026-07-11 : premiers scénarios **AUT** (authentification) et **SEC**,
-> exécutés manuellement (Aymeric) et via l'API Better Auth (curl) — pas encore
-> exécutés sur staging (pas de staging à ce stade). Autres catégories (MND/ENT/LNK/
-> GRF/QOT) : pas encore de scénario, les features correspondantes n'existent pas.
+> État au 2026-07-14 : scénarios **AUT**, **SEC**, **MND** (mondes) et **ENT**
+> (entités) exécutés en conditions réelles (base Postgres réelle, deux comptes
+> réels via l'API Better Auth) — pas encore exécutés sur staging (pas de staging
+> à ce stade). Autres catégories (LNK/GRF/QOT) : pas encore de scénario, les
+> features correspondantes n'existent pas.
 
 ## TST-AUT-001 — Inscription avec des identifiants valides
 
@@ -90,5 +91,172 @@
 - **Critères d'acceptation** : aucune occurrence du mot de passe en clair dans `account.password` ni dans les logs serveur.
 - **Type** : sécurité · **Statut** : ✅ (vérifié via `psql` après `TST-AUT-001`)
 
-<!-- TODO : scénarios MND (mondes), ENT (entités/éditeur), LNK (liaison auto/backlinks),
-GRF (graphe), QOT (quotas freemium) — features pas encore construites. -->
+## TST-MND-001 — Création d'un monde avec un nom valide
+
+- **Description** : un utilisateur connecté crée un nouveau monde.
+- **Objectif** : vérifier la création du monde, l'appartenance au bon propriétaire et la dérivation automatique du slug.
+- **Préconditions** : une session valide est active.
+- **Étapes** : 1) Aller sur `/worlds`. 2) Renseigner un nom dans « Nouveau monde ». 3) Soumettre.
+- **Résultat attendu** : le monde apparaît dans la liste, redirection vers `/worlds/<slug>`.
+- **Critères d'acceptation** : `World.ownerId` = l'utilisateur courant ; `World.slug` dérivé du nom (minuscules, sans accents, tirets).
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `world-service.ts` en conditions réelles : création + apparition dans `GET /worlds`)
+
+## TST-MND-002 — Création d'un monde avec un nom déjà utilisé par le même propriétaire
+
+- **Description** : un utilisateur crée un second monde dont le nom produit le même slug qu'un monde existant.
+- **Objectif** : vérifier qu'aucune collision de slug ne se produit (contrainte `@@unique([ownerId, slug])`).
+- **Préconditions** : un monde existe déjà pour ce propriétaire avec ce nom.
+- **Étapes** : 1) Créer un monde « Eldoria ». 2) Créer un second monde « Eldoria ».
+- **Résultat attendu** : les deux mondes coexistent, le second reçoit un slug suffixé (`eldoria-2`).
+- **Critères d'acceptation** : aucune erreur de contrainte unique remontée à l'utilisateur ; les deux mondes restent distincts et accessibles.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `eldoria` puis `eldoria-2`)
+
+## TST-MND-003 — Création d'un monde avec un nom vide
+
+- **Description** : un utilisateur soumet le formulaire de création sans renseigner de nom.
+- **Objectif** : vérifier le rejet côté serveur (Zod) avant tout appel au service.
+- **Préconditions** : aucune.
+- **Étapes** : 1) Aller sur `/worlds`. 2) Laisser le champ nom vide. 3) Soumettre.
+- **Résultat attendu** : erreur affichée sous le champ, reliée via `aria-describedby` : « Le nom est requis. »
+- **Critères d'acceptation** : aucun `World` créé en base.
+- **Type** : cas d'échec · **Statut** : ✅ (couvert par `world-schemas.test.ts` + `create-world-form.test.tsx`)
+
+## TST-MND-004 — Renommer un monde
+
+- **Description** : le propriétaire d'un monde modifie son nom depuis la page « Paramètres ».
+- **Objectif** : vérifier que le nom et le slug sont mis à jour, sans casser l'appartenance.
+- **Préconditions** : un monde existe pour ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Modifier le nom dans « Renommer ». 3) Soumettre.
+- **Résultat attendu** : redirection vers la nouvelle URL `/worlds/<nouveau-slug>`, nom mis à jour dans la liste.
+- **Critères d'acceptation** : le renommage vers le slug déjà occupé par le monde lui-même ne déclenche pas de suffixe inutile.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles + `world-service.test.ts`)
+
+## TST-MND-005 — Suppression d'un monde
+
+- **Description** : le propriétaire supprime un monde après une confirmation en deux étapes.
+- **Objectif** : vérifier que la suppression est bien confirmée avant d'être irréversible, et entièrement au clavier.
+- **Préconditions** : un monde existe pour ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Cliquer « Supprimer ce monde ». 3) Confirmer.
+- **Résultat attendu** : le monde disparaît de la liste, redirection vers `/worlds`.
+- **Critères d'acceptation** : navigable sans souris (boutons natifs, pas de `window.confirm` bloquant) ; un clic sur « Annuler » n'entraîne aucune suppression.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteWorld` + `listWorlds` après suppression)
+
+## TST-SEC-002 — Accès à un monde d'autrui via URL directe
+
+- **Description** : un utilisateur connecté saisit directement l'URL `/worlds/<slug>` d'un monde qui ne lui appartient pas.
+- **Objectif** : vérifier l'autorisation en couche service (OWASP A01) et l'absence de fuite d'existence.
+- **Préconditions** : deux comptes existent ; le monde ciblé appartient au second compte.
+- **Étapes** : 1) Se connecter avec le premier compte. 2) Naviguer vers l'URL du monde du second compte.
+- **Résultat attendu** : page 404 (`notFound()`), identique à celle d'un monde réellement inexistant.
+- **Critères d'acceptation** : aucune information ne permet de distinguer « monde inexistant » de « monde d'autrui » ; `getWorldBySlug` filtre systématiquement sur `ownerId`.
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`)
+
+## TST-ENT-001 — Création d'une fiche (entité) avec type et alias
+
+- **Description** : le propriétaire d'un monde crée une fiche (personnage, lieu, faction, objet ou événement) avec des alias.
+- **Objectif** : vérifier la création, le type libre (donnée, pas schéma) et le nettoyage des alias.
+- **Préconditions** : un monde existe pour ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Renseigner nom, type, alias (un par ligne) dans « Nouvelle fiche ». 3) Soumettre.
+- **Résultat attendu** : redirection vers `/worlds/<slug>/entities/<id>`, fiche visible dans la liste avec son type.
+- **Critères d'acceptation** : `Entity.worldId` correct ; alias vidés des doublons/entrées vides ; `content`/`plainText` initialisés vides (éditeur pas encore branché).
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `entity-service.ts` + `GET /worlds/<slug>` et `GET /worlds/<slug>/entities/<id>`)
+
+## TST-ENT-002 — Modification du nom, du type et des alias d'une fiche
+
+- **Description** : le propriétaire modifie une fiche existante depuis sa page « Paramètres ».
+- **Objectif** : vérifier la mise à jour complète (nom, type, alias) sans casser l'appartenance au monde.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Modifier nom/type/alias dans « Modifier la fiche ». 3) Soumettre.
+- **Résultat attendu** : redirection vers la même page, valeurs mises à jour affichées.
+- **Critères d'acceptation** : les trois champs sont bien persistés ; `worldId` inchangé.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles)
+
+## TST-ENT-003 — Création d'une fiche avec un nom vide ou un type inconnu
+
+- **Description** : un utilisateur soumet le formulaire de création sans nom, ou avec un type hors liste.
+- **Objectif** : vérifier le rejet côté serveur (Zod) avant tout appel au service.
+- **Préconditions** : aucune.
+- **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Laisser le nom vide (ou forcer un type invalide). 3) Soumettre.
+- **Résultat attendu** : erreur affichée sous le champ concerné, reliée via `aria-describedby`.
+- **Critères d'acceptation** : aucune `Entity` créée en base.
+- **Type** : cas d'échec · **Statut** : ✅ (couvert par `entity-schemas.test.ts` + `create-entity-form.test.tsx`)
+
+## TST-ENT-004 — Suppression d'une fiche
+
+- **Description** : le propriétaire supprime une fiche après confirmation en deux étapes.
+- **Objectif** : vérifier la confirmation avant suppression irréversible, entièrement au clavier.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Cliquer « Supprimer cette fiche ». 3) Confirmer.
+- **Résultat attendu** : la fiche disparaît de la liste, redirection vers `/worlds/<slug>`.
+- **Critères d'acceptation** : navigable sans souris ; « Annuler » n'entraîne aucune suppression.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteEntity` + `listEntities` après suppression)
+
+## TST-SEC-003 — Accès à une fiche via un monde qui ne vous appartient pas ou un mauvais monde
+
+- **Description** : un utilisateur connecté tente d'atteindre l'URL `/worlds/<slug-d-autrui>/entities/<id>` d'une fiche appartenant à un monde qu'il ne possède pas.
+- **Objectif** : vérifier que l'autorisation en cascade (monde → fiche) ne fuit aucune existence, y compris quand l'`entityId` est valide.
+- **Préconditions** : deux comptes existent, chacun avec son propre monde ; une fiche existe dans le monde du premier compte.
+- **Étapes** : 1) Se connecter avec le second compte. 2) Naviguer vers l'URL de la fiche du premier compte.
+- **Résultat attendu** : page 404, identique à une fiche réellement inexistante.
+- **Critères d'acceptation** : `entity-service.ts` vérifie systématiquement l'appartenance du monde (`getWorld`) avant de chercher la fiche ; un `worldId` correct mais non possédé par l'appelant lève `WorldNotFoundError`, jamais `EntityNotFoundError` (pas de distinction exploitable).
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes, `GET /worlds/<slug-d-autrui>/entities/<id>` → `404` ; cas mauvais `worldId` du même propriétaire testé au service)
+
+## TST-ENT-005 — Édition du contenu d'une fiche avec sauvegarde automatique
+
+- **Description** : le propriétaire écrit dans l'éditeur (titres, gras/italique, listes, citation, lien, image) et le contenu se sauvegarde seul.
+- **Objectif** : vérifier la sauvegarde debouncée, l'extraction du texte brut et l'indicateur d'état accessible.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Écrire du contenu dans l'éditeur. 3) Attendre la fin du debounce.
+- **Résultat attendu** : `Entity.content` (JSON ProseMirror) et `Entity.plainText` (texte extrait) mis à jour en base ; indicateur « Enregistré. » annoncé via `aria-live="polite"`.
+- **Critères d'acceptation** : le contenu est rechargé correctement à la prochaine visite de la page ; `plainText` ne contient aucune balise, uniquement le texte.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : round-trip complet titre+gras+citation → validation → extraction → persistance → relecture)
+
+## TST-SEC-004 — Rejet d'un contenu hors du schéma strict de l'éditeur
+
+- **Description** : une requête de sauvegarde envoie un JSON contenant un node désactivé (ex. `codeBlock`) ou structurellement invalide, en contournant l'éditeur réel.
+- **Objectif** : vérifier que la validation serveur (pas seulement la configuration du client Tiptap) applique le schéma strict — OWASP A03.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un JSON contenant un `codeBlock` (désactivé) ou un type de node inconnu.
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout node/mark hors de l'allowlist (`Node.fromJSON` + `check()` contre le schéma ProseMirror réel) ; testé avec un payload `codeBlock` réel, pas seulement une chaîne de caractères.
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`, `entity-content.test.ts`, vérifié en conditions réelles avec un payload malveillant)
+
+## TST-SEC-005 — Rejet d'un contenu de fiche surdimensionné (mitigation DoS)
+
+- **Description** : une requête de sauvegarde envoie une chaîne JSON de plus de 1 Mo.
+- **Objectif** : vérifier que la taille est bornée **avant** tout `JSON.parse`, pas seulement après validation du contenu (OWASP A04).
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler `saveEntityContentAction` avec une chaîne JSON de plus de 1 000 000 octets.
+- **Résultat attendu** : rejet immédiat (« Contenu trop volumineux. »), sans tentative de `JSON.parse` ni appel au service de persistance.
+- **Critères d'acceptation** : `Buffer.byteLength(rawContentJson, "utf8")` vérifié avant tout `JSON.parse` ; aucun appel à `updateEntityContent`.
+- **Type** : sécurité · **Statut** : ✅ (`entity-content.test.ts`)
+
+## TST-SEC-006 — Rejet d'une image dont le `src` n'est pas une URL http(s)
+
+- **Description** : une requête de sauvegarde envoie un contenu structurellement valide mais dont un node `image` porte un `src` en `javascript:`, `data:`, ou une chaîne qui n'est pas une URL.
+- **Objectif** : vérifier que les valeurs d'attributs sont aussi validées côté serveur, pas seulement la structure (OWASP A03) — un contenu peut passer `Node.fromJSON`/`check()` et rester dangereux.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un `image.src` en `javascript:alert(1)` (ou `data:`, ou une chaîne non-URL).
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` via `assertSafeAttributes`/`isSafeHttpUrl` pour tout `src` dont le protocole n'est pas `http:`/`https:`, ou qui n'est pas une URL syntaxiquement valide.
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)
+
+## TST-SEC-007 — Rejet d'une image sans texte alternatif (contournement RGAA)
+
+- **Description** : une requête de sauvegarde envoie un node `image` avec un `alt` vide, en contournant le champ obligatoire de l'UI.
+- **Objectif** : vérifier que l'exigence RGAA de texte alternatif est aussi imposée côté serveur, pas seulement côté formulaire.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un node `image` dont `attrs.alt` est une chaîne vide.
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` si `alt` est absent, non-chaîne, ou vide après `trim()`.
+- **Type** : sécurité / accessibilité · **Statut** : ✅ (`tiptap-content.test.ts`)
+
+## TST-SEC-008 — Rejet d'un lien dont le `href` n'est pas une URL http(s)
+
+- **Description** : une requête de sauvegarde envoie un mark `link` avec un `href` en `javascript:`.
+- **Objectif** : vérifier que la même règle de validation d'URL s'applique au mark `link`, pas seulement au node `image`.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un mark `link` dont `attrs.href` est `javascript:alert(1)`.
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout `href` dont le protocole n'est pas `http:`/`https:`.
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)

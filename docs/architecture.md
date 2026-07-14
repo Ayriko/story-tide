@@ -1,7 +1,9 @@
 # Architecture logicielle — C2.2.1 (ÉLIMINATOIRE)
 
 > Posture actée : « l'architecture la plus simple qui couvre le besoin, justifiée. » Pas de microservices.
-> État au 2026-07-12 : socle (auth + infra ports + CI + images Docker) posé, moteur de liaison et features monde/entité pas encore codés.
+> État au 2026-07-14 : socle (auth + infra ports + CI + images Docker) posé,
+> Mondes et Entités (CRUD) livrés avec autorisation en cascade, éditeur Tiptap
+> avec validation stricte du contenu et auto-save ; moteur de liaison pas encore codé.
 
 ## Vue d'ensemble
 
@@ -32,19 +34,63 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
 - **Repository via Prisma** : point d'accès unique `src/db/client.ts` (singleton,
   adapter-pg — cf. ADR-0006). Aucun autre fichier n'importe Prisma directement.
 - **Frontière Zod + session** sur les Server Actions : `src/actions/auth.ts` parse via
-  `src/lib/auth-schemas.ts` avant tout appel métier (`auth.api.*`).
-- Découpage par feature pas encore nécessaire (une seule feature — l'auth — existe).
+  `src/lib/auth-schemas.ts` avant tout appel métier (`auth.api.*`) ; `src/actions/world.ts`
+  suit le même patron via `requireSession()` (`src/lib/auth-session.ts`).
+- **Couche `src/services/`** introduite avec la feature Mondes
+  (`src/services/world-service.ts`) : logique métier + autorisation (appartenance au
+  monde vérifiée par `ownerId` à chaque opération, jamais seulement en UI). Les Server
+  Actions et les RSC appellent le service, jamais Prisma directement.
+- **Autorisation en cascade entre services** : `entity-service.ts` ne duplique pas la
+  vérification d'appartenance au monde, il **réutilise** `getWorld()` de
+  `world-service.ts` avant tout accès à une fiche — un monde non possédé bloque l'accès
+  à ses entités avant même de les chercher. Patron à reproduire pour toute ressource
+  imbriquée dans un monde (relations, futur graphe).
+- **Schéma de contenu partagé client/serveur** : `src/lib/tiptap-extensions.ts` définit
+  une seule fois l'allowlist de nodes/marks de l'éditeur, utilisée à la fois par le
+  composant client (`EntityEditor`) et par la validation serveur
+  (`src/lib/tiptap-content.ts`, `parseContent`/`extractPlainText`) — même schéma des
+  deux côtés, jamais de dérive. La validation reconstruit un vrai document ProseMirror
+  (`Node.fromJSON` + `check()`) plutôt qu'un schéma Zod ad hoc pour un AST récursif.
+- **Server Action appelée directement (pas via `<form>`)** : l'auto-save
+  (`src/actions/entity-content.ts`) est invoquée comme une fonction async depuis le
+  composant client, debouncée côté client — pattern différent des actions
+  create/update/delete (qui utilisent `useActionState` + `redirect`), car l'auto-save
+  ne navigue jamais et doit pouvoir se déclencher sur un timer/évènement, pas seulement
+  une soumission de formulaire.
 
 ## Prototype fonctionnel
 
-Fonctionnalité livrée à ce jour : **authentification** (inscription, connexion,
-déconnexion via l'API Better Auth, session en base, redirection si déjà connecté).
-Pages `/login` et `/register` (composants d'interface : formulaires accessibles avec
-`useActionState`/`useFormStatus`, erreurs reliées aux champs). Vérifié en conditions
-réelles (curl sur l'API Better Auth + inspection Postgres) et manuellement par Aymeric.
+Fonctionnalités livrées à ce jour :
+- **Authentification** (inscription, connexion, déconnexion via l'API Better Auth,
+  session en base, redirection si déjà connecté). Pages `/login` et `/register`.
+- **Mondes (CRUD)** : création, liste, renommage, suppression (confirmation en deux
+  étapes). Slug dérivé automatiquement du nom (`src/lib/slugify.ts`), jamais saisi.
+  Pages `/worlds` et `/worlds/[slug]` sous un layout applicatif protégé
+  (`src/app/(app)/layout.tsx`, redirection `/login` si session absente).
+- **Entités (CRUD)** : création, liste, modification, suppression au sein d'un monde.
+  `type` en donnée libre (`String`, pas d'enum Prisma — liste close côté Zod/UI
+  `src/lib/entity-schemas.ts`), `aliases[]` éditables dès la v1 (alias par ligne dans
+  une textarea, nettoyage/dédup côté schéma). Page `/worlds/[slug]/entities/[entityId]`.
+- **Éditeur Tiptap + auto-save** (`EntityEditor`, même page) : titres (H2/H3, H1
+  réservé au titre de page), gras/italique, listes, citation, lien (protocoles
+  `http`/`https` uniquement), image (par URL, alt obligatoire — l'upload arrive à
+  l'étape suivante). Contenu sauvegardé en JSON ProseMirror dans `Entity.content`,
+  texte extrait dans `Entity.plainText` (pour le futur scan de liaison + la
+  recherche), debounce de 1,5 s, indicateur d'état `aria-live`. `content`/`plainText`
+  initialisés avec un document minimal valide à la création (`EMPTY_CONTENT` —
+  un `doc` ProseMirror vide au sens strict, `content: []`, est en fait **invalide**
+  contre le schéma, qui exige au moins un bloc : bug détecté et corrigé pendant
+  cette étape via les tests, avant tout commit).
 
-Pas encore construit : mondes, CRUD entités, éditeur Tiptap, moteur de liaison
-automatique, graphe de relations, recherche, quotas freemium.
+Composants d'interface : formulaires accessibles avec `useActionState`/`useFormStatus`,
+erreurs reliées aux champs. Vérifié en conditions réelles (script `tsx` contre la base
+de dev réelle + `curl` avec deux comptes distincts pour l'autorisation cross-monde,
+cross-monde-et-cross-fiche, round-trip complet de contenu Tiptap) et par la suite de
+tests automatisés (couverture 100 % sur `src/services/world-service.ts`,
+`src/services/entity-service.ts`, `src/lib/tiptap-content.ts`).
+
+Pas encore construit : upload d'images (via `Storage`), moteur de liaison automatique,
+graphe de relations, recherche, quotas freemium.
 
 ## Prise en compte de la sécurité (renvoi)
 
