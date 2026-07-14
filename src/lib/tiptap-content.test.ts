@@ -116,7 +116,9 @@ describe("parseContent", () => {
   it("rejette une image avec un src en data:", () => {
     const content = {
       type: "doc",
-      content: [{ type: "image", attrs: { src: "data:text/html,<script>alert(1)</script>", alt: "desc" } }],
+      content: [
+        { type: "image", attrs: { src: "data:text/html,<script>alert(1)</script>", alt: "desc" } },
+      ],
     };
 
     expect(() => parseContent(content)).toThrow(InvalidContentError);
@@ -152,7 +154,11 @@ describe("parseContent", () => {
         {
           type: "paragraph",
           content: [
-            { type: "text", marks: [{ type: "link", attrs: { href: "javascript:alert(1)" } }], text: "clic" },
+            {
+              type: "text",
+              marks: [{ type: "link", attrs: { href: "javascript:alert(1)" } }],
+              text: "clic",
+            },
           ],
         },
       ],
