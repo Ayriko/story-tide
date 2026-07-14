@@ -32,5 +32,6 @@ blocs), continuité avec les choix Bloc 1 (C1.3.2).
 
 ## Compétence(s) servie(s)
 
-C2.2.1 (framework et paradigmes) ; C2.4.1. **Pas encore implémenté** dans le code à
-ce stade (étape éditeur pas encore atteinte).
+C2.2.1 (framework et paradigmes) ; C2.4.1. **Implémenté le 2026-07-14** :
+`src/lib/tiptap-extensions.ts` (allowlist), `EntityEditor` (composant client),
+validation serveur du contenu — voir ADR-0009.

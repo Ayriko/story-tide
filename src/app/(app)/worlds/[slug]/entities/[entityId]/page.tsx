@@ -4,8 +4,10 @@ import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { EntityNotFoundError, getEntity } from "@/services/entity-service";
 import { entityTypeLabel } from "@/lib/entity-schemas";
+import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
 import { EditEntityForm } from "./edit-entity-form";
 import { DeleteEntityForm } from "./delete-entity-form";
+import { EntityEditor } from "./entity-editor";
 
 export default async function EntityPage({
   params,
@@ -35,6 +37,16 @@ export default async function EntityPage({
     throw error;
   }
 
+  // Revalidation defensive : entity.content est un Json Prisma generique,
+  // toujours ecrit via parseContent() par construction, mais on ne fait pas
+  // confiance aveuglement a une ligne existante (ex. donnee corrompue/legacy).
+  let initialContent;
+  try {
+    initialContent = parseContent(entity.content);
+  } catch {
+    initialContent = EMPTY_CONTENT;
+  }
+
   return (
     <div className="flex flex-col gap-10">
       <div>
@@ -59,9 +71,7 @@ export default async function EntityPage({
         <h2 id="content-heading" className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
           Contenu
         </h2>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          L&apos;éditeur arrive à l&apos;étape suivante.
-        </p>
+        <EntityEditor worldId={world.id} entityId={entity.id} initialContent={initialContent} />
       </section>
 
       <section

@@ -200,3 +200,23 @@
 - **Résultat attendu** : page 404, identique à une fiche réellement inexistante.
 - **Critères d'acceptation** : `entity-service.ts` vérifie systématiquement l'appartenance du monde (`getWorld`) avant de chercher la fiche ; un `worldId` correct mais non possédé par l'appelant lève `WorldNotFoundError`, jamais `EntityNotFoundError` (pas de distinction exploitable).
 - **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes, `GET /worlds/<slug-d-autrui>/entities/<id>` → `404` ; cas mauvais `worldId` du même propriétaire testé au service)
+
+## TST-ENT-005 — Édition du contenu d'une fiche avec sauvegarde automatique
+
+- **Description** : le propriétaire écrit dans l'éditeur (titres, gras/italique, listes, citation, lien, image) et le contenu se sauvegarde seul.
+- **Objectif** : vérifier la sauvegarde debouncée, l'extraction du texte brut et l'indicateur d'état accessible.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Écrire du contenu dans l'éditeur. 3) Attendre la fin du debounce.
+- **Résultat attendu** : `Entity.content` (JSON ProseMirror) et `Entity.plainText` (texte extrait) mis à jour en base ; indicateur « Enregistré. » annoncé via `aria-live="polite"`.
+- **Critères d'acceptation** : le contenu est rechargé correctement à la prochaine visite de la page ; `plainText` ne contient aucune balise, uniquement le texte.
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : round-trip complet titre+gras+citation → validation → extraction → persistance → relecture)
+
+## TST-SEC-004 — Rejet d'un contenu hors du schéma strict de l'éditeur
+
+- **Description** : une requête de sauvegarde envoie un JSON contenant un node désactivé (ex. `codeBlock`) ou structurellement invalide, en contournant l'éditeur réel.
+- **Objectif** : vérifier que la validation serveur (pas seulement la configuration du client Tiptap) applique le schéma strict — OWASP A03.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un JSON contenant un `codeBlock` (désactivé) ou un type de node inconnu.
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout node/mark hors de l'allowlist (`Node.fromJSON` + `check()` contre le schéma ProseMirror réel) ; testé avec un payload `codeBlock` réel, pas seulement une chaîne de caractères.
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`, `entity-content.test.ts`, vérifié en conditions réelles avec un payload malveillant)

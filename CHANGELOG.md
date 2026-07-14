@@ -59,6 +59,17 @@ stade (`[Unreleased]`).
   initialisés vides en attendant l'éditeur Tiptap. Page
   `/worlds/[slug]/entities/[entityId]`. Scénarios `TST-ENT-*` et `TST-SEC-003`
   au cahier de recettes, ligne A01 étendue.
+- Éditeur Tiptap + auto-save (`EntityEditor`) : titres (H2/H3), gras/italique,
+  listes, citation, lien (`http`/`https` uniquement), image (par URL, alt
+  obligatoire — l'upload viendra avec le service `Storage`). Schéma de nodes/marks
+  strict partagé client/serveur (`src/lib/tiptap-extensions.ts`), **validé côté
+  serveur via le vrai schéma ProseMirror** (`src/lib/tiptap-content.ts`,
+  `Node.fromJSON` + `check()`, pas un Zod fait main) — rejette tout contenu hors
+  allowlist même envoyé hors de l'éditeur (OWASP A03, voir ADR-0009). Sauvegarde
+  debouncée (1,5 s) via Server Action appelée directement (pas `<form>`),
+  indicateur d'état `aria-live`. Extraction de `plainText` (texte brut, pour le
+  futur scan de liaison + la recherche). Scénarios `TST-ENT-005`/`TST-SEC-004`
+  au cahier de recettes, ligne A03 du mapping OWASP concrétisée.
 
 ### Corrigé
 

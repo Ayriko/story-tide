@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
 import type { Entity, World } from "@/generated/prisma/client";
+import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { WorldNotFoundError } from "./world-service";
 import {
   EntityNotFoundError,
@@ -9,6 +10,7 @@ import {
   getEntity,
   listEntities,
   updateEntity,
+  updateEntityContent,
 } from "./entity-service";
 
 // Meme regle que world-service.test.ts : Prisma mocke, aucune connexion reelle.
@@ -58,7 +60,7 @@ function makeEntity(overrides: Partial<Entity> = {}): Entity {
     name: "Aeliana",
     type: "character",
     aliases: [],
-    content: { type: "doc", content: [] },
+    content: EMPTY_CONTENT,
     plainText: "",
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
@@ -87,7 +89,7 @@ describe("createEntity", () => {
         name: "Aeliana",
         type: "character",
         aliases: ["La Reine"],
-        content: { type: "doc", content: [] },
+        content: EMPTY_CONTENT,
         plainText: "",
       },
     });
@@ -179,6 +181,36 @@ describe("updateEntity", () => {
     await expect(
       updateEntity(OWNER_ID, WORLD_ID, "e1", { name: "X", type: "character", aliases: [] }),
     ).rejects.toThrow(EntityNotFoundError);
+    expect(entityUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateEntityContent", () => {
+  it("persiste le contenu et le plainText deja extraits", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity());
+    const newContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Salut" }] }],
+    };
+    entityUpdate.mockResolvedValueOnce(makeEntity({ content: newContent, plainText: "Salut" }));
+
+    const entity = await updateEntityContent(OWNER_ID, WORLD_ID, "e1", newContent, "Salut");
+
+    expect(entityUpdate).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { content: newContent, plainText: "Salut" },
+    });
+    expect(entity.plainText).toBe("Salut");
+  });
+
+  it("leve EntityNotFoundError et ne met rien a jour si l'entite n'appartient pas a ce monde", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(null);
+
+    await expect(updateEntityContent(OWNER_ID, WORLD_ID, "e1", EMPTY_CONTENT, "")).rejects.toThrow(
+      EntityNotFoundError,
+    );
     expect(entityUpdate).not.toHaveBeenCalled();
   });
 });

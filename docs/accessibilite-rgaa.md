@@ -28,6 +28,13 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   natifs (« Supprimer ce monde »/« Supprimer cette fiche » → « Confirmer la
   suppression » / « Annuler »), jamais de `window.confirm` bloquant — entièrement
   navigable au clavier.
+- **Éditeur Tiptap** (`EntityEditor`) : barre d'outils `role="toolbar"
+  aria-label="Mise en forme"`, boutons natifs avec `aria-pressed` reflétant l'état
+  actif (gras/italique/titre/liste/citation), panneaux lien/image révélés par un
+  bouton (pas de `<div>` cliquable), texte alternatif **requis** pour insérer une
+  image (bouton désactivé tant que l'alt est vide). État de sauvegarde annoncé via
+  `aria-live="polite"` (« Enregistrement… » / « Enregistré. » / erreur), pas de
+  changement visuel silencieux pour les lecteurs d'écran.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
@@ -49,8 +56,15 @@ Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
   `/` si une session est déjà active (pas de contenu inutile affiché puis retiré).
 
 Pas encore construit (n'existe pas dans le code) : alternatives textuelles sur
-images utilisateur (pas de feature d'upload), rendu sémantique du contenu Tiptap
-(éditeur pas codé), navigation clavier du graphe (pas codé).
+images **uploadées** (l'insertion se fait par URL en attendant le service d'upload,
+étape suivante — l'alt reste déjà obligatoire), navigation clavier du graphe (pas codé).
+
+**Non vérifié cette session (gap assumé, pas silencieux)** : l'éditeur Tiptap n'a
+pas été testé au clavier dans un vrai navigateur — l'extension Chrome de pilotage
+a de nouveau timeout (voir dev-log). Vérifié à la place : logique de données 100 %
+testée (validation, extraction), build de production réussi, chargement réel du
+bundle client confirmé par requête HTTP. La navigation clavier réelle de la
+toolbar/l'éditeur reste à confirmer manuellement ou via le futur smoke Playwright.
 
 ## Audit & résultats
 
