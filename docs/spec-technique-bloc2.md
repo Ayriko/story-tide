@@ -283,3 +283,13 @@ Rappel des deux garde-fous de `note-skills-en-reserve.md` : auditer tout skill t
 - Intégration de l'**artwork** de l'artiste (login) dès réception : `/public`, `next/image`, `alt=""`, scrim.
 - TanStack Query pour l'auto-save et le graphe (post-S30).
 - Bloc 4 (maintenance, août) : la structure logs/backups/monitoring posée ici en est le socle.
+- **Smoke Playwright minimal** (planifié, pas encore fait — décision 2026-07-14) :
+  `@playwright/test` n'est pas installé. Le coût réel n'est pas le spec (1 parcours
+  suffit) mais l'**isolation d'une base de test** — Postgres dédié + seed + reset
+  entre exécutions, pour ne jamais toucher la base de dev. Parcours cible : login →
+  créer un monde → créer une fiche → écrire dans l'éditeur → vérifier la toolbar
+  synchronisée → recharger la fiche. Couvre exactement les 3 classes de bugs
+  invisibles par `curl`/script `tsx` rencontrées le 14/07 (StrictMode, sérialisation
+  Next.js Flight, Tailwind Preflight — cf. `.claude/skills/rsc-boundary-plain-json/`
+  et `.claude/skills/headless-editor-tailwind-preflight/`) et débloquerait l'audit
+  axe-core pleine page (reporté depuis plusieurs sessions, cf. §6).
