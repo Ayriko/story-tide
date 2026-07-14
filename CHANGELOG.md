@@ -6,6 +6,17 @@ stade (`[Unreleased]`).
 
 ## [Unreleased]
 
+### Sécurité
+
+- Contenu de fiche (Tiptap) : borne de taille (1 Mo) appliquée **avant** tout
+  `JSON.parse` sur l'action de sauvegarde (mitigation DoS, OWASP A04).
+- Contenu de fiche : validation des **valeurs** d'attributs côté serveur, en plus
+  de la structure — `image.src`/`link.href` doivent être des URL `http`/`https`
+  valides (rejet de `javascript:`/`data:`/chaînes non-URL) ; `image.alt` exigé
+  non vide côté serveur (la règle RGAA n'était imposée que côté UI, contournable
+  par appel direct de l'action). OWASP A03. (`tiptap-content.ts`,
+  `TST-SEC-005` à `TST-SEC-008`)
+
 ### Ajouté
 
 - Durcissement du squelette : `tsconfig.json` strict complet

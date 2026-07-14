@@ -43,6 +43,19 @@ describe("saveEntityContentAction", () => {
     expect(mockedUpdateEntityContent).toHaveBeenCalledWith("owner-1", "w1", "e1", content, "Salut");
   });
 
+  it("rejette une chaine JSON trop volumineuse sans meme tenter de la parser", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    const oversized = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "a".repeat(1_000_001) }] }],
+    });
+
+    const result = await saveEntityContentAction("w1", "e1", oversized);
+
+    expect(result).toEqual({ ok: false, error: "Contenu trop volumineux." });
+    expect(mockedUpdateEntityContent).not.toHaveBeenCalled();
+  });
+
   it("rejette une chaine JSON malformee sans appeler le service", async () => {
     mockedRequireSession.mockResolvedValueOnce(SESSION);
 

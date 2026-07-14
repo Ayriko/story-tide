@@ -7,6 +7,12 @@ import { WorldNotFoundError } from "@/services/world-service";
 
 export type SaveContentResult = { ok: true } | { ok: false; error: string };
 
+// Mitigation DoS (OWASP A04) : borne AVANT JSON.parse, pas apres - un payload
+// arbitrairement gros ne doit jamais atteindre le parseur JSON. 1 Mo est tres
+// large pour une fiche de wiki (texte + attrs), largement suffisant en usage
+// normal.
+const MAX_CONTENT_JSON_BYTES = 1_000_000;
+
 // Pas un <form action> classique : appelee directement depuis le client
 // (auto-save debounce), pas via useActionState/redirect. Next.js autorise
 // l'appel direct d'une Server Action comme une fonction async depuis un
@@ -29,6 +35,10 @@ export async function saveEntityContentAction(
     session = await requireSession();
   } catch {
     return { ok: false, error: "Session expirée. Reconnectez-vous." };
+  }
+
+  if (Buffer.byteLength(rawContentJson, "utf8") > MAX_CONTENT_JSON_BYTES) {
+    return { ok: false, error: "Contenu trop volumineux." };
   }
 
   let rawContent: unknown;

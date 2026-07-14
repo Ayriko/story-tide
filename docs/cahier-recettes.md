@@ -220,3 +220,43 @@
 - **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout node/mark hors de l'allowlist (`Node.fromJSON` + `check()` contre le schéma ProseMirror réel) ; testé avec un payload `codeBlock` réel, pas seulement une chaîne de caractères.
 - **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`, `entity-content.test.ts`, vérifié en conditions réelles avec un payload malveillant)
+
+## TST-SEC-005 — Rejet d'un contenu de fiche surdimensionné (mitigation DoS)
+
+- **Description** : une requête de sauvegarde envoie une chaîne JSON de plus de 1 Mo.
+- **Objectif** : vérifier que la taille est bornée **avant** tout `JSON.parse`, pas seulement après validation du contenu (OWASP A04).
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler `saveEntityContentAction` avec une chaîne JSON de plus de 1 000 000 octets.
+- **Résultat attendu** : rejet immédiat (« Contenu trop volumineux. »), sans tentative de `JSON.parse` ni appel au service de persistance.
+- **Critères d'acceptation** : `Buffer.byteLength(rawContentJson, "utf8")` vérifié avant tout `JSON.parse` ; aucun appel à `updateEntityContent`.
+- **Type** : sécurité · **Statut** : ✅ (`entity-content.test.ts`)
+
+## TST-SEC-006 — Rejet d'une image dont le `src` n'est pas une URL http(s)
+
+- **Description** : une requête de sauvegarde envoie un contenu structurellement valide mais dont un node `image` porte un `src` en `javascript:`, `data:`, ou une chaîne qui n'est pas une URL.
+- **Objectif** : vérifier que les valeurs d'attributs sont aussi validées côté serveur, pas seulement la structure (OWASP A03) — un contenu peut passer `Node.fromJSON`/`check()` et rester dangereux.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un `image.src` en `javascript:alert(1)` (ou `data:`, ou une chaîne non-URL).
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` via `assertSafeAttributes`/`isSafeHttpUrl` pour tout `src` dont le protocole n'est pas `http:`/`https:`, ou qui n'est pas une URL syntaxiquement valide.
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)
+
+## TST-SEC-007 — Rejet d'une image sans texte alternatif (contournement RGAA)
+
+- **Description** : une requête de sauvegarde envoie un node `image` avec un `alt` vide, en contournant le champ obligatoire de l'UI.
+- **Objectif** : vérifier que l'exigence RGAA de texte alternatif est aussi imposée côté serveur, pas seulement côté formulaire.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un node `image` dont `attrs.alt` est une chaîne vide.
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` si `alt` est absent, non-chaîne, ou vide après `trim()`.
+- **Type** : sécurité / accessibilité · **Statut** : ✅ (`tiptap-content.test.ts`)
+
+## TST-SEC-008 — Rejet d'un lien dont le `href` n'est pas une URL http(s)
+
+- **Description** : une requête de sauvegarde envoie un mark `link` avec un `href` en `javascript:`.
+- **Objectif** : vérifier que la même règle de validation d'URL s'applique au mark `link`, pas seulement au node `image`.
+- **Préconditions** : une fiche existe dans un monde de ce propriétaire.
+- **Étapes** : 1) Appeler l'action de sauvegarde avec un mark `link` dont `attrs.href` est `javascript:alert(1)`.
+- **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
+- **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout `href` dont le protocole n'est pas `http:`/`https:`.
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)

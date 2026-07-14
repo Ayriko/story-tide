@@ -57,6 +57,105 @@ describe("parseContent", () => {
   it("rejette une entree qui n'est pas un objet", () => {
     expect(() => parseContent("<script>alert(1)</script>")).toThrow(InvalidContentError);
   });
+
+  it("rejette une image avec un src qui n'est pas une URL syntaxiquement valide", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "not-a-url-at-all", alt: "desc" } }],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("s'arrete a la premiere violation rencontree quand il y en a plusieurs", () => {
+    const content = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "javascript:alert(1)", alt: "desc" } },
+        { type: "image", attrs: { src: "javascript:alert(2)", alt: "desc" } },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une image avec un src non http(s) (javascript:)", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: "desc" } }],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une image avec un src en data:", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "data:text/html,<script>alert(1)</script>", alt: "desc" } }],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une image sans texte alternatif (RGAA impose aussi cote serveur)", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://example.com/x.png", alt: "" } }],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette un src d'image trop long", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: { src: `https://example.com/${"a".repeat(2050)}`, alt: "desc" },
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette un lien avec un href non http(s) (javascript:)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", marks: [{ type: "link", attrs: { href: "javascript:alert(1)" } }], text: "clic" },
+          ],
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("accepte une image http(s) avec alt et un lien http(s)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc" } },
+        {
+          type: "paragraph",
+          content: [
+            {
+              type: "text",
+              marks: [{ type: "link", attrs: { href: "https://example.com" } }],
+              text: "clic",
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).not.toThrow();
+  });
 });
 
 describe("extractPlainText", () => {
