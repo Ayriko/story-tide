@@ -63,6 +63,13 @@ visible < 5 s après debounce · taux d'erreur < 1 %.
   justification en commentaire.
 - Lint + typecheck + tests DOIVENT passer avant tout commit. Ne jamais committer du
   code qui casse la CI. Ne jamais désactiver un test pour "avancer".
+- **Jamais d'erreur avalée** : toute conversion d'une erreur réelle en erreur
+  typée/message générique chaîne l'originale via `{ cause }` (`throw new
+  MonErreur(cause)` / `super(message, { cause })`) et logue l'erreur réelle
+  (`console.error`) dans le repli générique qui produit le message vague —
+  jamais dans les branches attendues (404 métier, redirection session). Un
+  message "impossible pour le moment" sans trace serveur a déjà coûté un tour
+  de diagnostic complet (cf. dev-log 2026-07-14).
 - Secrets : uniquement en variables d'env validées par Zod au démarrage. Jamais en dur.
 - Accessibilité : composants interactifs = éléments natifs (button, a, label) d'abord ;
   ARIA seulement en complément. Vérifier la navigation clavier de tout nouveau composant.

@@ -54,6 +54,31 @@ describe("parseContent", () => {
     expect(() => parseContent({ type: "not-a-real-node" })).toThrow(InvalidContentError);
   });
 
+  it("chaine la cause reelle du rejet (structure) - jamais d'erreur avalee", () => {
+    try {
+      parseContent({ type: "not-a-real-node" });
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidContentError);
+      expect((error as InvalidContentError).cause).toBeDefined();
+    }
+  });
+
+  it("chaine la cause reelle du rejet (attribut dangereux) - jamais d'erreur avalee", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: "desc" } }],
+    };
+
+    try {
+      parseContent(content);
+      expect.unreachable();
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidContentError);
+      expect((error as InvalidContentError).cause).toBeDefined();
+    }
+  });
+
   it("rejette une entree qui n'est pas un objet", () => {
     expect(() => parseContent("<script>alert(1)</script>")).toThrow(InvalidContentError);
   });

@@ -66,6 +66,7 @@ export async function saveEntityContentAction(
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
       return { ok: false, error: "Fiche introuvable." };
     }
+    console.error("[entity-content] Enregistrement du contenu échoué :", error);
     return { ok: false, error: "Enregistrement impossible pour le moment." };
   }
 

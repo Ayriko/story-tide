@@ -84,6 +84,7 @@ export async function createEntityAction(
     if (error instanceof WorldNotFoundError) {
       return { formError: "Monde introuvable.", values };
     }
+    console.error("[entity] Création de fiche échouée :", error);
     return { formError: "Création impossible pour le moment. Réessayez.", values };
   }
 
@@ -126,6 +127,7 @@ export async function updateEntityAction(
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
       return { formError: "Fiche introuvable.", values };
     }
+    console.error("[entity] Mise à jour de fiche échouée :", error);
     return { formError: "Mise à jour impossible pour le moment. Réessayez.", values };
   }
 
@@ -155,6 +157,7 @@ export async function deleteEntityAction(
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
       return { formError: "Fiche introuvable." };
     }
+    console.error("[entity] Suppression de fiche échouée :", error);
     return { formError: "Suppression impossible pour le moment. Réessayez." };
   }
 

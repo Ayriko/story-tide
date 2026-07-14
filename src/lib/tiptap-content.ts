@@ -9,8 +9,11 @@ const extensions = createEditorExtensions();
 const schema = getSchema(extensions);
 
 export class InvalidContentError extends Error {
-  constructor() {
-    super("Contenu invalide.");
+  // cause chaine toujours la raison reelle du rejet (erreur ProseMirror ou
+  // violation d'attribut) - un message generique ne doit jamais effacer la
+  // trace du pourquoi (cf. CLAUDE.md, regle "jamais d'erreur avalee").
+  constructor(cause?: unknown) {
+    super("Contenu invalide.", { cause });
     this.name = "InvalidContentError";
   }
 }
@@ -70,7 +73,7 @@ function assertSafeAttributes(doc: ProseMirrorNode): void {
 
   if (violation) {
     console.error("[tiptap-content] Attribut de contenu rejete :", violation);
-    throw new InvalidContentError();
+    throw new InvalidContentError(violation);
   }
 }
 
@@ -99,7 +102,7 @@ export function parseContent(content: unknown): JSONContent {
     // legitime (bug de config du schema) est indiscernable d'un vrai contenu
     // malveillant - vecu en debug (cf. dev-log), corrige ici.
     console.error("[tiptap-content] Contenu rejete par le schema ProseMirror :", error);
-    throw new InvalidContentError();
+    throw new InvalidContentError(error);
   }
   assertSafeAttributes(doc);
   return content as JSONContent;

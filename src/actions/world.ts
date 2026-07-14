@@ -61,7 +61,10 @@ export async function createWorldAction(
   try {
     const world = await createWorld(session.user.id, parsed.data);
     slug = world.slug;
-  } catch {
+  } catch (error) {
+    // Repli generique (erreur inattendue, ex. panne DB) : ne jamais avaler la
+    // cause reelle derriere un message vague (cf. CLAUDE.md).
+    console.error("[world] Création de monde échouée :", error);
     return { formError: "Création impossible pour le moment. Réessayez.", values };
   }
 
@@ -96,6 +99,7 @@ export async function updateWorldAction(
     if (error instanceof WorldNotFoundError) {
       return { formError: "Monde introuvable.", values };
     }
+    console.error("[world] Mise à jour de monde échouée :", error);
     return { formError: "Mise à jour impossible pour le moment. Réessayez.", values };
   }
 
@@ -123,6 +127,7 @@ export async function deleteWorldAction(
     if (error instanceof WorldNotFoundError) {
       return { formError: "Monde introuvable." };
     }
+    console.error("[world] Suppression de monde échouée :", error);
     return { formError: "Suppression impossible pour le moment. Réessayez." };
   }
 
