@@ -57,7 +57,8 @@ visible < 5 s après debounce · taux d'erreur < 1 %.
   `git diff`, `git log` en lecture : autorisés.)
 - Conventional commits (feat/fix/test/docs/chore). Branches feat/* courtes, PR
   auto-relues avec description quoi/pourquoi/preuve de test. Hook Husky pre-commit
-  (lint + typecheck sur fichiers stagés). CHANGELOG.md format Keep a Changelog
+  (`lint-staged` : ESLint --fix + Prettier sur fichiers stagés, puis `tsc --noEmit`
+  sur tout le projet). CHANGELOG.md format Keep a Changelog
   (Ajouté/Modifié/Corrigé/Supprimé) tenu à chaque version, tags annotés.
 - TS strict : pas de `any`, pas de `as` de complaisance, pas de `@ts-ignore` sans
   justification en commentaire.

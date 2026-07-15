@@ -59,8 +59,9 @@ Playwright smoke ; voir `accessibilite-rgaa.md`.
   protection de branche configurée à ce stade — un seul développeur), mais toute
   PR doit avoir le workflow CI vert avant fusion.
 - Conventional commits (feat/fix/test/docs/chore) — voir `CLAUDE.md`.
-- Hook Husky pre-commit local (lint + typecheck sur fichiers stagés) fait office
-  de première garde avant même le push ; la CI est la garde faisant foi (même
+- Hook Husky pre-commit local (`lint-staged` : ESLint --fix + Prettier sur
+  fichiers stagés, puis `tsc --noEmit` sur tout le projet) fait office de
+  première garde avant même le push ; la CI est la garde faisant foi (même
   environnement pour tout le monde, contrairement au poste local).
 
 ## Réduction des régressions

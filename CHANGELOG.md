@@ -105,6 +105,15 @@ stade (`[Unreleased]`).
   script `curl`/`tsx` (StrictMode, sérialisation Next.js Flight, Tailwind
   Preflight). Scénario `TST-ENT-006` au cahier de recettes. Câblage CI (service
   Postgres, cache navigateurs) : étape suivante, non encore fait.
+- Hook Husky pre-commit (`husky` + `lint-staged`) : jusqu'ici documenté (CLAUDE.md,
+  `docs/ci.md`, spec §10) mais **jamais réellement installé** — aucun `.husky/`,
+  aucune dépendance `husky`/`lint-staged` au dépôt. C'est ce qui a permis à
+  `src/lib/linker/normalize.ts` d'être committé non formaté et de casser le job
+  `quality` de la CI après merge. Désormais réel : `.husky/pre-commit` lance
+  `lint-staged` (ESLint --fix + Prettier sur les fichiers stagés uniquement),
+  puis `tsc --noEmit` sur tout le projet (le typage ne se prête pas à une
+  vérification par fichier isolé). Vérifié avec un fichier volontairement mal
+  formaté avant nettoyage.
 
 ### Corrigé
 
