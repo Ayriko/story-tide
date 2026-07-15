@@ -6,25 +6,39 @@
 
 ## Étapes du pipeline
 
-Un seul job (`ci`), déclenché sur push `main` et sur toute pull request
-(`concurrency` annule les runs superseded d'une même branche) :
+Trois jobs **parallèles et indépendants** (aucun `needs` entre eux), déclenchés
+sur push `main` et sur toute pull request (`concurrency` annule les runs
+superseded d'une même branche) :
 
-1. `actions/checkout` + `actions/setup-node` (Node 24, cache npm sur
-   `package-lock.json`).
-2. `npm ci` — installe les dépendances et régénère le client Prisma
-   (`postinstall: prisma generate`).
-3. `npm run format:check` (Prettier).
-4. `npm run lint` (ESLint, `--max-warnings=0`).
-5. `npm run typecheck` (`tsc --noEmit`, TS strict).
-6. `npm run test:coverage` (Vitest + couverture v8, **seuil 80 % bloquant** sur
-   `src/lib` + `src/services` — voir `tests-unitaires.md`).
-7. `npm run build` (`next build`).
+- **`quality`** — garde statique rapide : `actions/checkout` +
+  `actions/setup-node` (Node 24, cache npm) → `npm ci` → `npm run format:check`
+  (Prettier) → `npm run lint` (ESLint, `--max-warnings=0`) → `npm run typecheck`
+  (`tsc --noEmit`, TS strict).
+- **`test`** — `npm ci` → `npm run test:coverage` (Vitest + couverture v8,
+  **seuil 80 % bloquant** sur `src/lib` + `src/services` — voir
+  `tests-unitaires.md`) → publication du dossier `coverage/` en artefact
+  (`actions/upload-artifact`, `if: always()`) → commentaire de couverture sur la
+  PR (`davelosert/vitest-coverage-report-action`, `if: always() &&
+  github.event_name == 'pull_request'`).
+- **`build`** — `npm ci` → `npm run build` (`next build`).
 
-Chaque étape est bloquante : un échec à n'importe laquelle interrompt le job.
-Aucune étape ne se connecte à une vraie base/MinIO — le job fournit des
-**placeholders non-secrets** conformes au schéma Zod de `src/env.ts` (nécessaires
-car `env.ts` est importé dès `prisma.config.ts`/les Server Actions/`next build`) ;
-les adaptateurs SDK réels (`pg-boss-adapter.ts`, `s3-adapter.ts`) sont exclus du
+**Pourquoi 3 jobs séparés (et pas 1 seul) :** incident du 2026-07-15 — un
+`format:check` en échec dans le job unique interrompait le pipeline *avant*
+`test:coverage`, donc `coverage/` n'existait jamais, et les étapes `if:
+always()` du rapport de couverture plantaient en ENOENT au lieu de simplement
+ne rien publier. En isolant `test` de `quality`, la couverture est désormais
+**toujours calculée et publiée**, quel que soit l'état du lint/format — un
+format cassé ne masque plus jamais le signal de couverture (C2.1.1/C2.2.2,
+seuil bloquant). `build` reste un job à part (le plus lent) pour ne pas
+ralentir le retour rapide de `quality`.
+
+Chaque job est bloquant indépendamment : un échec sur l'un n'empêche pas les
+deux autres de tourner à terme, mais la PR/le push est rouge si l'un des trois
+échoue. Aucun job ne se connecte à une vraie base/MinIO — le bloc `env:` (au
+niveau workflow, partagé par les 3 jobs) fournit des **placeholders
+non-secrets** conformes au schéma Zod de `src/env.ts` (nécessaires car `env.ts`
+est importé dès `prisma.config.ts`/les Server Actions/`next build`) ; les
+adaptateurs SDK réels (`pg-boss-adapter.ts`, `s3-adapter.ts`) sont exclus du
 calcul de couverture et vérifiés par script d'intégration réel avant commit (voir
 ADR-0007).
 
