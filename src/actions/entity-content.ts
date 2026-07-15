@@ -1,6 +1,8 @@
 "use server";
 
 import { requireSession } from "@/lib/auth-session";
+import { jobQueue } from "@/lib/queue";
+import { ENTITY_LINKING_QUEUE } from "@/lib/queue/entity-linking";
 import { InvalidContentError, extractPlainText, parseContent } from "@/lib/tiptap-content";
 import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
 import { WorldNotFoundError } from "@/services/world-service";
@@ -68,6 +70,17 @@ export async function saveEntityContentAction(
     }
     console.error("[entity-content] Enregistrement du contenu échoué :", error);
     return { ok: false, error: "Enregistrement impossible pour le moment." };
+  }
+
+  // Le contenu est deja persiste a ce stade : un echec d'enfilage est loggue
+  // (jamais avale) mais ne fait pas echouer la sauvegarde - la liaison
+  // automatique est une amelioration asynchrone, pas une condition
+  // d'integrite de l'enregistrement. singletonKey=entityId (policy "short"
+  // de l'adaptateur) garantit un seul job de liaison en attente par fiche.
+  try {
+    await jobQueue.enqueue(ENTITY_LINKING_QUEUE, { worldId, entityId }, { singletonKey: entityId });
+  } catch (error) {
+    console.error("[entity-content] Enfilage du job de liaison échoué :", error);
   }
 
   return { ok: true };

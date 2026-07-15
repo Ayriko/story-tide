@@ -270,3 +270,33 @@
 - **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout `href` dont le protocole n'est pas `http:`/`https:`.
 - **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)
+
+## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
+
+- **Description** : le texte d'une fiche mentionne le nom (ou un alias) d'une autre entité du même monde.
+- **Objectif** : vérifier que la sauvegarde déclenche un job de liaison, que le moteur Aho-Corasick détecte la mention, et qu'une `Relation origin=AUTO` est créée entre les deux fiches.
+- **Préconditions** : un monde contient au moins deux entités ; l'une mentionne l'autre dans son contenu.
+- **Étapes** : 1) Sauvegarder le contenu de la fiche mentionnant l'autre entité. 2) Laisser le worker traiter le job de liaison (`entity-linking`, `singletonKey=entityId`).
+- **Résultat attendu** : une `Relation origin=AUTO` apparaît en base entre la fiche source et l'entité mentionnée.
+- **Critères d'acceptation** : `scanAndLinkEntity` crée la relation ; vérifié en conditions réelles (vraie base Postgres, vrai adaptateur pg-boss, vrai worker) — la mention disparaît du texte → la relation `AUTO` correspondante est supprimée au re-scan suivant.
+- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`, vérifié en conditions réelles)
+
+## TST-LNK-002 — Une Relation origin=MANUAL n'est jamais écrasée par un re-scan automatique
+
+- **Description** : une relation créée manuellement entre deux entités existe, alors que le texte de la fiche source ne mentionne plus (ou n'a jamais mentionné) la cible.
+- **Objectif** : garantir la règle dure du projet — un re-scan automatique ne supprime et ne modifie jamais une `Relation origin=MANUAL`, quel que soit le contenu du texte.
+- **Préconditions** : une `Relation origin=MANUAL` existe entre deux entités d'un même monde ; le texte de la fiche source ne mentionne pas la cible.
+- **Étapes** : 1) Déclencher un re-scan de la fiche source (sauvegarde de contenu). 2) Laisser le worker traiter le job.
+- **Résultat attendu** : la `Relation origin=MANUAL` est toujours présente et inchangée après le re-scan.
+- **Critères d'acceptation** : `scanAndLinkEntity` ne lit et n'écrit que des relations `origin=AUTO` (filtre explicite sur toutes les requêtes) ; vérifié en conditions réelles.
+- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`, vérifié en conditions réelles)
+
+## TST-LNK-003 — Garde-fous du scan : auto-mention, `LinkIgnore`, occurrences ambiguës
+
+- **Description** : trois cas où une mention textuelle ne doit **pas** produire de `Relation origin=AUTO` : une fiche qui mentionne son propre nom, une cible explicitement ignorée (`LinkIgnore`), et une occurrence matchant plusieurs entités homonymes aux mêmes bornes.
+- **Objectif** : vérifier qu'aucun lien silencieux n'est créé dans ces trois cas (auto-lien absurde, contournement d'un garde-fou utilisateur, ambiguïté non résolue).
+- **Préconditions** : selon le cas — une entité dont le nom apparaît dans son propre texte ; une paire `(entityId, targetId)` présente dans `LinkIgnore` ; deux entités de même nom dans le même monde.
+- **Étapes** : 1) Sauvegarder un contenu correspondant à l'un des trois cas. 2) Laisser le worker traiter le job.
+- **Résultat attendu** : aucune `Relation origin=AUTO` n'est créée pour l'occurrence concernée dans les trois cas.
+- **Critères d'acceptation** : couvert par `linker-service.test.ts` (auto-mention exclue, `LinkIgnore` respecté, occurrence ambiguë sans lien). Le marquage « ambigu » cliquable pour trancher (spec §4.4 point 6) reste hors périmètre — backlog KAN-19, nécessite un modèle de données dédié.
+- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`)

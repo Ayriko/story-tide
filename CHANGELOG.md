@@ -114,6 +114,26 @@ stade (`[Unreleased]`).
   puis `tsc --noEmit` sur tout le projet (le typage ne se prête pas à une
   vérification par fichier isolé). Vérifié avec un fichier volontairement mal
   formaté avant nettoyage.
+- Liaison automatique branchée de bout en bout (KAN-19, `src/services/linker-service.ts`) :
+  `buildDictionary` (dictionnaire noms + alias par monde) ; `scanAndLinkEntity`
+  (scan via le moteur Aho-Corasick, diff et upsert transactionnel des
+  `Relation origin=AUTO` — **`MANUAL` jamais lu ni écrit**, filtre explicite sur
+  toutes les requêtes) ; garde-fous : auto-mention exclue, `LinkIgnore` respecté,
+  occurrence ambiguë (homonymes aux mêmes bornes) → aucune relation créée pour
+  aucune des deux entités (le marquage « ambigu » cliquable reste backlog KAN-19,
+  nécessite un modèle de données dédié). Enfilage réel depuis
+  `saveEntityContentAction` après sauvegarde (`entity-linking`,
+  `singletonKey=entityId` — un échec d'enfilage est loggué mais ne fait pas
+  échouer la sauvegarde, déjà persistée à ce stade) ; le worker exécute
+  désormais réellement le scan (remplace le `console.log` TODO). Nom de file et
+  forme du job extraits dans `src/lib/queue/entity-linking.ts` pour que
+  producteur et consommateur ne puissent jamais diverger. Vérifié en conditions
+  réelles (vraie base Postgres, vrai adaptateur pg-boss, vrai worker) : mention
+  détectée → relation créée ; mention disparue → relation supprimée ; relation
+  `MANUAL` jamais écrasée par un re-scan. Cache/invalidation de l'automate par
+  monde (prévu spec §4.4) délibérément reporté — reconstruction à chaque job,
+  largement dans le budget perf. Scénarios `TST-LNK-001` à `TST-LNK-003` au
+  cahier de recettes.
 
 ### Corrigé
 

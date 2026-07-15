@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireSession } from "@/lib/auth-session";
+import { jobQueue } from "@/lib/queue";
+import { ENTITY_LINKING_QUEUE } from "@/lib/queue/entity-linking";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
 import { WorldNotFoundError } from "@/services/world-service";
@@ -9,6 +11,10 @@ vi.mock("@/lib/auth-session", () => ({
   requireSession: vi.fn(),
 }));
 
+vi.mock("@/lib/queue", () => ({
+  jobQueue: { enqueue: vi.fn() },
+}));
+
 vi.mock("@/services/entity-service", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/entity-service")>();
   return { ...actual, updateEntityContent: vi.fn() };
@@ -16,6 +22,7 @@ vi.mock("@/services/entity-service", async (importOriginal) => {
 
 const mockedRequireSession = vi.mocked(requireSession);
 const mockedUpdateEntityContent = vi.mocked(updateEntityContent);
+const mockedEnqueue = vi.mocked(jobQueue.enqueue);
 
 const SESSION = { user: { id: "owner-1" } } as unknown as Awaited<
   ReturnType<typeof requireSession>
@@ -112,5 +119,38 @@ describe("saveEntityContentAction", () => {
     const result = await saveEntityContentAction("w1", "e1", JSON.stringify(EMPTY_CONTENT));
 
     expect(result).toEqual({ ok: false, error: "Enregistrement impossible pour le moment." });
+  });
+
+  it("enfile un job de liaison apres un enregistrement reussi, avec singletonKey=entityId", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    // @ts-expect-error - seul le retour importe au test, pas la forme Entity complete
+    mockedUpdateEntityContent.mockResolvedValueOnce({ id: "e1" });
+    mockedEnqueue.mockResolvedValueOnce("job-1");
+
+    const result = await saveEntityContentAction("w1", "e1", JSON.stringify(EMPTY_CONTENT));
+
+    expect(result).toEqual({ ok: true });
+    expect(mockedEnqueue).toHaveBeenCalledWith(
+      ENTITY_LINKING_QUEUE,
+      { worldId: "w1", entityId: "e1" },
+      { singletonKey: "e1" },
+    );
+  });
+
+  it("un enfilage en echec est loggue mais ne fait pas echouer la sauvegarde (contenu deja persiste)", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    // @ts-expect-error - seul le retour importe au test, pas la forme Entity complete
+    mockedUpdateEntityContent.mockResolvedValueOnce({ id: "e1" });
+    mockedEnqueue.mockRejectedValueOnce(new Error("file indisponible"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await saveEntityContentAction("w1", "e1", JSON.stringify(EMPTY_CONTENT));
+
+    expect(result).toEqual({ ok: true });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[entity-content] Enfilage du job de liaison échoué :",
+      expect.any(Error),
+    );
+    consoleError.mockRestore();
   });
 });
