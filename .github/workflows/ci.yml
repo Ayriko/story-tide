@@ -13,23 +13,30 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  # Placeholders Zod-valides (src/env.ts), pas des secrets : rien ne se
+  # connecte reellement a Postgres/MinIO au build ni aux tests unitaires
+  # (fakes memoire). Ces valeurs documentent aussi l'env attendu. Au niveau
+  # workflow (et non duplique par job) : une seule source pour les 3 jobs.
+  DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide?schema=public"
+  BETTER_AUTH_SECRET: "ci-placeholder-secret-at-least-32-characters"
+  BETTER_AUTH_URL: "http://localhost:3000"
+  S3_ENDPOINT: "localhost"
+  S3_PORT: "9000"
+  S3_USE_SSL: "false"
+  S3_REGION: "us-east-1"
+  S3_ACCESS_KEY: "ci"
+  S3_SECRET_KEY: "ci-secret-placeholder"
+  S3_BUCKET: "story-tide-ci"
+
 jobs:
-  ci:
+  # Garde statique rapide. Independant du job test : un echec ici ne doit
+  # jamais empecher la couverture de se calculer et d'etre publiee (incident
+  # du 2026-07-15 : format:check en echec => job unique interrompu avant
+  # test:coverage => coverage/ absent => les etapes if:always() du rapport de
+  # couverture plantaient en ENOENT).
+  quality:
     runs-on: ubuntu-latest
-    env:
-      # Placeholders Zod-valides (src/env.ts), pas des secrets : rien ne se
-      # connecte reellement a Postgres/MinIO au build ni aux tests unitaires
-      # (fakes memoire). Ces valeurs documentent aussi l'env attendu.
-      DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide?schema=public"
-      BETTER_AUTH_SECRET: "ci-placeholder-secret-at-least-32-characters"
-      BETTER_AUTH_URL: "http://localhost:3000"
-      S3_ENDPOINT: "localhost"
-      S3_PORT: "9000"
-      S3_USE_SSL: "false"
-      S3_REGION: "us-east-1"
-      S3_ACCESS_KEY: "ci"
-      S3_SECRET_KEY: "ci-secret-placeholder"
-      S3_BUCKET: "story-tide-ci"
     steps:
       - uses: actions/checkout@v4
 
@@ -48,9 +55,22 @@ jobs:
 
       - run: npm run typecheck
 
-      - run: npm run test:coverage
+  # Isole de quality : tourne meme si format/lint/typecheck echouent, pour que
+  # la couverture (C2.1.1/C2.2.2, seuil bloquant) reste toujours produite et
+  # visible en artefact + commentaire de PR.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-      - run: npm run build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run test:coverage
 
       - name: Publier le rapport de couverture en artefact
         if: always()
@@ -63,3 +83,17 @@ jobs:
       - name: Commenter la couverture sur la PR
         if: always() && github.event_name == 'pull_request'
         uses: davelosert/vitest-coverage-report-action@v2
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
