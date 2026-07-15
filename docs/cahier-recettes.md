@@ -211,6 +211,16 @@
 - **Critères d'acceptation** : le contenu est rechargé correctement à la prochaine visite de la page ; `plainText` ne contient aucune balise, uniquement le texte.
 - **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : round-trip complet titre+gras+citation → validation → extraction → persistance → relecture)
 
+## TST-ENT-006 — Parcours bout en bout : inscription → monde → fiche → éditeur → rechargement
+
+- **Description** : un nouvel utilisateur s'inscrit, crée un monde, crée une fiche, écrit dans l'éditeur en le mettant en forme, puis recharge la page — smoke Playwright (`e2e/smoke.spec.ts`) sur un vrai navigateur, isolé sur une base Postgres dédiée (`story_tide_e2e`, remise à zéro avant chaque exécution).
+- **Objectif** : couvrir en une seule fois trois classes de bugs invisibles à un test unitaire ou un script `curl`/`tsx` : React StrictMode (montage/démontage de l'éditeur en dev), sérialisation Next.js Flight (le contenu Tiptap traverse la frontière RSC → Client au rechargement), Tailwind Preflight (styles de contenu riche).
+- **Préconditions** : conteneur Postgres dev démarré (`docker-compose.dev.yml`) ; `.env.e2e` configuré (copie de `.env.e2e.example`).
+- **Étapes** : 1) `/register`, créer un compte (auto-connexion). 2) Créer un monde. 3) Créer une fiche. 4) Écrire du texte dans l'éditeur, le sélectionner, cliquer « Gras ». 5) Attendre l'indicateur « Enregistré. ». 6) Recharger la page.
+- **Résultat attendu** : à chaque étape, redirection vers la bonne URL ; le bouton « Gras » reflète `aria-pressed="true"` immédiatement après le clic (synchro toolbar `useEditorState`) ; après rechargement, le texte tapé est toujours visible dans l'éditeur (persistance à travers la frontière RSC → Client).
+- **Critères d'acceptation** : `npm run test:e2e` vert ; la base de dev (`story_tide`) reste inchangée pendant et après l'exécution (vérifié par comptage de lignes avant/après) ; la base e2e est repartie de zéro à chaque run (pas d'accumulation de données entre exécutions).
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/smoke.spec.ts`, vérifié en conditions réelles contre un vrai navigateur Chromium et une vraie base Postgres)
+
 ## TST-SEC-004 — Rejet d'un contenu hors du schéma strict de l'éditeur
 
 - **Description** : une requête de sauvegarde envoie un JSON contenant un node désactivé (ex. `codeBlock`) ou structurellement invalide, en contournant l'éditeur réel.

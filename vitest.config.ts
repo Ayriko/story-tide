@@ -12,6 +12,10 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    // Sans include explicite, Vitest ramasse aussi *.spec.ts par defaut - or
+    // e2e/*.spec.ts est le domaine de Playwright (smoke navigateur reel),
+    // pas de Vitest (jsdom). Restreint aux tests unitaires sous src/.
+    include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
       // json-summary : consomme par vitest-coverage-report-action (commentaire de PR)

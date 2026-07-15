@@ -64,7 +64,9 @@ pas été testé au clavier dans un vrai navigateur — l'extension Chrome de pi
 a de nouveau timeout (voir dev-log). Vérifié à la place : logique de données 100 %
 testée (validation, extraction), build de production réussi, chargement réel du
 bundle client confirmé par requête HTTP. La navigation clavier réelle de la
-toolbar/l'éditeur reste à confirmer manuellement ou via le futur smoke Playwright.
+toolbar/l'éditeur reste à confirmer manuellement ou via le smoke Playwright
+(`e2e/smoke.spec.ts`, fait le 2026-07-15 — parcours fonctionnel, pas encore
+d'assertion a11y dédiée, voir ci-dessous).
 
 ## Audit & résultats
 
@@ -73,10 +75,13 @@ toolbar/l'éditeur reste à confirmer manuellement ou via le futur smoke Playwri
   `toHaveNoViolations` échoue sous Vitest 4 (`expectAssertion.call is not a
   function`, dépendance à des internals Jest non fournis par le package). Pas de
   fix jugé utile d'insister à ce stade (voir `ci.md`).
-- **Audit pleine-page à outiller** : probablement via le futur job Playwright
-  smoke (axe fonctionne nativement avec un vrai navigateur, contourne le souci
-  Vitest/jsdom) — <!-- TODO, pas encore construit -->. Note : jsdom ne calcule de
-  toute façon pas les contrastes (axe les ignore en environnement jsdom), donc le
-  contrôle contraste restera de toute façon manuel ou Playwright.
+- **Audit pleine-page à outiller** : le harnais Playwright existe désormais
+  (`e2e/smoke.spec.ts`, 2026-07-15 — login → monde → fiche → éditeur, base e2e
+  isolée) et lève le blocage Vitest/jsdom (axe fonctionne nativement avec un
+  vrai navigateur). L'injection d'`@axe-core/playwright` et l'assertion
+  `toHaveNoViolations` sur chaque page du parcours restent
+  <!-- TODO, pas encore fait -->. Note : jsdom ne calcule de toute façon pas les
+  contrastes (axe les ignore en environnement jsdom), donc le contrôle contraste
+  restera de toute façon manuel ou Playwright.
 - **Passage manuel Ara + NVDA** : à planifier avant la recette sur staging
   (spec §6) — <!-- TODO, pas encore fait -->.

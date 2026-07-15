@@ -43,9 +43,13 @@ stade (`[Unreleased]`).
   `singletonKey` (ne déduplique pas avec la policy pg-boss par défaut) et la
   correction (policy `short`), avec la procédure de vérification par script
   d'intégration réel avant commit.
-- CI GitHub Actions (`.github/workflows/ci.yml`) : lint, typecheck, format,
-  couverture bloquante (80 %) et build sur chaque push `main` et pull request ;
-  rapport de couverture publié en artefact + commentaire automatique sur les PR.
+- CI GitHub Actions (`.github/workflows/ci.yml`) : trois jobs **parallèles et
+  indépendants** — `quality` (format, lint, typecheck), `test` (couverture
+  bloquante 80 %, artefact + commentaire de PR), `build` (`next build`). Isolés
+  pour qu'un échec de format/lint ne masque plus jamais le calcul de la
+  couverture (incident du 2026-07-15 : un job unique interrompu avant
+  `test:coverage` faisait planter en ENOENT les étapes de rapport `if:
+  always()` faute de dossier `coverage/`). Voir `docs/ci.md`.
 - README avec démarrage rapide (compose dev, migrations, `npm run dev`) et tableau
   des scripts npm, à la place du gabarit `create-next-app`.
 - `Dockerfile` multi-stage (`node:24-slim`, non-root) : cible `app` (Next.js en
@@ -81,6 +85,26 @@ stade (`[Unreleased]`).
   indicateur d'état `aria-live`. Extraction de `plainText` (texte brut, pour le
   futur scan de liaison + la recherche). Scénarios `TST-ENT-005`/`TST-SEC-004`
   au cahier de recettes, ligne A03 du mapping OWASP concrétisée.
+- Moteur de liaison Aho-Corasick (`src/lib/linker/`), première brique du
+  différenciateur produit : `normalizeForMatch` (casse repliée, accents
+  retirés, **ligatures `œ`/`æ` préservées** — NFD et non NFKD, voir ADR-0001,
+  nécessaire pour l'alignement caractère-exact des positions de surlignage) ;
+  `AhoCorasick` (trie + liens d'échec + scan `O(n)` en un seul passage, plus
+  long match prioritaire, frontières de mots, homonymes conservés). TS pur,
+  zéro dépendance, 100 % couvert (dont un test de passage à l'échelle : ~200
+  entités sur un texte de ~100 000 caractères, simulant un gros copier-coller/
+  import). Reste à faire : dictionnaire par monde + cache, écriture des
+  `Relation origin=AUTO`, filtre `LinkIgnore`, enfilage `JobQueue`, worker.
+- Smoke Playwright (`e2e/smoke.spec.ts`) : parcours bout en bout inscription →
+  monde → fiche → éditeur → auto-save → rechargement, sur un vrai navigateur
+  Chromium. Isolation totale : base Postgres dédiée `story_tide_e2e` (même
+  conteneur dev), remise à zéro (`DROP`/`CREATE SCHEMA` + `prisma migrate
+  deploy`) avant chaque exécution via `e2e/global-setup.ts` — la base de dev
+  n'est jamais ouverte. `next dev` comme serveur cible (reproduit React
+  StrictMode). Couvre les 3 classes de bugs invisibles à un test unitaire ou un
+  script `curl`/`tsx` (StrictMode, sérialisation Next.js Flight, Tailwind
+  Preflight). Scénario `TST-ENT-006` au cahier de recettes. Câblage CI (service
+  Postgres, cache navigateurs) : étape suivante, non encore fait.
 
 ### Corrigé
 
