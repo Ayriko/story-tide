@@ -1,5 +1,6 @@
 import { prisma } from "@/db/client";
-import type { Pattern } from "@/lib/linker/aho-corasick";
+import { RelationOrigin } from "@/generated/prisma/client";
+import { AhoCorasick, type Pattern } from "@/lib/linker/aho-corasick";
 
 // Dictionnaire de liaison d'un monde : un motif par nom d'entite + un motif
 // par alias (spec §4.4.1 - "aliases[] fait partie du dictionnaire au meme
@@ -21,4 +22,97 @@ export async function buildDictionary(worldId: string): Promise<Pattern[]> {
     }
   }
   return patterns;
+}
+
+// Scanne le plainText d'une fiche et fait converger les Relation origin=AUTO
+// sortantes de cette fiche vers ce qui est reellement mentionne (spec §4.4,
+// points 4-6). Jamais appele avec une session utilisateur (worker) : aucune
+// verification d'autorisation ici, la confiance vient de l'enfilage (Server
+// Action deja authentifiee/autorisee avant d'enqueue le job).
+export async function scanAndLinkEntity(worldId: string, entityId: string): Promise<void> {
+  const entity = await prisma.entity.findFirst({
+    where: { id: entityId, worldId },
+    select: { plainText: true },
+  });
+  if (!entity) {
+    // Fiche supprimee entre l'enfilage et le traitement du job : rien a faire.
+    return;
+  }
+
+  const patterns = await buildDictionary(worldId);
+  const matches = new AhoCorasick(patterns).search(entity.plainText);
+
+  // Regroupe par occurrence (memes bornes) : une occurrence matchee par
+  // plusieurs entites distinctes est ambigue (homonymes, spec §4.4 point 6) -
+  // aucun lien silencieux n'est cree pour elle. Le marquage "ambigu" cliquable
+  // pour trancher reste hors perimetre (backlog KAN-19, necessite un modele
+  // de donnees dedie).
+  const entityIdsByOccurrence = new Map<string, Set<string>>();
+  for (const match of matches) {
+    const key = `${match.start}-${match.end}`;
+    const ids = entityIdsByOccurrence.get(key) ?? new Set<string>();
+    ids.add(match.entityId);
+    entityIdsByOccurrence.set(key, ids);
+  }
+
+  const ignoredRows = await prisma.linkIgnore.findMany({
+    where: { entityId },
+    select: { targetId: true },
+  });
+  const ignoredTargets = new Set(ignoredRows.map((row) => row.targetId));
+
+  const desiredTargets = new Set<string>();
+  for (const occurrenceEntityIds of entityIdsByOccurrence.values()) {
+    if (occurrenceEntityIds.size !== 1) {
+      continue; // occurrence ambigue (homonymes) : pas de lien pour elle
+    }
+    // occurrenceEntityIds.size === 1 verifie juste au-dessus : un seul element.
+    const targetId = [...occurrenceEntityIds][0] as string;
+    if (targetId === entityId) {
+      continue; // auto-mention exclue
+    }
+    if (ignoredTargets.has(targetId)) {
+      continue; // garde-fou LinkIgnore
+    }
+    desiredTargets.add(targetId);
+  }
+
+  const existingAuto = await prisma.relation.findMany({
+    where: { sourceId: entityId, origin: RelationOrigin.AUTO },
+    select: { targetId: true },
+  });
+  const existingTargets = new Set(existingAuto.map((row) => row.targetId));
+
+  const toAdd = [...desiredTargets].filter((targetId) => !existingTargets.has(targetId));
+  const toRemove = [...existingTargets].filter((targetId) => !desiredTargets.has(targetId));
+
+  if (toAdd.length === 0 && toRemove.length === 0) {
+    return;
+  }
+
+  // Transaction : le diff s'applique en un bloc, jamais partiellement. Les
+  // Relation origin=MANUAL ne sont jamais lues ni ecrites ici - impossible de
+  // les ecraser par construction (regle dure CLAUDE.md).
+  await prisma.$transaction([
+    ...(toAdd.length > 0
+      ? [
+          prisma.relation.createMany({
+            data: toAdd.map((targetId) => ({
+              worldId,
+              sourceId: entityId,
+              targetId,
+              origin: RelationOrigin.AUTO,
+            })),
+            skipDuplicates: true,
+          }),
+        ]
+      : []),
+    ...(toRemove.length > 0
+      ? [
+          prisma.relation.deleteMany({
+            where: { sourceId: entityId, origin: RelationOrigin.AUTO, targetId: { in: toRemove } },
+          }),
+        ]
+      : []),
+  ]);
 }
