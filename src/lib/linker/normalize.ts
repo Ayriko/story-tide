@@ -13,8 +13,5 @@
 // ADR-0001 - depliers les ligatures changerait la longueur de la chaine et
 // casserait l'alignement caractere-exact des positions de surlignage.
 export function normalizeForMatch(input: string): string {
-  return input
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase();
+  return input.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
