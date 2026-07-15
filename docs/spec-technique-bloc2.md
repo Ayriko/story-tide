@@ -217,7 +217,7 @@ Pipeline GitHub Actions (protocoles à documenter dans `/docs/protocole-ci.md` e
 2. **CD** : tag `vX.Y.Z-rc.N` → image `-rc` → déploiement **staging** ; tag `vX.Y.Z` (posé après recette OK) → déploiement **production**. Build image multi-stage → push `ghcr.io` → SSH vers le VPS → `docker compose pull && docker compose up -d` → healthcheck.
 3. Secrets GitHub : clé SSH de déploiement dédiée (restreinte), host, token ghcr si package privé.
 4. Compose **dev** ≠ compose **staging** ≠ compose **prod** (staging/prod quasi identiques — seuls domaine, secrets et tag d'image changent ; base commune factorisée).
-5. **Husky** : hook pre-commit léger (lint + typecheck sur fichiers stagés) — le filet local avant la CI.
+5. **Husky** : hook pre-commit léger (`lint-staged` : ESLint --fix + Prettier sur fichiers stagés, puis `tsc --noEmit` sur tout le projet) — le filet local avant la CI.
 
 **VPS (commande ~13-15 juillet)** : OVH VPS-3 2027, GRA/SBG. Ordre strict : SSH clé-only + firewall (ufw) + fail2ban → Docker → Traefik/Let's Encrypt → premier déploiement pipeline (staging d'abord). Sauvegardes : `pg_dump` quotidien + snapshot volumes MinIO (cron conteneurisé), rétention 7 j — documenté au manuel.
 
