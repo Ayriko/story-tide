@@ -4,12 +4,13 @@ import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { EntityNotFoundError, getEntity } from "@/services/entity-service";
 import { buildDictionary } from "@/services/linker-service";
-import { getIgnoredTargetIds } from "@/services/relation-service";
+import { getIgnoredTargetIds, listOutgoingLinks } from "@/services/relation-service";
 import { entityTypeLabel } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
 import { EditEntityForm } from "./edit-entity-form";
 import { DeleteEntityForm } from "./delete-entity-form";
 import { EntityEditor } from "./entity-editor";
+import { LinkedEntities } from "./linked-entities";
 
 export default async function EntityPage({
   params,
@@ -53,9 +54,15 @@ export default async function EntityPage({
   // client (tiptap-link-highlight.ts) - meme dictionnaire que celui utilise
   // par le worker (buildDictionary), pour que ce qui est surligne soit
   // coherent avec les Relation origin=AUTO reellement ecrites.
-  const [dictionary, ignoredTargetIds] = await Promise.all([
+  // La liste "Entites liees" est une vue PERSISTEE (Relation en base, AUTO et
+  // MANUAL confondues) tandis que le surlignage dans l'editeur est une vue
+  // LIVE (scan du texte courant) - un leger decalage est possible tant que le
+  // worker n'a pas traite le dernier job d'enfilage (les deux convergent au
+  // repos, spec §4.4).
+  const [dictionary, ignoredTargetIds, linkedEntities] = await Promise.all([
     buildDictionary(world.id),
     getIgnoredTargetIds(session.user.id, world.id, entity.id),
+    listOutgoingLinks(session.user.id, world.id, entity.id),
   ]);
 
   return (
@@ -90,6 +97,19 @@ export default async function EntityPage({
           dictionary={dictionary}
           ignoredTargetIds={ignoredTargetIds}
         />
+      </section>
+
+      <section
+        aria-labelledby="linked-entities-heading"
+        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+      >
+        <h2
+          id="linked-entities-heading"
+          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+        >
+          Entités liées
+        </h2>
+        <LinkedEntities worldSlug={world.slug} links={linkedEntities} />
       </section>
 
       <section
