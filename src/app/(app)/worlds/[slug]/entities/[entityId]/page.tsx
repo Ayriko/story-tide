@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { EntityNotFoundError, getEntity } from "@/services/entity-service";
+import { buildDictionary } from "@/services/linker-service";
+import { getIgnoredTargetIds } from "@/services/relation-service";
 import { entityTypeLabel } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
 import { EditEntityForm } from "./edit-entity-form";
@@ -47,6 +49,15 @@ export default async function EntityPage({
     initialContent = EMPTY_CONTENT;
   }
 
+  // Dictionnaire + cibles ignorees : necessaires au surlignage live cote
+  // client (tiptap-link-highlight.ts) - meme dictionnaire que celui utilise
+  // par le worker (buildDictionary), pour que ce qui est surligne soit
+  // coherent avec les Relation origin=AUTO reellement ecrites.
+  const [dictionary, ignoredTargetIds] = await Promise.all([
+    buildDictionary(world.id),
+    getIgnoredTargetIds(session.user.id, world.id, entity.id),
+  ]);
+
   return (
     <div className="flex flex-col gap-10">
       <div>
@@ -71,7 +82,14 @@ export default async function EntityPage({
         <h2 id="content-heading" className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
           Contenu
         </h2>
-        <EntityEditor worldId={world.id} entityId={entity.id} initialContent={initialContent} />
+        <EntityEditor
+          worldId={world.id}
+          worldSlug={world.slug}
+          entityId={entity.id}
+          initialContent={initialContent}
+          dictionary={dictionary}
+          ignoredTargetIds={ignoredTargetIds}
+        />
       </section>
 
       <section

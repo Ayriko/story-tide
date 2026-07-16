@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import { createEditorExtensions } from "@/lib/tiptap-extensions";
+import { createLinkHighlightExtension, MENTION_TARGET_ATTR } from "@/lib/tiptap-link-highlight";
+import type { Pattern } from "@/lib/linker/aho-corasick";
 import { saveEntityContentAction } from "@/actions/entity-content";
 import { inputClassName, labelClassName, secondaryButtonClassName } from "@/app/(app)/form-styles";
 
@@ -211,13 +214,20 @@ function Toolbar({ editor, active }: { editor: Editor; active: ActiveState }) {
 
 export function EntityEditor({
   worldId,
+  worldSlug,
   entityId,
   initialContent,
+  dictionary,
+  ignoredTargetIds,
 }: {
   worldId: string;
+  worldSlug: string;
   entityId: string;
   initialContent: JSONContent;
+  dictionary: Pattern[];
+  ignoredTargetIds: string[];
 }) {
+  const router = useRouter();
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -247,8 +257,13 @@ export function EntityEditor({
   // les effets non idempotents. Partager les memes instances entre deux
   // montages corrompait les commandes liees au schema (titre, listes,
   // citation, lien, image) - seuls les marks simples (gras/italique) survivaient.
+  // createLinkHighlightExtension suit la meme regle (dictionnaire fige au
+  // montage - voir son commentaire dans tiptap-link-highlight.ts).
   const editor = useEditor({
-    extensions: createEditorExtensions(),
+    extensions: [
+      ...createEditorExtensions(),
+      createLinkHighlightExtension({ dictionary, selfEntityId: entityId, ignoredTargetIds }),
+    ],
     content: initialContent,
     immediatelyRender: false,
     onUpdate: ({ editor: updatedEditor }) => {
@@ -290,6 +305,30 @@ export function EntityEditor({
     };
   }, []);
 
+  // Clic simple = edition normale (placer le curseur dans le contenteditable) ;
+  // Ctrl/Cmd+clic sur une mention surlignee = navigation vers la fiche liee.
+  // Convention deja etablie par les editeurs/IDE (VS Code...), pour ne jamais
+  // gener la correction du texte d'un mot lie. La liste "Entites liees" sous
+  // l'editeur reste le chemin clavier/lecteur d'ecran (RGAA).
+  const handleMentionClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!(event.metaKey || event.ctrlKey)) {
+        return;
+      }
+      const mentionElement = (event.target as HTMLElement).closest(`[${MENTION_TARGET_ATTR}]`);
+      if (!mentionElement) {
+        return;
+      }
+      const targetId = mentionElement.getAttribute(MENTION_TARGET_ATTR);
+      if (!targetId) {
+        return;
+      }
+      event.preventDefault();
+      router.push(`/worlds/${worldSlug}/entities/${targetId}`);
+    },
+    [router, worldSlug],
+  );
+
   if (!editor) {
     return null;
   }
@@ -299,11 +338,16 @@ export function EntityEditor({
       <Toolbar editor={editor} active={active ?? INACTIVE_STATE} />
       <EditorContent
         editor={editor}
+        onClickCapture={handleMentionClick}
         // Tiptap est headless : aucun style natif. Tailwind Preflight reinitialise
         // en plus la taille des titres et les puces des listes - sans ces regles,
         // un titre/une liste/une citation sont invisibles a l'oeil meme si le node
         // est bien applique (verifie via le JSON sauvegarde).
-        className="min-h-[200px] rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-950 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:focus-within:outline-zinc-50 [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-zinc-600 dark:[&_blockquote]:border-zinc-700 dark:[&_blockquote]:text-zinc-400"
+        // Surlignage des mentions liees (tiptap-link-highlight.ts) : souligne
+        // pointille discret, jamais du texte plein (ne doit pas se confondre
+        // avec un vrai lien "http" du node Link). Ctrl/Cmd+clic navigue
+        // (handleMentionClick) ; sans modificateur, clic simple = edition.
+        className="min-h-[200px] rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-950 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:focus-within:outline-zinc-50 [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-zinc-600 dark:[&_blockquote]:border-zinc-700 dark:[&_blockquote]:text-zinc-400 [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-zinc-400 [&_.entity-mention]:underline-offset-2 dark:[&_.entity-mention]:decoration-zinc-600"
       />
       <p aria-live="polite" className="text-xs text-zinc-500 dark:text-zinc-400">
         {status === "saving" ? "Enregistrement…" : null}
