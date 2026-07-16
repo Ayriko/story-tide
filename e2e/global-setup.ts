@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import path from "node:path";
 import dotenv from "dotenv";
 import { Client } from "pg";
@@ -10,7 +10,7 @@ import { Client } from "pg";
  * (re)cree et on la remet a zero avant chaque run - determinisme total,
  * aucune fuite entre executions.
  */
-export default async function globalSetup(): Promise<void> {
+export default async function globalSetup(): Promise<() => Promise<void>> {
   dotenv.config({ path: path.resolve(process.cwd(), ".env.e2e") });
 
   const databaseUrl = process.env.DATABASE_URL;
@@ -70,4 +70,22 @@ export default async function globalSetup(): Promise<void> {
     stdio: "inherit",
     env: { ...process.env, DATABASE_URL: databaseUrl },
   });
+
+  // Worker REEL (pas mocke) : necessaire pour que le job de liaison enfile a
+  // la sauvegarde d'une fiche soit reellement traite pendant les tests e2e
+  // (link-highlight.spec.ts verifie la liste "Entites liees", alimentee par
+  // une vraie Relation ecrite en base par ce worker - pas par le webServer
+  // Next.js seul, qui ne consomme aucune file). Commande figee en une seule
+  // chaine (pas de tableau d'arguments + shell:true) - meme choix que
+  // execSync ci-dessus, deja retenu pour eviter le DeprecationWarning Node
+  // DEP0190 rencontre sur ce projet (cf. dev-log 2026-07-15).
+  const worker = spawn("npx tsx src/worker/index.ts", {
+    shell: true,
+    stdio: "inherit",
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  });
+
+  return async () => {
+    worker.kill();
+  };
 }

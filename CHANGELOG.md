@@ -134,6 +134,27 @@ stade (`[Unreleased]`).
   monde (prévu spec §4.4) délibérément reporté — reconstruction à chaque job,
   largement dans le budget perf. Scénarios `TST-LNK-001` à `TST-LNK-003` au
   cahier de recettes.
+- Surlignage live des liaisons dans l'éditeur + navigation (ADR-0010) : les
+  mentions d'entités existantes sont soulignées en direct pendant la frappe
+  (décoration ProseMirror, jamais persistée) via un **re-scan côté client** du
+  même moteur Aho-Corasick — pas d'attente du worker, pas d'impact sur le
+  schéma de contenu partagé. `src/lib/tiptap-positions.ts`
+  (`buildTextWithPositions`/`occurrenceToRange`) remappe les positions du scan
+  vers de vraies positions ProseMirror, avec le même séparateur de bloc que
+  `extractPlainText` (identité vérifiée par test sur plusieurs formes de
+  documents). `resolveLinks` (`src/lib/linker/resolve-links.ts`) est extrait de
+  `scanAndLinkEntity` et partagé entre le worker et le surlignage : ce qui est
+  surligné est exactement ce qui devient une `Relation`. Navigation à deux
+  chemins : **Ctrl/Cmd+clic** sur une mention surlignée (clic simple = édition
+  normale, jamais de navigation accidentelle) ou la liste accessible « Entités
+  liées » sous l'éditeur (`<nav>`/`<Link>`, navigable clavier/lecteur d'écran —
+  le surlignage seul n'est qu'une affordance souris, cf.
+  `docs/accessibilite-rgaa.md`). `src/services/relation-service.ts`
+  (`getIgnoredTargetIds`, `listOutgoingLinks`). Vérifié en conditions réelles
+  bout en bout (`e2e/link-highlight.spec.ts` : vrai navigateur, vrai worker,
+  vraie base Postgres isolée — le worker est désormais démarré par
+  `e2e/global-setup.ts` pour tout le run e2e). Scénario `TST-LNK-004` au
+  cahier de recettes.
 
 ### Corrigé
 

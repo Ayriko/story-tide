@@ -35,6 +35,15 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   image (bouton désactivé tant que l'alt est vide). État de sauvegarde annoncé via
   `aria-live="polite"` (« Enregistrement… » / « Enregistré. » / erreur), pas de
   changement visuel silencieux pour les lecteurs d'écran.
+- **Surlignage des liaisons** (2026-07-16, ADR-0010) : le surlignage des mentions
+  détectées dans l'éditeur (décoration visuelle + Ctrl/Cmd+clic) est une
+  **affordance souris uniquement** — un `contenteditable` ne peut pas exposer
+  correctement un lien interactif au clavier sans risquer d'entrer en conflit avec
+  l'édition du texte. Le chemin **accessible** est délibérément séparé : la liste
+  « Entités liées » sous l'éditeur (`<nav aria-label="Entités liées">` + vrais
+  `<Link>` dans une `<ul>`), atteignable au Tab et annoncée normalement par un
+  lecteur d'écran. Les deux chemins mènent à la même fiche — aucune information
+  n'est disponible à la souris seule.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
@@ -85,3 +94,8 @@ d'assertion a11y dédiée, voir ci-dessous).
   restera de toute façon manuel ou Playwright.
 - **Passage manuel Ara + NVDA** : à planifier avant la recette sur staging
   (spec §6) — <!-- TODO, pas encore fait -->.
+- **Surlignage des liaisons** (`e2e/link-highlight.spec.ts`, 2026-07-16) : le
+  parcours e2e exerce la liste « Entités liées » via `getByRole("navigation",
+  ...)`/`getByRole("link", ...)` (nom accessible réel, pas un sélecteur CSS) —
+  preuve que le chemin clavier/lecteur d'écran fonctionne, sans remplacer un audit
+  axe-core pleine page (toujours <!-- TODO, pas encore fait -->).
