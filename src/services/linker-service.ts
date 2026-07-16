@@ -1,6 +1,7 @@
 import { prisma } from "@/db/client";
 import { RelationOrigin } from "@/generated/prisma/client";
 import { AhoCorasick, type Pattern } from "@/lib/linker/aho-corasick";
+import { resolveLinks } from "@/lib/linker/resolve-links";
 
 // Dictionnaire de liaison d'un monde : un motif par nom d'entite + un motif
 // par alias (spec §4.4.1 - "aliases[] fait partie du dictionnaire au meme
@@ -42,40 +43,20 @@ export async function scanAndLinkEntity(worldId: string, entityId: string): Prom
   const patterns = await buildDictionary(worldId);
   const matches = new AhoCorasick(patterns).search(entity.plainText);
 
-  // Regroupe par occurrence (memes bornes) : une occurrence matchee par
-  // plusieurs entites distinctes est ambigue (homonymes, spec §4.4 point 6) -
-  // aucun lien silencieux n'est cree pour elle. Le marquage "ambigu" cliquable
-  // pour trancher reste hors perimetre (backlog KAN-19, necessite un modele
-  // de donnees dedie).
-  const entityIdsByOccurrence = new Map<string, Set<string>>();
-  for (const match of matches) {
-    const key = `${match.start}-${match.end}`;
-    const ids = entityIdsByOccurrence.get(key) ?? new Set<string>();
-    ids.add(match.entityId);
-    entityIdsByOccurrence.set(key, ids);
-  }
-
   const ignoredRows = await prisma.linkIgnore.findMany({
     where: { entityId },
     select: { targetId: true },
   });
   const ignoredTargets = new Set(ignoredRows.map((row) => row.targetId));
 
-  const desiredTargets = new Set<string>();
-  for (const occurrenceEntityIds of entityIdsByOccurrence.values()) {
-    if (occurrenceEntityIds.size !== 1) {
-      continue; // occurrence ambigue (homonymes) : pas de lien pour elle
-    }
-    // occurrenceEntityIds.size === 1 verifie juste au-dessus : un seul element.
-    const targetId = [...occurrenceEntityIds][0] as string;
-    if (targetId === entityId) {
-      continue; // auto-mention exclue
-    }
-    if (ignoredTargets.has(targetId)) {
-      continue; // garde-fou LinkIgnore
-    }
-    desiredTargets.add(targetId);
-  }
+  // Regroupement par occurrence, exclusion de l'ambiguite/auto-mention/
+  // LinkIgnore : logique partagee avec le surlignage live cote client (meme
+  // fonction pure), pour que ce qui est surligne soit exactement ce qui
+  // devient une Relation - voir src/lib/linker/resolve-links.ts.
+  const { targetIds: desiredTargets } = resolveLinks(matches, {
+    selfEntityId: entityId,
+    ignoredTargetIds: ignoredTargets,
+  });
 
   const existingAuto = await prisma.relation.findMany({
     where: { sourceId: entityId, origin: RelationOrigin.AUTO },
