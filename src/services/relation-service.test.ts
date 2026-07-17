@@ -4,7 +4,7 @@ import type { Entity, LinkIgnore, Relation, World } from "@/generated/prisma/cli
 import { RelationOrigin } from "@/generated/prisma/client";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { WorldNotFoundError } from "./world-service";
-import { getIgnoredTargetIds, listOutgoingLinks } from "./relation-service";
+import { getIgnoredTargetIds, listIncomingLinks, listOutgoingLinks } from "./relation-service";
 
 // Meme regle que entity-service.test.ts : Prisma mocke, getWorld() n'est pas
 // mocke - on verifie la vraie cascade d'autorisation monde -> LinkIgnore/Relation
@@ -182,6 +182,68 @@ describe("listOutgoingLinks", () => {
     entityFindMany.mockResolvedValue([]);
 
     const result = await listOutgoingLinks(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([]);
+  });
+});
+
+describe("listIncomingLinks", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire", async () => {
+    worldFindFirst.mockResolvedValue(null);
+
+    await expect(listIncomingLinks(OWNER_ID, WORLD_ID, ENTITY_ID)).rejects.toThrow(
+      WorldNotFoundError,
+    );
+    expect(relationFindMany).not.toHaveBeenCalled();
+  });
+
+  it("retourne un tableau vide sans relation entrante (sans requeter les entites)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([]);
+
+    const result = await listIncomingLinks(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([]);
+    expect(entityFindMany).not.toHaveBeenCalled();
+    expect(relationFindMany).toHaveBeenCalledWith({
+      where: { targetId: ENTITY_ID },
+      select: { sourceId: true, origin: true },
+    });
+  });
+
+  it("retourne les entites source (AUTO et MANUAL confondues), triees par nom", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([
+      makeRelation({ sourceId: "e2", origin: RelationOrigin.AUTO }),
+      makeRelation({ sourceId: "e3", origin: RelationOrigin.MANUAL }),
+    ]);
+    entityFindMany.mockResolvedValue([
+      makeEntity({ id: "e2", name: "Robert" }),
+      makeEntity({ id: "e3", name: "Aeliana" }),
+    ]);
+
+    const result = await listIncomingLinks(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([
+      { id: "e3", name: "Aeliana", origin: RelationOrigin.MANUAL },
+      { id: "e2", name: "Robert", origin: RelationOrigin.AUTO },
+    ]);
+    expect(entityFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ["e2", "e3"] } },
+      select: { id: true, name: true },
+    });
+  });
+
+  it("omet silencieusement une source introuvable (supprimee entre les deux requetes)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([makeRelation({ sourceId: "e2" })]);
+    entityFindMany.mockResolvedValue([]);
+
+    const result = await listIncomingLinks(OWNER_ID, WORLD_ID, ENTITY_ID);
 
     expect(result).toEqual([]);
   });

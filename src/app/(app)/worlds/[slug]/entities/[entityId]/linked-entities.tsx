@@ -1,22 +1,30 @@
 import Link from "next/link";
-import type { OutgoingLink } from "@/services/relation-service";
+import type { LinkedEntity } from "@/services/relation-service";
 
 // Chemin de navigation ACCESSIBLE (clavier/lecteur d'ecran) vers les fiches
 // liees - le surlignage live dans l'editeur (tiptap-link-highlight.ts,
 // Ctrl/Cmd+clic) n'est atteignable qu'a la souris, cf. RGAA. HTML semantique
 // (nav + ul + vrais <Link>) : aucun ARIA necessaire au-dela de aria-labelledby
-// pour associer la liste a son titre de section.
-export function LinkedEntities({ worldSlug, links }: { worldSlug: string; links: OutgoingLink[] }) {
+// pour associer la liste a son titre de section. Reutilise pour les deux sens
+// (liens sortants et backlinks entrants, KAN-24) via `label`/`emptyLabel` -
+// chaque <nav> garde un nom accessible distinct.
+export function LinkedEntities({
+  worldSlug,
+  links,
+  label,
+  emptyLabel,
+}: {
+  worldSlug: string;
+  links: LinkedEntity[];
+  label: string;
+  emptyLabel: string;
+}) {
   if (links.length === 0) {
-    return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Aucune entité liée pour l&apos;instant.
-      </p>
-    );
+    return <p className="text-sm text-zinc-600 dark:text-zinc-400">{emptyLabel}</p>;
   }
 
   return (
-    <nav aria-label="Entités liées">
+    <nav aria-label={label}>
       <ul className="flex flex-col gap-2">
         {links.map((link) => (
           <li key={link.id}>
