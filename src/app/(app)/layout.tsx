@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { logoutAction } from "@/actions/auth";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 
 export default async function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  await requireSessionOrRedirect();
+  const session = await requireSessionOrRedirect();
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-zinc-50 dark:bg-black">
@@ -23,6 +24,17 @@ export default async function AppLayout({ children }: Readonly<{ children: React
           >
             Story Tide
           </Link>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-zinc-600 dark:text-zinc-400">{session.user.email}</span>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="rounded-md text-sm font-medium text-zinc-600 hover:text-zinc-950 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 dark:focus-visible:outline-zinc-50"
+              >
+                Se déconnecter
+              </button>
+            </form>
+          </div>
         </nav>
       </header>
       <main id="main-content" className="mx-auto w-full max-w-4xl flex-1 px-6 py-10">
