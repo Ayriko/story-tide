@@ -4,6 +4,7 @@ import { jobQueue } from "@/lib/queue";
 import { ENTITY_LINKING_QUEUE } from "@/lib/queue/entity-linking";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
+import { reconcileManualMentions } from "@/services/relation-service";
 import { WorldNotFoundError } from "@/services/world-service";
 import { saveEntityContentAction } from "./entity-content";
 
@@ -20,8 +21,18 @@ vi.mock("@/services/entity-service", async (importOriginal) => {
   return { ...actual, updateEntityContent: vi.fn() };
 });
 
+// Sans ce mock, reconcileManualMentions() appellerait la VRAIE @/db/client -
+// si un Postgres dev tourne par ailleurs (docker-compose.dev.yml), l'appel
+// reussirait/echouerait silencieusement contre la vraie base au lieu d'etre
+// isole (piege reel rencontre en verifiant ce fichier : les tests passaient
+// deja "par accident" via l'echec catche, sans jamais verifier l'appel).
+vi.mock("@/services/relation-service", () => ({
+  reconcileManualMentions: vi.fn(),
+}));
+
 const mockedRequireSession = vi.mocked(requireSession);
 const mockedUpdateEntityContent = vi.mocked(updateEntityContent);
+const mockedReconcileManualMentions = vi.mocked(reconcileManualMentions);
 const mockedEnqueue = vi.mocked(jobQueue.enqueue);
 
 const SESSION = { user: { id: "owner-1" } } as unknown as Awaited<
@@ -149,6 +160,43 @@ describe("saveEntityContentAction", () => {
     expect(result).toEqual({ ok: true });
     expect(consoleError).toHaveBeenCalledWith(
       "[entity-content] Enfilage du job de liaison échoué :",
+      expect.any(Error),
+    );
+    consoleError.mockRestore();
+  });
+
+  it("reconcilie les Relation MANUAL avec les mentions extraites du contenu sauvegarde", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    // @ts-expect-error - seul le retour importe au test, pas la forme Entity complete
+    mockedUpdateEntityContent.mockResolvedValueOnce({ id: "e1" });
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { id: "e2", label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    const result = await saveEntityContentAction("w1", "e1", JSON.stringify(content));
+
+    expect(result).toEqual({ ok: true });
+    expect(mockedReconcileManualMentions).toHaveBeenCalledWith("owner-1", "w1", "e1", ["e2"]);
+  });
+
+  it("une reconciliation MANUAL en echec est loggue mais ne fait pas echouer la sauvegarde", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    // @ts-expect-error - seul le retour importe au test, pas la forme Entity complete
+    mockedUpdateEntityContent.mockResolvedValueOnce({ id: "e1" });
+    mockedReconcileManualMentions.mockRejectedValueOnce(new Error("base indisponible"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await saveEntityContentAction("w1", "e1", JSON.stringify(EMPTY_CONTENT));
+
+    expect(result).toEqual({ ok: true });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[entity-content] Réconciliation des mentions manuelles échouée :",
       expect.any(Error),
     );
     consoleError.mockRestore();

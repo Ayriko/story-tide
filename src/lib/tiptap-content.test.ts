@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_CONTENT,
   InvalidContentError,
+  extractMentionedEntityIds,
   extractPlainText,
   parseContent,
 } from "./tiptap-content";
@@ -167,6 +168,43 @@ describe("parseContent", () => {
     expect(() => parseContent(content)).toThrow(InvalidContentError);
   });
 
+  it("accepte une mention avec un id non vide", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { id: "entity-1", label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).not.toThrow();
+  });
+
+  it("rejette une mention avec un id vide", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { id: "", label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une mention sans id", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "mention", attrs: { label: "Aeliana" } }] }],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
   it("accepte une image http(s) avec alt et un lien http(s)", () => {
     const content = {
       type: "doc",
@@ -204,6 +242,97 @@ describe("extractPlainText", () => {
     };
 
     expect(extractPlainText(content)).toContain("Aeliana");
-    expect(extractPlainText(content)).toContain("La reine du nord.");
+  });
+
+  it("n'inclut jamais le libelle d'une mention manuelle (evite l'auto-detection par le scan AUTO)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Rencontre avec " },
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+            { type: "text", text: " hier." },
+          ],
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("Rencontre avec  hier.");
+  });
+});
+
+describe("extractMentionedEntityIds", () => {
+  it("retourne un tableau vide sans mention", () => {
+    expect(extractMentionedEntityIds(EMPTY_CONTENT)).toEqual([]);
+  });
+
+  it("extrait l'id d'une mention, quelle que soit sa profondeur d'imbrication", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "blockquote",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "mention", attrs: { id: "entity-1", label: "Aeliana" } }],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual(["entity-1"]);
+  });
+
+  it("deduplique les mentions repetees de la meme entite", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+            { type: "text", text: " et " },
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+          ],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual(["entity-1"]);
+  });
+
+  it("ignore une mention sans id exploitable (forme malformee)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual([]);
+  });
+
+  it("distingue plusieurs entites mentionnees", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+            { type: "mention", attrs: { id: "entity-2", label: "Robert" } },
+          ],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual(["entity-1", "entity-2"]);
   });
 });

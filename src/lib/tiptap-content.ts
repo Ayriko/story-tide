@@ -46,8 +46,9 @@ function isSafeHttpUrl(value: unknown): value is string {
 
 // Parcourt le doc deja valide structurellement et rejette la premiere valeur
 // d'attribut dangereuse rencontree : image.src/alt, puis link.href sur les
-// marks. `alt` est deja exige cote UI (RGAA) - sans ce controle serveur, la
-// regle est contournable par un appel direct a l'action de sauvegarde.
+// marks, puis mention.id. `alt` est deja exige cote UI (RGAA) - sans ce
+// controle serveur, la regle est contournable par un appel direct a l'action
+// de sauvegarde.
 function assertSafeAttributes(doc: ProseMirrorNode): void {
   let violation: string | null = null;
 
@@ -61,6 +62,16 @@ function assertSafeAttributes(doc: ProseMirrorNode): void {
         violation = `image.src invalide : ${JSON.stringify(src)}`;
       } else if (typeof alt !== "string" || alt.trim() === "") {
         violation = "image.alt manquant";
+      }
+    }
+    if (node.type.name === "mention") {
+      // Verifie uniquement la FORME de l'attribut (chaine non vide) : ce
+      // module est pur (aucun acces DB), l'existence/l'appartenance reelle de
+      // l'entite au monde est verifiee plus tard par le service qui
+      // reconcilie les Relation origin=MANUAL (autorisation, pas parsing).
+      const { id } = node.attrs as { id: unknown };
+      if (typeof id !== "string" || id.trim() === "") {
+        violation = `mention.id invalide : ${JSON.stringify(id)}`;
       }
     }
     node.marks.forEach((mark) => {
@@ -112,4 +123,24 @@ export function parseContent(content: unknown): JSONContent {
 // fonction pure, ne necessite pas de DOM/navigateur reel.
 export function extractPlainText(content: JSONContent): string {
   return generateText(content, extensions);
+}
+
+// Extrait les id d'entites mentionnees manuellement (@, KAN-22) - parcours du
+// JSON brut deja valide (pas besoin de reconstruire un Node ProseMirror : la
+// structure { type, attrs?, content? } se parcourt directement). Utilise par
+// saveEntityContentAction pour reconcilier les Relation origin=MANUAL -
+// jamais de confiance aveugle dans ces id cote service (reconcileManualMentions
+// revalide leur appartenance au monde avant toute ecriture, OWASP A01).
+export function extractMentionedEntityIds(content: JSONContent): string[] {
+  const ids = new Set<string>();
+
+  function walk(node: JSONContent): void {
+    if (node.type === "mention" && typeof node.attrs?.id === "string" && node.attrs.id !== "") {
+      ids.add(node.attrs.id);
+    }
+    node.content?.forEach(walk);
+  }
+
+  walk(content);
+  return [...ids];
 }
