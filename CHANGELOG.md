@@ -187,6 +187,24 @@ stade (`[Unreleased]`).
   (`src/app/(app)/layout.tsx`, affiche aussi l'e-mail de l'utilisateur
   connecté), focus visible cohérent avec le reste de la navigation (RGAA).
   Scénario `TST-AUT-008` au cahier de recettes.
+- Mentions manuelles @ (KAN-22) : node `mention` (`@tiptap/extension-mention`,
+  `src/lib/tiptap-extensions.ts`) partagé serveur/client, rendu identique au
+  surlignage AUTO (même classe/attribut DOM, aucun `@` affiché) et exclu du
+  `plainText`/scan AUTO (`renderText: () => ""`, évite l'auto-détection de sa
+  propre mention). Popup de suggestion (`mention-list.tsx`, `ReactRenderer` +
+  `@tiptap/suggestion`, positionnement natif Floating UI — pas de tippy.js) :
+  navigation clavier ↑/↓/Entrée, `aria-activedescendant`, filtrage insensible
+  casse/accents (`filterMentionSuggestions`). Réconciliation **synchrone** des
+  `Relation origin=MANUAL` à la sauvegarde (`reconcileManualMentions`,
+  `extractMentionedEntityIds`) : diff ajout/suppression comme `scanAndLinkEntity`
+  mais toujours filtré `origin: MANUAL` (coexiste avec AUTO sans collision,
+  `@@unique([sourceId, targetId, origin])`) ; les id mentionnés sont revalidés
+  contre le monde réel avant toute écriture (OWASP A01, jamais de confiance
+  dans l'input client). Voir ADR-0011. Vérifié en conditions réelles bout en
+  bout (`e2e/manual-mention.spec.ts`) — a révélé et corrigé un bug réel
+  (`allowSpaces: true` requis pour les noms d'entités composés, sans quoi la
+  popup se ferme au premier espace tapé). Scénario `TST-LNK-006` au cahier de
+  recettes.
 
 ### Corrigé
 

@@ -108,6 +108,13 @@ export function createEditorExtensions(mentionSuggestion?: MentionSuggestionConf
       ],
       suggestion: {
         char: "@",
+        // La plupart des noms d'entites contiennent des espaces ("Aldric le
+        // Vaillant") - sans allowSpaces, @tiptap/suggestion ferme la
+        // suggestion des le premier espace tape (son regex de requete exclut
+        // \s par defaut), rendant impossible d'affiner une recherche sur un
+        // nom compose. Trouve via le test e2e (manual-mention.spec.ts), pas
+        // reproduit manuellement (selection faite sans taper d'espace).
+        allowSpaces: true,
         // Insertion generique, partagee entre tous les appelants : un espace
         // suit toujours la mention pour que le curseur ne reste jamais
         // "coince" contre le node atome (convention Tiptap standard).

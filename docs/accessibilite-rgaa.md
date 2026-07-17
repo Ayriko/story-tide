@@ -44,6 +44,18 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   `<Link>` dans une `<ul>`), atteignable au Tab et annoncée normalement par un
   lecteur d'écran. Les deux chemins mènent à la même fiche — aucune information
   n'est disponible à la souris seule.
+- **Mentions manuelles @** (2026-07-17, ADR-0011) : contrairement au surlignage,
+  la popup de suggestion (`mention-list.tsx`) est **entièrement clavier** —
+  déclenchement en tapant `@` sans quitter le clavier, `role="listbox"`/
+  `role="option"`/`aria-selected` sur les candidats, navigation ↑/↓, validation
+  par Entrée, fermeture par Échap (gérée nativement par `@tiptap/suggestion`).
+  `aria-activedescendant` posé sur le `contenteditable` de l'éditeur (jamais
+  sur la popup, qui ne reçoit jamais le focus réel) et synchronisé avec
+  l'option survolée, pour qu'un lecteur d'écran annonce l'option courante sans
+  déplacer le focus — pattern standard d'un combobox ancré sur un champ de
+  texte. Une fois insérée, la mention suit la même règle que le surlignage
+  (Ctrl/Cmd+clic = affordance souris, liste « Entités liées »/« Mentionné par »
+  = chemin accessible).
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
