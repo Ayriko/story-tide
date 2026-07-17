@@ -84,6 +84,7 @@ Non éliminatoires mais notées : **C2.1.1/C2.1.2** (protocoles de déploiement 
 - **Worker** : petit process Node séparé (même repo, entrée `src/worker/index.ts`, propre stage Docker) qui consomme pg-boss et exécute le moteur de liaison. Partage le code de `src/lib/` et le client Prisma.
 - **PostgreSQL** : données + schéma `pgboss`. Un seul système stateful à sauvegarder.
 - **MinIO** : images uploadées par les utilisateurs uniquement (les assets de marque restent dans `/public` via `next/image`).
+- **Point d'extension OVH (KAN-11, fait)** : le port `Storage` (`src/lib/storage/types.ts`) n'expose que `upload`/`delete`/`getSignedUrl` — les services ne connaissent jamais le SDK S3. `S3StorageAdapter` (`src/lib/storage/s3-adapter.ts`) implémente ce port avec `@aws-sdk/client-s3` (`forcePathStyle: true`, requis par MinIO). Basculer vers **OVH Object Storage** (S3-compatible) se limite à changer `endpoint`/`region`/les identifiants passés à l'adaptateur (`src/env.ts`) — aucun service ni action à modifier. La **validation MIME/magic-bytes** (OWASP A10) relève du futur service d'upload (KAN-16), pas de ce port infra volontairement minimal.
 
 ### 4.2 Couches internes (C2.2.1 — maintenabilité)
 
