@@ -26,8 +26,14 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50">{world.name}</h1>
+        <Link
+          href={`/worlds/${world.slug}/graph`}
+          className="rounded-md text-sm font-medium text-zinc-600 hover:text-zinc-950 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50 dark:focus-visible:outline-zinc-50"
+        >
+          Graphe
+        </Link>
       </div>
 
       <section
