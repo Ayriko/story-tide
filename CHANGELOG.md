@@ -155,6 +155,17 @@ stade (`[Unreleased]`).
   vraie base Postgres isolée — le worker est désormais démarré par
   `e2e/global-setup.ts` pour tout le run e2e). Scénario `TST-LNK-004` au
   cahier de recettes.
+- Backlinks (KAN-24) : chaque fiche affiche désormais une section « Mentionné
+  par » (relations entrantes, AUTO et MANUAL confondues), symétrique de
+  « Entités liées ». `listIncomingLinks` (`src/services/relation-service.ts`)
+  résout le `sourceId` de chaque `Relation` ciblant l'entité via deux requêtes
+  à select plat (même raisonnement que `listOutgoingLinks`, cf. skill
+  `prisma-mock-partial-select`) ; le type `OutgoingLink` est renommé
+  `LinkedEntity` (sert désormais aux deux sens). Le composant
+  `LinkedEntities` (`linked-entities.tsx`) est généralisé avec des props
+  `label`/`emptyLabel` pour éviter la duplication de markup entre les deux
+  sections, chacune gardant un `aria-label` distinct (RGAA). Scénario
+  `TST-LNK-005` au cahier de recettes.
 
 ### Corrigé
 

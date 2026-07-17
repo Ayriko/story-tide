@@ -310,3 +310,13 @@
 - **Résultat attendu** : le surlignage apparaît immédiatement (avant tout traitement du worker) ; le clic simple ne change pas d'URL (édition normale) ; le Ctrl/Cmd+clic navigue vers la fiche cible ; la liste « Entités liées » affiche un lien vers la cible une fois le job traité, et ce lien navigue vers la même fiche.
 - **Critères d'acceptation** : `tiptap-positions.test.ts` (alignement caractère-exact `plainText` ↔ ProseMirror), `tiptap-link-highlight.test.ts` (décorations correctes : mention connue, ambiguïté/auto-mention/`LinkIgnore` sans décoration, re-scan sur changement de doc), `relation-service.test.ts` (`listOutgoingLinks`) ; vérifié en conditions réelles bout en bout (`e2e/link-highlight.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée).
 - **Type** : fonctionnel (bout en bout) + accessibilité · **Statut** : ✅ (`tiptap-positions.test.ts`, `tiptap-link-highlight.test.ts`, `relation-service.test.ts`, `e2e/link-highlight.spec.ts`)
+
+## TST-LNK-005 — Backlinks : liste « Mentionné par » sur chaque fiche d'entité
+
+- **Description** : sous la liste « Entités liées » (liens sortants), une seconde liste accessible « Mentionné par » affiche toutes les fiches qui mentionnent l'entité courante (relations entrantes, AUTO et MANUAL confondues), symétrique de `listOutgoingLinks`.
+- **Objectif** : vérifier que le sens entrant de la relation est résolu et affiché correctement, indépendamment du sens sortant déjà couvert par TST-LNK-004, avec le même niveau d'accessibilité (HTML sémantique, navigation clavier).
+- **Préconditions** : deux entités existent dans un monde (A mentionne B) et la relation `AUTO` ou `MANUAL` a été créée entre elles.
+- **Étapes** : 1) Ouvrir la fiche B (la cible mentionnée). 2) Consulter la section « Mentionné par ». 3) Vérifier le lien vers A. 4) Ouvrir une fiche sans aucune mention entrante.
+- **Résultat attendu** : la fiche B affiche un lien accessible vers A dans « Mentionné par » ; la fiche sans mention entrante affiche l'état vide dédié (« Aucune fiche ne mentionne cette entité pour l'instant. ») plutôt qu'une liste vide silencieuse ; les deux sections (« Entités liées » / « Mentionné par ») ont chacune un `aria-label` distinct pour les lecteurs d'écran.
+- **Critères d'acceptation** : `relation-service.test.ts` (`listIncomingLinks` : vide sans requêter les entités, tri par nom, source introuvable omise silencieusement) ; `LinkedEntities` généralisé (`linked-entities.tsx`) couvert par le même rendu que TST-LNK-004 (composant partagé, pas de duplication de markup).
+- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (`relation-service.test.ts`)

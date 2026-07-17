@@ -17,7 +17,10 @@ export async function getIgnoredTargetIds(
   return rows.map((row) => row.targetId);
 }
 
-export interface OutgoingLink {
+// Nom neutre : sert aux deux sens (sortant via listOutgoingLinks, entrant via
+// listIncomingLinks) - la forme est identique, seul le sens de la relation
+// resolue change.
+export interface LinkedEntity {
   id: string;
   name: string;
   origin: RelationOrigin;
@@ -35,7 +38,7 @@ export async function listOutgoingLinks(
   ownerId: string,
   worldId: string,
   entityId: string,
-): Promise<OutgoingLink[]> {
+): Promise<LinkedEntity[]> {
   await getWorld(ownerId, worldId);
 
   const relations = await prisma.relation.findMany({
@@ -59,6 +62,42 @@ export async function listOutgoingLinks(
       // onDelete: Cascade normalement synchrone) : on ne devine jamais un nom,
       // on omet silencieusement l'entree plutot que d'afficher un lien mort.
       return name === undefined ? [] : [{ id: relation.targetId, name, origin: relation.origin }];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Symetrique de listOutgoingLinks : quelles fiches MENTIONNENT celle-ci
+// ("Mentionne par", backlinks KAN-24). On filtre sur targetId et on resout
+// le sourceId de chaque relation (pas targetId) - meme raisonnement anti-piege
+// select plat / deux requetes (prisma-mock-partial-select).
+export async function listIncomingLinks(
+  ownerId: string,
+  worldId: string,
+  entityId: string,
+): Promise<LinkedEntity[]> {
+  await getWorld(ownerId, worldId);
+
+  const relations = await prisma.relation.findMany({
+    where: { targetId: entityId },
+    select: { sourceId: true, origin: true },
+  });
+  if (relations.length === 0) {
+    return [];
+  }
+
+  const sources = await prisma.entity.findMany({
+    where: { id: { in: relations.map((relation) => relation.sourceId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(sources.map((source) => [source.id, source.name]));
+
+  return relations
+    .flatMap((relation) => {
+      const name = nameById.get(relation.sourceId);
+      // Source supprimee entre la lecture de Relation et celle-ci (rare, cf.
+      // onDelete: Cascade normalement synchrone) : on ne devine jamais un nom,
+      // on omet silencieusement l'entree plutot que d'afficher un lien mort.
+      return name === undefined ? [] : [{ id: relation.sourceId, name, origin: relation.origin }];
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
