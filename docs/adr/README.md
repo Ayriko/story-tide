@@ -19,3 +19,4 @@
 | 0009 | Validation serveur du contenu Tiptap via le schéma ProseMirror réel | accepté | 2026-07-14 |
 | 0010 | Surlignage des liaisons : re-scan côté client plutôt que positions serveur persistées | accepté | 2026-07-16 |
 | 0011 | Mentions manuelles @ : réconciliation synchrone, coexistence avec AUTO | accepté | 2026-07-17 |
+| 0012 | Graphe de relations : Cytoscape.js dès le MVP (pas de migration à prévoir) | accepté | 2026-07-17 |

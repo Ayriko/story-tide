@@ -102,6 +102,29 @@ export async function listIncomingLinks(
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export interface WorldRelation {
+  sourceId: string;
+  targetId: string;
+  origin: RelationOrigin;
+}
+
+// Pour le graphe (KAN-25) : TOUTES les relations d'un monde, pas filtrees par
+// entite - contrairement a listOutgoingLinks/listIncomingLinks (une seule
+// entite). Select plat, jamais de nom resolu ici : le graphe recoit deja la
+// liste complete des entites du monde (listEntities) et fait sa propre
+// jointure en memoire (src/lib/graph-elements.ts), pas la peine de dupliquer
+// une resolution de noms deja disponible.
+export async function listWorldRelations(
+  ownerId: string,
+  worldId: string,
+): Promise<WorldRelation[]> {
+  await getWorld(ownerId, worldId);
+  return prisma.relation.findMany({
+    where: { worldId },
+    select: { sourceId: true, targetId: true, origin: true },
+  });
+}
+
 // Reconcilie les Relation origin=MANUAL a partir des mentions @ trouvees dans
 // le contenu au moment de la sauvegarde (KAN-22) - meme patron diff
 // ajout/suppression que scanAndLinkEntity (linker-service.ts), mais jamais la
