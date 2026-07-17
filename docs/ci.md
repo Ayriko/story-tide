@@ -1,12 +1,13 @@
 # Protocole d'intégration continue (CI) — C2.1.2
 
-> État au 2026-07-12 : workflow GitHub Actions en place
-> (`.github/workflows/ci.yml`), gates bloquants. Pas de CD ici (images ghcr/SSH/VPS
-> = étape ultérieure, le VPS n'est pas encore commandé).
+> État au 2026-07-17 (KAN-34) : workflow GitHub Actions en place
+> (`.github/workflows/ci.yml`), gates bloquants, smoke Playwright câblé. Pas de
+> CD ici (images ghcr/SSH/VPS = étape ultérieure, le VPS n'est pas encore
+> commandé).
 
 ## Étapes du pipeline
 
-Trois jobs **parallèles et indépendants** (aucun `needs` entre eux), déclenchés
+Quatre jobs **parallèles et indépendants** (aucun `needs` entre eux), déclenchés
 sur push `main` et sur toute pull request (`concurrency` annule les runs
 superseded d'une même branche) :
 
@@ -21,6 +22,17 @@ superseded d'une même branche) :
   PR (`davelosert/vitest-coverage-report-action`, `if: always() &&
   github.event_name == 'pull_request'`).
 - **`build`** — `npm ci` → `npm run build` (`next build`).
+- **`e2e`** — smoke Playwright (`e2e/smoke.spec.ts`, `e2e/link-highlight.spec.ts`).
+  Seul job connecté à une **vraie base** : un service `postgres:16`
+  (`POSTGRES_DB: story_tide_e2e`, healthcheck `pg_isready`) fournit la base que
+  `DATABASE_URL` cible (override au niveau job — seule variable modifiée, les
+  autres placeholders du workflow restent inchangés ; les garde-fous de
+  `e2e/global-setup.ts` — hôte `localhost`, nom finissant par `_e2e` —
+  s'appliquent tels quels). `npx playwright install --with-deps chromium` avant
+  `npm run test:e2e` (les navigateurs ne sont pas préinstallés sur le runner).
+  En cas d'échec : `test-results/` (traces Playwright, `trace: "retain-on-failure"`
+  dans `playwright.config.ts` — nécessaire car `retries: 0` rend
+  `"on-first-retry"` inopérant) publié en artefact (`if: failure()`).
 
 **Pourquoi 3 jobs séparés (et pas 1 seul) :** incident du 2026-07-15 — un
 `format:check` en échec dans le job unique interrompait le pipeline *avant*
@@ -30,17 +42,21 @@ ne rien publier. En isolant `test` de `quality`, la couverture est désormais
 **toujours calculée et publiée**, quel que soit l'état du lint/format — un
 format cassé ne masque plus jamais le signal de couverture (C2.1.1/C2.2.2,
 seuil bloquant). `build` reste un job à part (le plus lent) pour ne pas
-ralentir le retour rapide de `quality`.
+ralentir le retour rapide de `quality`. `e2e` suit le même principe : isolé
+pour que le smoke Playwright (le plus lent des quatre, installation des
+navigateurs comprise) ne bloque ni ne soit bloqué par les trois autres.
 
 Chaque job est bloquant indépendamment : un échec sur l'un n'empêche pas les
-deux autres de tourner à terme, mais la PR/le push est rouge si l'un des trois
-échoue. Aucun job ne se connecte à une vraie base/MinIO — le bloc `env:` (au
-niveau workflow, partagé par les 3 jobs) fournit des **placeholders
-non-secrets** conformes au schéma Zod de `src/env.ts` (nécessaires car `env.ts`
-est importé dès `prisma.config.ts`/les Server Actions/`next build`) ; les
-adaptateurs SDK réels (`pg-boss-adapter.ts`, `s3-adapter.ts`) sont exclus du
-calcul de couverture et vérifiés par script d'intégration réel avant commit (voir
-ADR-0007).
+trois autres de tourner à terme, mais la PR/le push est rouge si l'un des
+quatre échoue. `quality`/`test`/`build` ne se connectent à aucune vraie
+base/MinIO — le bloc `env:` (au niveau workflow, partagé par les jobs) fournit
+des **placeholders non-secrets** conformes au schéma Zod de `src/env.ts`
+(nécessaires car `env.ts` est importé dès `prisma.config.ts`/les Server
+Actions/`next build`) ; les adaptateurs SDK réels (`pg-boss-adapter.ts`,
+`s3-adapter.ts`) sont exclus du calcul de couverture et vérifiés par script
+d'intégration réel avant commit (voir ADR-0007). Seul `e2e` se connecte à une
+vraie base (service `postgres:16` du job, `DATABASE_URL` overridé) — jamais à
+MinIO, le smoke n'exerce pas le chemin upload.
 
 **Couverture (C2.1.1)** : le dossier `coverage/` (HTML + lcov + json-summary) est
 publié en artefact du run (`actions/upload-artifact`, rétention 14 j) ; sur les

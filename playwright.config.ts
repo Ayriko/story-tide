@@ -31,7 +31,10 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     baseURL,
-    trace: "on-first-retry",
+    // "on-first-retry" ne produirait jamais rien avec retries:0 (aucun retry
+    // possible) - "retain-on-failure" capture la trace au premier echec, sans
+    // dependre d'un retry, exploitable via l'artefact CI (test-results/).
+    trace: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: {

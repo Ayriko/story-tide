@@ -171,6 +171,15 @@ stade (`[Unreleased]`).
   `GetObjectCommand`, `forcePathStyle: true` requis par MinIO, expiration par
   défaut de l'URL signée) ; point d'extension vers OVH Object Storage documenté
   (`docs/spec-technique-bloc2.md` §4.1).
+- Câblage CI du smoke Playwright (KAN-34) : job `e2e` dans
+  `.github/workflows/ci.yml`, isolé des trois autres (même principe que
+  `quality`/`test`, voir `docs/ci.md`). Service `postgres:16`
+  (`POSTGRES_DB: story_tide_e2e`, healthcheck) fournit la base réelle ciblée
+  par `DATABASE_URL` (seul override au niveau job) ; `npx playwright install
+  --with-deps chromium` puis `npm run test:e2e`. `playwright.config.ts` :
+  `trace: "retain-on-failure"` (remplace `"on-first-retry"`, inopérant avec
+  `retries: 0`) pour que l'artefact `test-results/` publié en cas d'échec
+  (`if: failure()`) contienne réellement une trace exploitable.
 
 ### Corrigé
 

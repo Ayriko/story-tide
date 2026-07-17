@@ -296,7 +296,8 @@ Rappel des deux garde-fous de `note-skills-en-reserve.md` : auditer tout skill t
   (`DROP/CREATE SCHEMA` + `prisma migrate deploy`) avant chaque run via
   `e2e/global-setup.ts` — la base de dev n'est jamais ouverte (vérifié : comptage de
   lignes identique avant/après un run). `next dev` comme serveur (webServer Playwright)
-  pour reproduire StrictMode. **Reste à faire** : câblage CI (service Postgres dans le
-  workflow, cache navigateurs Playwright, artefact trace/rapport) — étape suivante
-  séparée ; débloque l'audit axe-core pleine page (reporté depuis plusieurs sessions,
-  cf. §6), pas encore fait.
+  pour reproduire StrictMode. **Câblage CI : fait (2026-07-17, KAN-34)** — job `e2e`
+  dédié dans `.github/workflows/ci.yml` (service `postgres:16`, installation des
+  navigateurs Chromium, artefact `test-results/` en cas d'échec) ; voir `docs/ci.md`.
+  **Reste à faire** : audit axe-core pleine page (reporté depuis plusieurs sessions,
+  cf. §6), débloqué mais pas encore fait.
