@@ -34,7 +34,7 @@ Non éliminatoires mais notées : **C2.1.1/C2.1.2** (protocoles de déploiement 
 4. Éditeur Tiptap (titres, listes, gras/italique, citations, liens, images) avec sauvegarde JSON ProseMirror + auto-save debouncé
 5. **Liaison automatique Aho-Corasick** (différenciateur) : détection serveur asynchrone, surlignage dans l'éditeur, relations `origin=AUTO`, mentions manuelles `@` (**Fait**, KAN-22, cf. §4.4 point 5 / ADR-0011), garde-fous (ignorer/délier une occurrence)
 6. Backlinks sur chaque fiche. **Fait** (KAN-24, `listIncomingLinks`, section « Mentionné par », cf. §4.4 point 5)
-7. **Graphe de relations** (Cytoscape.js) : vue interactive, filtrage par type, navigation cliquable
+7. **Graphe de relations** (Cytoscape.js) : vue interactive, filtrage par type, navigation cliquable. **Fait** (KAN-25, décision 2026-07-17, ADR-0012)
 8. Recherche basique dans les entités d'un monde
 9. Limites du tier gratuit (freemium structurel : quotas mondes/entités) — **sans Stripe** (P2, inchangé)
 

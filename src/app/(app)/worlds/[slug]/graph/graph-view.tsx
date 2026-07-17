@@ -74,7 +74,15 @@ export function GraphView({ worldSlug, elements }: { worldSlug: string; elements
           },
         },
       ],
-      layout: { name: "cose" },
+      // animate:false - le layout "cose" anime par defaut sur plusieurs
+      // requestAnimationFrame ; si le composant demonte (navigation) pendant
+      // l'animation, une frame differee peut s'executer APRES cy.destroy()
+      // et planter sur des internes detruits (vecu : "Cannot read properties
+      // of null (reading 'notify')", reproduit par e2e/graph.spec.ts). Layout
+      // synchrone = aucune frame differee possible, bug ecarte par
+      // construction plutot que par un stop() fragile a synchroniser avec le
+      // cleanup de l'effet.
+      layout: { name: "cose", animate: false },
     });
     cyRef.current = cy;
 
@@ -138,6 +146,7 @@ export function GraphView({ worldSlug, elements }: { worldSlug: string; elements
       <div
         ref={containerRef}
         aria-hidden="true"
+        data-testid="graph-canvas"
         className="h-[600px] w-full rounded-md border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
       />
     </div>

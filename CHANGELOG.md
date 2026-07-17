@@ -205,6 +205,22 @@ stade (`[Unreleased]`).
   (`allowSpaces: true` requis pour les noms d'entités composés, sans quoi la
   popup se ferme au premier espace tapé). Scénario `TST-LNK-006` au cahier de
   recettes.
+- Graphe de relations (KAN-25, `/worlds/[slug]/graph`) : rendu **Cytoscape.js**
+  (déjà acté, cf. ADR-0012 — pas react-flow comme proposé par un audit externe,
+  Cytoscape rend nativement sur un seul `<canvas>` donc aucune phase de
+  migration à prévoir). `listWorldRelations` (`relation-service.ts`),
+  `buildGraphElements`/`buildAccessibleGraphEntries` (`src/lib/graph-elements.ts`,
+  fonctions pures testées isolément). Filtrage par type (`ENTITY_TYPES`,
+  checkboxes natifs, sans recréer l'instance Cytoscape). Navigation cliquable
+  sur un nœud (`router.push`). Chemin accessible dédié `GraphAccessibleList`
+  (`<nav>` + vrais `<Link>`, RGAA — le canvas n'expose aucun élément individuel
+  au clavier). Bug réel trouvé et corrigé pendant l'implémentation : layout
+  `cose` animé par défaut, une frame différée pouvait s'exécuter après
+  `cy.destroy()` au démontage et planter (`Cannot read properties of null
+  (reading 'notify')`, reproduit par `e2e/graph.spec.ts`) — corrigé par
+  `animate: false`. Vérifié en conditions réelles bout en bout
+  (`e2e/graph.spec.ts`). Scénarios `TST-GRF-001` à `TST-GRF-003` au cahier de
+  recettes.
 
 ### Corrigé
 

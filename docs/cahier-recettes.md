@@ -5,11 +5,11 @@
 > Préconditions, Étapes, Résultat attendu, Critères d'acceptation). Cas passants ET
 > cas d'échec. Statut : ⬜ à faire / ✅ OK / ❌ KO (→ `plan-correction-bogues.md`).
 >
-> État au 2026-07-14 : scénarios **AUT**, **SEC**, **MND** (mondes) et **ENT**
-> (entités) exécutés en conditions réelles (base Postgres réelle, deux comptes
-> réels via l'API Better Auth) — pas encore exécutés sur staging (pas de staging
-> à ce stade). Autres catégories (LNK/GRF/QOT) : pas encore de scénario, les
-> features correspondantes n'existent pas.
+> État au 2026-07-17 : scénarios **AUT**, **SEC**, **MND** (mondes), **ENT**
+> (entités), **LNK** (liaison/graphe) et **GRF** (graphe) exécutés en conditions
+> réelles (base Postgres réelle, deux comptes réels via l'API Better Auth) —
+> pas encore exécutés sur staging (pas de staging à ce stade). Catégorie
+> **QOT** (quotas freemium) : pas encore de scénario, la feature n'existe pas.
 
 ## TST-AUT-001 — Inscription avec des identifiants valides
 
@@ -340,3 +340,33 @@
 - **Résultat attendu** : la popup reste ouverte et filtrée même après un espace dans la requête (`allowSpaces`, cf. ADR-0011) ; la mention insérée est visible immédiatement, sans attendre le worker ; le clic simple ne navigue jamais, le Ctrl/Cmd+clic navigue vers la fiche cible ; « Entités liées » (fiche source) et « Mentionné par » (fiche cible) affichent la relation dès le premier rechargement après l'autosave (réconciliation synchrone, pas de délai comme pour l'AUTO).
 - **Critères d'acceptation** : `tiptap-content.test.ts` (`extractMentionedEntityIds`), `relation-service.test.ts` (`reconcileManualMentions` : ajout/suppression, id hors monde ignoré, auto-mention exclue, jamais de lecture/écriture des lignes AUTO), `entity-content.test.ts` (câblage dans `saveEntityContentAction`, échec non-fatal loggué), `tiptap-extensions.test.ts` (`filterMentionSuggestions`), `mention-list.test.tsx` (popup : rendu, navigation clavier, clic) ; vérifié en conditions réelles bout en bout (`e2e/manual-mention.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée — a révélé le bug `allowSpaces` avant toute mise en recette manuelle).
 - **Type** : fonctionnel (bout en bout) + accessibilité + sécurité (revalidation serveur des id mentionnés, OWASP A01) · **Statut** : ✅ (`tiptap-content.test.ts`, `relation-service.test.ts`, `entity-content.test.ts`, `tiptap-extensions.test.ts`, `mention-list.test.tsx`, `e2e/manual-mention.spec.ts`)
+
+## TST-GRF-001 — Graphe : rendu Cytoscape + navigation cliquable
+
+- **Description** : la page `/worlds/[slug]/graph` affiche un graphe interactif (canvas Cytoscape.js) des entités (nœuds) et de leurs relations (arêtes, AUTO et MANUAL confondues) ; cliquer sur un nœud navigue vers la fiche correspondante.
+- **Objectif** : vérifier que le graphe se construit correctement à partir des entités/relations réelles du monde, et que le clic sur un nœud navigue vers la bonne fiche.
+- **Préconditions** : un monde contient au moins deux entités liées par une `Relation` (AUTO ou MANUAL).
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier la présence du canvas rendu. 3) Cliquer sur un nœud.
+- **Résultat attendu** : le canvas Cytoscape est monté (élément `<canvas>` réel, pas seulement le conteneur) ; le clic sur un nœud navigue vers `/worlds/[slug]/entities/[entityId]` de l'entité cliquée.
+- **Critères d'acceptation** : `graph-elements.test.ts` (`buildGraphElements` : nœuds/arêtes corrects, arêtes AUTO/MANUAL distinguées par id, arête omise silencieusement si une extrémité a disparu), `relation-service.test.ts` (`listWorldRelations`) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée).
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`graph-elements.test.ts`, `relation-service.test.ts`, `e2e/graph.spec.ts`)
+
+## TST-GRF-002 — Graphe : filtrage par type
+
+- **Description** : au-dessus du graphe, un jeu de cases à cocher (une par type d'entité) permet de masquer/afficher les nœuds d'un type donné, sans recréer le graphe (zoom/pan conservés).
+- **Objectif** : vérifier que chaque type d'entité a bien un filtre dédié, coché par défaut (tout visible), et que le décocher ne casse pas la page.
+- **Préconditions** : un monde contient au moins une entité de chaque type visé par le test.
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'un filtre existe pour chaque type présent, coché. 3) Décocher un filtre.
+- **Résultat attendu** : chaque filtre est coché par défaut ; le décocher passe son état à décoché sans erreur ni rechargement de page.
+- **Critères d'acceptation** : vérifié en conditions réelles (`e2e/graph.spec.ts` : filtre « Lieu » présent, coché, décochable).
+- **Type** : fonctionnel · **Statut** : ✅ (`e2e/graph.spec.ts`)
+
+## TST-GRF-003 — Graphe : liste accessible (clavier/lecteur d'écran)
+
+- **Description** : sous le graphe, une liste accessible (`<nav>` + vrais `<Link>`) énumère chaque entité ayant au moins une relation sortante et ses cibles — chemin de navigation clavier/lecteur d'écran équivalent au canvas (affordance souris uniquement, cf. ADR-0012).
+- **Objectif** : vérifier que la liste reflète fidèlement les relations réelles du monde et permet une navigation clavier complète vers les fiches liées.
+- **Préconditions** : un monde contient au moins une entité avec une relation sortante.
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Localiser la région « Graphe (liste accessible) ». 3) Suivre un lien vers une entité cible.
+- **Résultat attendu** : la liste affiche l'entité source et un lien vers chaque cible ; suivre le lien navigue vers la bonne fiche (`<h1>` de la fiche cible).
+- **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement par source, tri, entité sans relation sortante absente de la liste mais atteignable comme cible, extrémité disparue omise silencieusement) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, navigation clavier/lecteur d'écran).
+- **Type** : accessibilité (élim.) · **Statut** : ✅ (`graph-elements.test.ts`, `e2e/graph.spec.ts`)

@@ -56,6 +56,16 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   texte. Une fois insérée, la mention suit la même règle que le surlignage
   (Ctrl/Cmd+clic = affordance souris, liste « Entités liées »/« Mentionné par »
   = chemin accessible).
+- **Graphe de relations** (2026-07-17, ADR-0012, `/worlds/[slug]/graph`) : le
+  canvas Cytoscape (`graph-view.tsx`) ne peut exposer aucun élément individuel
+  au clavier/lecteur d'écran (un seul `<canvas>`, `aria-hidden="true"`) — même
+  parti pris que le surlignage. Les filtres par type restent de vrais
+  `<input type="checkbox">`/`<label>` natifs, atteignables au clavier même si
+  leur effet (masquer des nœuds sur le canvas) n'est perceptible qu'à l'écran.
+  Le chemin **accessible** est `GraphAccessibleList` (`graph-accessible-list.tsx`) :
+  `<nav aria-label="Graphe (liste accessible)">` + `<ul>` imbriquées de vrais
+  `<Link>`, reflétant les mêmes relations que le canvas, navigable au Tab et
+  annoncée normalement par un lecteur d'écran.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
@@ -111,3 +121,8 @@ d'assertion a11y dédiée, voir ci-dessous).
   ...)`/`getByRole("link", ...)` (nom accessible réel, pas un sélecteur CSS) —
   preuve que le chemin clavier/lecteur d'écran fonctionne, sans remplacer un audit
   axe-core pleine page (toujours <!-- TODO, pas encore fait -->).
+- **Graphe de relations** (`e2e/graph.spec.ts`, 2026-07-17) : même méthode que
+  ci-dessus, appliquée à `GraphAccessibleList` (`getByRole("navigation", { name:
+  "Graphe (liste accessible)" })`) — preuve que le chemin clavier fonctionne
+  indépendamment du canvas Cytoscape, toujours pas un remplacement d'un audit
+  axe-core pleine page.
