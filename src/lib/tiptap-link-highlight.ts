@@ -24,12 +24,10 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { AhoCorasick, type Pattern } from "./linker/aho-corasick";
 import { resolveLinks } from "./linker/resolve-links";
+import { MENTION_CLASS_NAME, MENTION_TARGET_ATTR } from "./tiptap-mention-attrs";
 import { buildTextWithPositions, occurrenceToRange } from "./tiptap-positions";
 
-/** Classe CSS posée sur chaque décoration (style Tailwind arbitraire côté EntityEditor). */
-export const MENTION_CLASS_NAME = "entity-mention";
-/** Attribut DOM portant l'id de l'entité cible (lu par le gestionnaire Ctrl/Cmd+clic). */
-export const MENTION_TARGET_ATTR = "data-target-id";
+export { MENTION_CLASS_NAME, MENTION_TARGET_ATTR } from "./tiptap-mention-attrs";
 
 export interface MentionHighlightConfig {
   /** Dictionnaire du monde (noms + alias), cf. buildDictionary. */

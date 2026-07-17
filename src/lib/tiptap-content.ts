@@ -46,8 +46,9 @@ function isSafeHttpUrl(value: unknown): value is string {
 
 // Parcourt le doc deja valide structurellement et rejette la premiere valeur
 // d'attribut dangereuse rencontree : image.src/alt, puis link.href sur les
-// marks. `alt` est deja exige cote UI (RGAA) - sans ce controle serveur, la
-// regle est contournable par un appel direct a l'action de sauvegarde.
+// marks, puis mention.id. `alt` est deja exige cote UI (RGAA) - sans ce
+// controle serveur, la regle est contournable par un appel direct a l'action
+// de sauvegarde.
 function assertSafeAttributes(doc: ProseMirrorNode): void {
   let violation: string | null = null;
 
@@ -61,6 +62,16 @@ function assertSafeAttributes(doc: ProseMirrorNode): void {
         violation = `image.src invalide : ${JSON.stringify(src)}`;
       } else if (typeof alt !== "string" || alt.trim() === "") {
         violation = "image.alt manquant";
+      }
+    }
+    if (node.type.name === "mention") {
+      // Verifie uniquement la FORME de l'attribut (chaine non vide) : ce
+      // module est pur (aucun acces DB), l'existence/l'appartenance reelle de
+      // l'entite au monde est verifiee plus tard par le service qui
+      // reconcilie les Relation origin=MANUAL (autorisation, pas parsing).
+      const { id } = node.attrs as { id: unknown };
+      if (typeof id !== "string" || id.trim() === "") {
+        violation = `mention.id invalide : ${JSON.stringify(id)}`;
       }
     }
     node.marks.forEach((mark) => {

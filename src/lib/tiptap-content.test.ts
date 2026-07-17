@@ -167,6 +167,43 @@ describe("parseContent", () => {
     expect(() => parseContent(content)).toThrow(InvalidContentError);
   });
 
+  it("accepte une mention avec un id non vide", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { id: "entity-1", label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).not.toThrow();
+  });
+
+  it("rejette une mention avec un id vide", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { id: "", label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une mention sans id", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "mention", attrs: { label: "Aeliana" } }] }],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
   it("accepte une image http(s) avec alt et un lien http(s)", () => {
     const content = {
       type: "doc",
@@ -204,6 +241,23 @@ describe("extractPlainText", () => {
     };
 
     expect(extractPlainText(content)).toContain("Aeliana");
-    expect(extractPlainText(content)).toContain("La reine du nord.");
+  });
+
+  it("n'inclut jamais le libelle d'une mention manuelle (evite l'auto-detection par le scan AUTO)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Rencontre avec " },
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+            { type: "text", text: " hier." },
+          ],
+        },
+      ],
+    };
+
+    expect(extractPlainText(content)).toBe("Rencontre avec  hier.");
   });
 });
