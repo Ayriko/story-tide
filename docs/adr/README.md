@@ -17,3 +17,4 @@
 | 0007 | Exclusion des wrappers SDK fins du calcul de couverture Vitest | accepté | 2026-07-11 |
 | 0008 | `node:24-slim` (Debian/glibc) comme base des images Docker | accepté | 2026-07-12 |
 | 0009 | Validation serveur du contenu Tiptap via le schéma ProseMirror réel | accepté | 2026-07-14 |
+| 0010 | Surlignage des liaisons : re-scan côté client plutôt que positions serveur persistées | accepté | 2026-07-16 |

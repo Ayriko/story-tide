@@ -300,3 +300,13 @@
 - **Résultat attendu** : aucune `Relation origin=AUTO` n'est créée pour l'occurrence concernée dans les trois cas.
 - **Critères d'acceptation** : couvert par `linker-service.test.ts` (auto-mention exclue, `LinkIgnore` respecté, occurrence ambiguë sans lien). Le marquage « ambigu » cliquable pour trancher (spec §4.4 point 6) reste hors périmètre — backlog KAN-19, nécessite un modèle de données dédié.
 - **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`)
+
+## TST-LNK-004 — Surlignage live des mentions dans l'éditeur, navigation par Ctrl/Cmd+clic et par la liste accessible
+
+- **Description** : pendant la frappe, une mention d'entité existante est soulignée en direct dans l'éditeur (décoration ProseMirror, jamais persistée). Deux chemins de navigation vers la fiche liée : Ctrl/Cmd+clic sur la mention surlignée (clic simple = édition normale, ne navigue jamais), ou la liste « Entités liées » sous l'éditeur (vrais `<Link>`, navigable au clavier/lecteur d'écran).
+- **Objectif** : vérifier que le surlignage apparaît sans attendre le worker (scan client), que les deux modes de clic se comportent comme prévu, et que la liste persistée (alimentée par le vrai worker) reflète la relation créée.
+- **Préconditions** : un monde contient une entité cible (ex. « Aldric ») ; une autre fiche (source) est en cours d'édition.
+- **Étapes** : 1) Taper un texte mentionnant l'entité cible dans l'éditeur de la fiche source. 2) Vérifier que le mot porte la classe `entity-mention` et l'attribut `data-target-id` correspondant. 3) Cliquer simplement sur la mention (sans modificateur). 4) Ctrl/Cmd+cliquer sur la mention. 5) Attendre l'autosave, laisser le worker traiter le job, recharger la page et consulter la liste « Entités liées ». 6) Suivre le lien de la liste.
+- **Résultat attendu** : le surlignage apparaît immédiatement (avant tout traitement du worker) ; le clic simple ne change pas d'URL (édition normale) ; le Ctrl/Cmd+clic navigue vers la fiche cible ; la liste « Entités liées » affiche un lien vers la cible une fois le job traité, et ce lien navigue vers la même fiche.
+- **Critères d'acceptation** : `tiptap-positions.test.ts` (alignement caractère-exact `plainText` ↔ ProseMirror), `tiptap-link-highlight.test.ts` (décorations correctes : mention connue, ambiguïté/auto-mention/`LinkIgnore` sans décoration, re-scan sur changement de doc), `relation-service.test.ts` (`listOutgoingLinks`) ; vérifié en conditions réelles bout en bout (`e2e/link-highlight.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée).
+- **Type** : fonctionnel (bout en bout) + accessibilité · **Statut** : ✅ (`tiptap-positions.test.ts`, `tiptap-link-highlight.test.ts`, `relation-service.test.ts`, `e2e/link-highlight.spec.ts`)
