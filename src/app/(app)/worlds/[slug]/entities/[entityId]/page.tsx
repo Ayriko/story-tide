@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
-import { EntityNotFoundError, getEntity } from "@/services/entity-service";
+import { EntityNotFoundError, getEntity, listEntities } from "@/services/entity-service";
 import { buildDictionary } from "@/services/linker-service";
 import {
   getIgnoredTargetIds,
@@ -63,12 +63,21 @@ export default async function EntityPage({
   // LIVE (scan du texte courant) - un leger decalage est possible tant que le
   // worker n'a pas traite le dernier job d'enfilage (les deux convergent au
   // repos, spec §4.4).
-  const [dictionary, ignoredTargetIds, linkedEntities, backlinks] = await Promise.all([
-    buildDictionary(world.id),
-    getIgnoredTargetIds(session.user.id, world.id, entity.id),
-    listOutgoingLinks(session.user.id, world.id, entity.id),
-    listIncomingLinks(session.user.id, world.id, entity.id),
-  ]);
+  const [dictionary, ignoredTargetIds, linkedEntities, backlinks, worldEntities] =
+    await Promise.all([
+      buildDictionary(world.id),
+      getIgnoredTargetIds(session.user.id, world.id, entity.id),
+      listOutgoingLinks(session.user.id, world.id, entity.id),
+      listIncomingLinks(session.user.id, world.id, entity.id),
+      listEntities(session.user.id, world.id),
+    ]);
+  // Mentions manuelles @ (KAN-22) : liste des entites du monde proposees par
+  // la popup de suggestion (entity-editor.tsx), meme convention que
+  // `dictionary` - deja chargee avec la page, aucun appel reseau a la frappe.
+  const mentionSuggestionEntities = worldEntities.map((worldEntity) => ({
+    id: worldEntity.id,
+    label: worldEntity.name,
+  }));
 
   return (
     <div className="flex flex-col gap-10">
@@ -101,6 +110,7 @@ export default async function EntityPage({
           initialContent={initialContent}
           dictionary={dictionary}
           ignoredTargetIds={ignoredTargetIds}
+          entities={mentionSuggestionEntities}
         />
       </section>
 

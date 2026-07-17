@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
-import { createEditorExtensions } from "@/lib/tiptap-extensions";
+import { createEditorExtensions, type MentionSuggestionItem } from "@/lib/tiptap-extensions";
 import { createLinkHighlightExtension, MENTION_TARGET_ATTR } from "@/lib/tiptap-link-highlight";
 import type { Pattern } from "@/lib/linker/aho-corasick";
 import { saveEntityContentAction } from "@/actions/entity-content";
 import { inputClassName, labelClassName, secondaryButtonClassName } from "@/app/(app)/form-styles";
+import { createMentionSuggestion } from "./mention-suggestion";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
@@ -219,6 +220,7 @@ export function EntityEditor({
   initialContent,
   dictionary,
   ignoredTargetIds,
+  entities,
 }: {
   worldId: string;
   worldSlug: string;
@@ -226,6 +228,7 @@ export function EntityEditor({
   initialContent: JSONContent;
   dictionary: Pattern[];
   ignoredTargetIds: string[];
+  entities: MentionSuggestionItem[];
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<SaveStatus>("idle");
@@ -251,6 +254,11 @@ export function EntityEditor({
     [worldId, entityId],
   );
 
+  // Exclut la fiche courante de ses propres suggestions @ - une auto-mention
+  // n'a pas de sens (meme raisonnement que selfEntityId pour le surlignage
+  // AUTO, resolveLinks.ts).
+  const mentionableEntities = entities.filter((entity) => entity.id !== entityId);
+
   // Fabrique appelee ici (pas un tableau importe partage) : chaque montage de
   // ce composant recoit ses propres instances d'extension - necessaire sous
   // React StrictMode (dev), qui monte/demonte/remonte une fois pour detecter
@@ -261,7 +269,7 @@ export function EntityEditor({
   // montage - voir son commentaire dans tiptap-link-highlight.ts).
   const editor = useEditor({
     extensions: [
-      ...createEditorExtensions(),
+      ...createEditorExtensions(createMentionSuggestion(mentionableEntities)),
       createLinkHighlightExtension({ dictionary, selfEntityId: entityId, ignoredTargetIds }),
     ],
     content: initialContent,
