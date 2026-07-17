@@ -81,6 +81,16 @@
 - **Critères d'acceptation** : couvert par un test de non-régression automatisé (`login-form.test.tsx`) + validé manuellement par Aymeric.
 - **Type** : cas d'échec / régression · **Statut** : ✅ — cf. `plan-correction-bogues.md` BUG-001
 
+## TST-AUT-008 — Déconnexion
+
+- **Description** : un utilisateur connecté clique sur « Se déconnecter » dans le header de l'application (`logoutAction`, `src/actions/auth.ts`).
+- **Objectif** : vérifier que la session est effacée (cookie + enregistrement en base) et que l'accès aux pages `(app)` redevient impossible sans se reconnecter.
+- **Préconditions** : une session valide est active, une page du groupe `(app)` (ex. `/worlds`) est affichée.
+- **Étapes** : 1) Cliquer sur « Se déconnecter ». 2) Observer la redirection. 3) Tenter de naviguer directement vers `/worlds`.
+- **Résultat attendu** : redirection vers `/login` ; une nouvelle tentative d'accès à `/worlds` redirige aussi vers `/login` (session bien effacée, pas seulement un état client). Cas d'échec (garde) : si `signOut` échoue côté serveur (ex. session déjà expirée), l'utilisateur est quand même redirigé vers `/login` (jamais bloqué sur une action qui échoue silencieusement).
+- **Critères d'acceptation** : couvert par `auth.test.ts` (`logoutAction` : appelle `signOut` puis redirige ; redirige aussi si `signOut` rejette, avec l'erreur réelle logguée) ; bouton natif (`<button type="submit">` dans un `<form>`), navigable au clavier, focus visible cohérent avec le reste du header (RGAA).
+- **Type** : fonctionnel + sécurité (OWASP A07) · **Statut** : ✅ (`auth.test.ts`)
+
 ## TST-SEC-001 — Le mot de passe n'est jamais stocké en clair
 
 - **Description** : vérifier qu'aucun mot de passe utilisateur n'apparaît en clair en base de données.

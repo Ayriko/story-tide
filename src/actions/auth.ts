@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APIError } from "better-auth";
 import { auth } from "@/lib/auth";
@@ -57,6 +58,19 @@ export async function registerAction(
   }
 
   redirect("/");
+}
+
+// Toujours rediriger vers /login, meme si signOut echoue (session deja
+// expiree, race condition) : le formulaire n'expose pas d'etat d'erreur, et
+// il n'y a rien de mieux a faire cote UI qu'y renvoyer l'utilisateur. La
+// cause reelle n'est jamais avalee (regle CLAUDE.md).
+export async function logoutAction(): Promise<void> {
+  try {
+    await auth.api.signOut({ headers: await headers() });
+  } catch (error) {
+    console.error("[auth] Déconnexion échouée :", error);
+  }
+  redirect("/login");
 }
 
 export async function loginAction(

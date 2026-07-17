@@ -171,6 +171,13 @@ stade (`[Unreleased]`).
   `GetObjectCommand`, `forcePathStyle: true` requis par MinIO, expiration par
   défaut de l'URL signée) ; point d'extension vers OVH Object Storage documenté
   (`docs/spec-technique-bloc2.md` §4.1).
+- Déconnexion (KAN-12) : `logoutAction` (`src/actions/auth.ts`) appelle
+  `auth.api.signOut` puis redirige vers `/login` — y compris si `signOut`
+  échoue (session déjà expirée), la cause réelle étant systématiquement
+  logguée plutôt qu'avalée. Bouton natif dans le header `(app)`
+  (`src/app/(app)/layout.tsx`, affiche aussi l'e-mail de l'utilisateur
+  connecté), focus visible cohérent avec le reste de la navigation (RGAA).
+  Scénario `TST-AUT-008` au cahier de recettes.
 
 ### Corrigé
 
