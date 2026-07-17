@@ -1,5 +1,6 @@
 import { prisma } from "@/db/client";
 import { RelationOrigin } from "@/generated/prisma/client";
+import { getEntity } from "./entity-service";
 import { getWorld } from "./world-service";
 
 // Autorisation en cascade (meme pattern que entity-service.ts) : appartenance
@@ -196,4 +197,102 @@ export async function reconcileManualMentions(
         ]
       : []),
   ]);
+}
+
+export interface IgnoredTarget {
+  id: string;
+  name: string;
+}
+
+// Cibles actuellement ignorees pour cette entite, noms resolus (UI "Liens
+// ignores" + bouton "Ne plus ignorer") - meme patron deux-requetes-a-select-
+// plat que listOutgoingLinks. getIgnoredTargetIds (ids seuls) reste inchange,
+// deja utilise par scanAndLinkEntity et le surlignage live.
+export async function listIgnoredTargets(
+  ownerId: string,
+  worldId: string,
+  entityId: string,
+): Promise<IgnoredTarget[]> {
+  // getEntity (pas getWorld seul) : verifie aussi que entityId appartient a
+  // CE monde, pas seulement que le monde appartient au proprietaire - sans
+  // cette verification, un entityId d'un monde etranger passerait la garde
+  // getWorld et laisserait lire/ecrire du LinkIgnore hors du monde autorise
+  // (OWASP A01). Les fonctions voisines (listOutgoingLinks, etc.) n'ont pas
+  // cette verification supplementaire - risque preexistant hors perimetre de
+  // ce ticket, signale a Aymeric plutot que corrige ici.
+  await getEntity(ownerId, worldId, entityId);
+
+  const ignored = await prisma.linkIgnore.findMany({
+    where: { entityId },
+    select: { targetId: true },
+  });
+  if (ignored.length === 0) {
+    return [];
+  }
+
+  const targets = await prisma.entity.findMany({
+    where: { id: { in: ignored.map((row) => row.targetId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(targets.map((target) => [target.id, target.name]));
+
+  return ignored
+    .flatMap((row) => {
+      const name = nameById.get(row.targetId);
+      // Cible supprimee entre les deux requetes (rare) : on omet
+      // silencieusement, meme convention que listOutgoingLinks/listIncomingLinks.
+      return name === undefined ? [] : [{ id: row.targetId, name }];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// "Ignorer un lien" / "delier une relation AUTO" (KAN-23, garde-fou
+// anti-faux-positifs, spec §2.5) : la meme mecanique vue de la donnee -
+// LinkIgnore n'ignore pas une occurrence precise dans le texte mais une PAIRE
+// source->cible (@@unique([entityId, targetId])), donc les deux formulations
+// du ticket se resument a la meme ecriture. Supprime aussi la Relation AUTO
+// existante tout de suite (pas d'attente du prochain scan) - jamais MANUAL,
+// le ticket cible explicitement l'AUTO.
+export async function ignoreLink(
+  ownerId: string,
+  worldId: string,
+  entityId: string,
+  targetId: string,
+): Promise<void> {
+  await getEntity(ownerId, worldId, entityId);
+
+  // targetId vient d'un formulaire client - jamais de confiance aveugle,
+  // meme garde-fou OWASP A01 que reconcileManualMentions : un id d'un autre
+  // monde ne doit jamais pouvoir creer un LinkIgnore.
+  const target = await prisma.entity.findFirst({
+    where: { id: targetId, worldId },
+    select: { id: true },
+  });
+  if (!target) {
+    return;
+  }
+
+  await prisma.$transaction([
+    prisma.linkIgnore.upsert({
+      where: { entityId_targetId: { entityId, targetId } },
+      create: { worldId, entityId, targetId },
+      update: {},
+    }),
+    prisma.relation.deleteMany({
+      where: { sourceId: entityId, targetId, origin: RelationOrigin.AUTO },
+    }),
+  ]);
+}
+
+// Symetrique : retire la cible de la liste des liens ignores (elle redevient
+// detectable par le prochain scan AUTO). No-op silencieux si elle n'etait pas
+// ignoree.
+export async function unignoreLink(
+  ownerId: string,
+  worldId: string,
+  entityId: string,
+  targetId: string,
+): Promise<void> {
+  await getEntity(ownerId, worldId, entityId);
+  await prisma.linkIgnore.deleteMany({ where: { entityId, targetId } });
 }

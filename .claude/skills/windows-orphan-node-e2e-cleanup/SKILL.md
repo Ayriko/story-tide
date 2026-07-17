@@ -22,10 +22,24 @@ Sous Windows, `child.kill()` sur un process lancé via `spawn(cmd, { shell: true
   figé plusieurs minutes **sans aucune sortie** ;
 - `next dev` pose un **verrou par projet, pas par port** :
   `⨯ Another next dev server is already running` même en visant un autre port
-  (3100 vs 3000) — un serveur dev resté ouvert bloque le `webServer` de Playwright.
+  (3100 vs 3000) — un serveur dev resté ouvert bloque le `webServer` de Playwright ;
+- tiennent ouvert le **bout écriture du pipe stdout HERITÉ** (`spawn(..., { stdio:
+  "inherit" })`) MEME APRES que le test a fini et que le process Playwright a
+  quitté : `npx playwright test ... | tail -150` ne voit alors jamais l'EOF et
+  reste bloqué indéfiniment, alors que le test lui-meme a réussi (`1 passed`)
+  bien avant - constaté en pratique le 2026-07-17 sur KAN-23 (e2e terminé en
+  26,6s, mais le pipe est resté bloqué ~15 min tant que le worker orphelin
+  n'a pas été tué manuellement). Diagnostic : le run reste "running" côté
+  harness sans sortie, mais l'age du process worker (`CreationDate` via
+  `Get-CimInstance Win32_Process`) montre qu'il a démarré peu après le run et
+  n'a jamais été relancé depuis - preuve que le run initial a bien progressé,
+  ce n'est que la fin qui est bloquée par l'orphelin.
 
 Distinction utile : un **vrai** blocage a un état observable (connexion ouverte,
-verrou DB) ; un **faux** blocage (ex. pipe `tail -N` sans `-f`) n'en a aucun.
+verrou DB, process orphelin toujours vivant) ; un **faux** blocage (ex. pipe
+`tail -N` sans `-f` qui attend un EOF jamais émis à cause d'un orphelin) n'a
+pas de cause côté Playwright lui-même - toujours vérifier `wmic` avant de
+conclure à un vrai hang du test.
 
 ## Diagnostic
 

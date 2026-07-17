@@ -6,15 +6,19 @@ import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { WorldNotFoundError } from "./world-service";
 import {
   getIgnoredTargetIds,
+  ignoreLink,
+  listIgnoredTargets,
   listIncomingLinks,
   listOutgoingLinks,
   listWorldRelations,
   reconcileManualMentions,
+  unignoreLink,
 } from "./relation-service";
+import { EntityNotFoundError } from "./entity-service";
 
-// Meme regle que entity-service.test.ts : Prisma mocke, getWorld() n'est pas
-// mocke - on verifie la vraie cascade d'autorisation monde -> LinkIgnore/Relation
-// en laissant le mock Prisma piloter les deux.
+// Meme regle que entity-service.test.ts : Prisma mocke, getWorld()/getEntity()
+// ne sont pas mockes - on verifie la vraie cascade d'autorisation monde ->
+// entite -> LinkIgnore/Relation en laissant le mock Prisma piloter les trois.
 vi.mock("@/db/client", () => ({
   prisma: {
     world: {
@@ -22,6 +26,8 @@ vi.mock("@/db/client", () => ({
     },
     linkIgnore: {
       findMany: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
     },
     relation: {
       findMany: vi.fn(),
@@ -29,6 +35,7 @@ vi.mock("@/db/client", () => ({
       deleteMany: vi.fn(),
     },
     entity: {
+      findFirst: vi.fn(),
       findMany: vi.fn(),
     },
     $transaction: vi.fn(),
@@ -37,9 +44,12 @@ vi.mock("@/db/client", () => ({
 
 const worldFindFirst = vi.mocked(prisma.world.findFirst);
 const linkIgnoreFindMany = vi.mocked(prisma.linkIgnore.findMany);
+const linkIgnoreUpsert = vi.mocked(prisma.linkIgnore.upsert);
+const linkIgnoreDeleteMany = vi.mocked(prisma.linkIgnore.deleteMany);
 const relationFindMany = vi.mocked(prisma.relation.findMany);
 const relationCreateMany = vi.mocked(prisma.relation.createMany);
 const relationDeleteMany = vi.mocked(prisma.relation.deleteMany);
+const entityFindFirst = vi.mocked(prisma.entity.findFirst);
 const entityFindMany = vi.mocked(prisma.entity.findMany);
 const transaction = vi.mocked(prisma.$transaction);
 
@@ -413,5 +423,163 @@ describe("reconcileManualMentions", () => {
         where: expect.objectContaining({ origin: RelationOrigin.MANUAL }),
       }),
     );
+  });
+});
+
+describe("listIgnoredTargets", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    worldFindFirst.mockResolvedValue(makeWorld());
+    entityFindFirst.mockResolvedValue(makeEntity({ id: ENTITY_ID }));
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire", async () => {
+    worldFindFirst.mockResolvedValue(null);
+
+    await expect(listIgnoredTargets(OWNER_ID, WORLD_ID, ENTITY_ID)).rejects.toThrow(
+      WorldNotFoundError,
+    );
+    expect(linkIgnoreFindMany).not.toHaveBeenCalled();
+  });
+
+  it("leve EntityNotFoundError si l'entite n'appartient pas a ce monde", async () => {
+    entityFindFirst.mockResolvedValue(null);
+
+    await expect(listIgnoredTargets(OWNER_ID, WORLD_ID, ENTITY_ID)).rejects.toThrow(
+      EntityNotFoundError,
+    );
+    expect(linkIgnoreFindMany).not.toHaveBeenCalled();
+  });
+
+  it("retourne un tableau vide sans cible ignoree (sans requeter les entites)", async () => {
+    linkIgnoreFindMany.mockResolvedValue([]);
+
+    const result = await listIgnoredTargets(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([]);
+    expect(entityFindMany).not.toHaveBeenCalled();
+  });
+
+  it("retourne les cibles ignorees avec leur nom resolu, triees", async () => {
+    linkIgnoreFindMany.mockResolvedValue([
+      makeLinkIgnore({ targetId: "e2" }),
+      makeLinkIgnore({ targetId: "e3" }),
+    ]);
+    entityFindMany.mockResolvedValue([
+      makeEntity({ id: "e2", name: "Robert" }),
+      makeEntity({ id: "e3", name: "Aeliana" }),
+    ]);
+
+    const result = await listIgnoredTargets(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([
+      { id: "e3", name: "Aeliana" },
+      { id: "e2", name: "Robert" },
+    ]);
+  });
+
+  it("omet silencieusement une cible introuvable (supprimee entre les deux requetes)", async () => {
+    linkIgnoreFindMany.mockResolvedValue([makeLinkIgnore({ targetId: "e2" })]);
+    entityFindMany.mockResolvedValue([]);
+
+    const result = await listIgnoredTargets(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([]);
+  });
+});
+
+describe("ignoreLink", () => {
+  const TARGET_ID = "e2";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    worldFindFirst.mockResolvedValue(makeWorld());
+    entityFindFirst.mockResolvedValue(makeEntity({ id: ENTITY_ID }));
+    transaction.mockResolvedValue([]);
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire", async () => {
+    worldFindFirst.mockResolvedValue(null);
+
+    await expect(ignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID)).rejects.toThrow(
+      WorldNotFoundError,
+    );
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("leve EntityNotFoundError si l'entite source n'appartient pas a ce monde", async () => {
+    entityFindFirst.mockResolvedValue(null);
+
+    await expect(ignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID)).rejects.toThrow(
+      EntityNotFoundError,
+    );
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("ignore silencieusement un targetId qui n'appartient pas a ce monde (jamais de confiance dans l'input client)", async () => {
+    // entityFindFirst est appelee deux fois : une pour getEntity (verifie
+    // ENTITY_ID), une pour la revalidation de TARGET_ID - la seconde renvoie
+    // null ici pour simuler une cible d'un autre monde.
+    entityFindFirst
+      .mockResolvedValueOnce(makeEntity({ id: ENTITY_ID }))
+      .mockResolvedValueOnce(null);
+
+    await ignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID);
+
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("cree le LinkIgnore et supprime la Relation AUTO existante en une transaction", async () => {
+    entityFindFirst
+      .mockResolvedValueOnce(makeEntity({ id: ENTITY_ID }))
+      .mockResolvedValueOnce(makeEntity({ id: TARGET_ID }));
+
+    await ignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID);
+
+    expect(linkIgnoreUpsert).toHaveBeenCalledWith({
+      where: { entityId_targetId: { entityId: ENTITY_ID, targetId: TARGET_ID } },
+      create: { worldId: WORLD_ID, entityId: ENTITY_ID, targetId: TARGET_ID },
+      update: {},
+    });
+    expect(relationDeleteMany).toHaveBeenCalledWith({
+      where: { sourceId: ENTITY_ID, targetId: TARGET_ID, origin: RelationOrigin.AUTO },
+    });
+    expect(transaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("unignoreLink", () => {
+  const TARGET_ID = "e2";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    worldFindFirst.mockResolvedValue(makeWorld());
+    entityFindFirst.mockResolvedValue(makeEntity({ id: ENTITY_ID }));
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire", async () => {
+    worldFindFirst.mockResolvedValue(null);
+
+    await expect(unignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID)).rejects.toThrow(
+      WorldNotFoundError,
+    );
+    expect(linkIgnoreDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it("leve EntityNotFoundError si l'entite n'appartient pas a ce monde", async () => {
+    entityFindFirst.mockResolvedValue(null);
+
+    await expect(unignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID)).rejects.toThrow(
+      EntityNotFoundError,
+    );
+    expect(linkIgnoreDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it("supprime le LinkIgnore correspondant", async () => {
+    await unignoreLink(OWNER_ID, WORLD_ID, ENTITY_ID, TARGET_ID);
+
+    expect(linkIgnoreDeleteMany).toHaveBeenCalledWith({
+      where: { entityId: ENTITY_ID, targetId: TARGET_ID },
+    });
   });
 });

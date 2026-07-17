@@ -1,5 +1,57 @@
+"use client";
+
 import Link from "next/link";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+import { ignoreLinkAction, type LinkIgnoreFormState } from "@/actions/link-ignore";
 import type { LinkedEntity } from "@/services/relation-service";
+
+const initialIgnoreState: LinkIgnoreFormState = {};
+
+function IgnoreButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      aria-busy={pending}
+      className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-50"
+    >
+      {pending ? "..." : "Ignorer ce lien"}
+    </button>
+  );
+}
+
+// Un formulaire par entree (pas un seul formulaire pour toute la liste) : usage
+// d'un hook (useActionState) par ligne, chacune revalidant/agissant sur SA
+// propre paire source->cible independamment des autres.
+function IgnoreLinkForm({
+  worldId,
+  worldSlug,
+  entityId,
+  targetId,
+}: {
+  worldId: string;
+  worldSlug: string;
+  entityId: string;
+  targetId: string;
+}) {
+  const [state, formAction] = useActionState(ignoreLinkAction, initialIgnoreState);
+  return (
+    <form action={formAction} className="flex shrink-0 items-center gap-2">
+      <input type="hidden" name="worldId" value={worldId} />
+      <input type="hidden" name="worldSlug" value={worldSlug} />
+      <input type="hidden" name="entityId" value={entityId} />
+      <input type="hidden" name="targetId" value={targetId} />
+      <IgnoreButton />
+      {state.formError ? (
+        <span role="alert" className="text-xs text-red-700 dark:text-red-400">
+          {state.formError}
+        </span>
+      ) : null}
+    </form>
+  );
+}
 
 // Chemin de navigation ACCESSIBLE (clavier/lecteur d'ecran) vers les fiches
 // liees - le surlignage live dans l'editeur (tiptap-link-highlight.ts,
@@ -8,16 +60,25 @@ import type { LinkedEntity } from "@/services/relation-service";
 // pour associer la liste a son titre de section. Reutilise pour les deux sens
 // (liens sortants et backlinks entrants, KAN-24) via `label`/`emptyLabel` -
 // chaque <nav> garde un nom accessible distinct.
+//
+// `ignoreContext` (KAN-23, garde-fou anti-faux-positifs) : fourni uniquement
+// par la section "Entites liees" (sortant, source = fiche courante), jamais
+// par "Mentionne par" (entrant) - l'action ignore/delie est scopee a la fiche
+// SOURCE, un backlink n'a pas de sens a "ignorer depuis la cible". Le bouton
+// n'apparait que pour les entrees origin=AUTO (le ticket cible explicitement
+// l'anti-faux-positif automatique, jamais une mention MANUAL).
 export function LinkedEntities({
   worldSlug,
   links,
   label,
   emptyLabel,
+  ignoreContext,
 }: {
   worldSlug: string;
   links: LinkedEntity[];
   label: string;
   emptyLabel: string;
+  ignoreContext?: { worldId: string; worldSlug: string; entityId: string };
 }) {
   if (links.length === 0) {
     return <p className="text-sm text-zinc-600 dark:text-zinc-400">{emptyLabel}</p>;
@@ -27,13 +88,21 @@ export function LinkedEntities({
     <nav aria-label={label}>
       <ul className="flex flex-col gap-2">
         {links.map((link) => (
-          <li key={link.id}>
+          <li key={link.id} className="flex items-center gap-2">
             <Link
               href={`/worlds/${worldSlug}/entities/${link.id}`}
-              className="block rounded-md border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-950 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-50"
+              className="block flex-1 rounded-md border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-950 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-50"
             >
               {link.name}
             </Link>
+            {ignoreContext && link.origin === "AUTO" ? (
+              <IgnoreLinkForm
+                worldId={ignoreContext.worldId}
+                worldSlug={ignoreContext.worldSlug}
+                entityId={ignoreContext.entityId}
+                targetId={link.id}
+              />
+            ) : null}
           </li>
         ))}
       </ul>

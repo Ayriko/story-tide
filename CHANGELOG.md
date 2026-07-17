@@ -221,6 +221,22 @@ stade (`[Unreleased]`).
   `animate: false`. Vérifié en conditions réelles bout en bout
   (`e2e/graph.spec.ts`). Scénarios `TST-GRF-001` à `TST-GRF-003` au cahier de
   recettes.
+- Garde-fou « ignorer/délier un lien AUTO » (KAN-23) : `LinkIgnore` ignore par
+  **paire source→cible** (`@@unique([entityId, targetId])`), pas par occurrence
+  précise dans le texte — les deux formulations du ticket (« ignorer une
+  occurrence », « délier une relation AUTO ») se résument donc à la même
+  écriture : un bouton « Ignorer ce lien » par entrée `origin=AUTO` de la liste
+  « Entités liées » (`ignoreLink`, `src/services/relation-service.ts`) supprime
+  tout de suite la `Relation AUTO` (transaction, jamais `MANUAL`) et empêche sa
+  recréation par un futur scan ; nouvelle section « Liens ignorés »
+  (`listIgnoredTargets`, `ignored-links.tsx`) avec bouton « Ne plus ignorer »
+  (`unignoreLink`) qui lève le garde-fou sans recréer la relation elle-même
+  (seul un nouveau scan la redétecte). `targetId` (formulaire client) est
+  revalidé contre le monde réel avant écriture (OWASP A01, même garde-fou que
+  `reconcileManualMentions`). Server Actions `src/actions/link-ignore.ts`
+  (`ignoreLinkAction`/`unignoreLinkAction`). Vérifié en conditions réelles bout
+  en bout (`e2e/link-ignore.spec.ts`). Scénario `TST-LNK-007` au cahier de
+  recettes.
 
 ### Corrigé
 

@@ -6,6 +6,7 @@ import { EntityNotFoundError, getEntity, listEntities } from "@/services/entity-
 import { buildDictionary } from "@/services/linker-service";
 import {
   getIgnoredTargetIds,
+  listIgnoredTargets,
   listIncomingLinks,
   listOutgoingLinks,
 } from "@/services/relation-service";
@@ -14,6 +15,7 @@ import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
 import { EditEntityForm } from "./edit-entity-form";
 import { DeleteEntityForm } from "./delete-entity-form";
 import { EntityEditor } from "./entity-editor";
+import { IgnoredLinks } from "./ignored-links";
 import { LinkedEntities } from "./linked-entities";
 
 export default async function EntityPage({
@@ -63,12 +65,13 @@ export default async function EntityPage({
   // LIVE (scan du texte courant) - un leger decalage est possible tant que le
   // worker n'a pas traite le dernier job d'enfilage (les deux convergent au
   // repos, spec §4.4).
-  const [dictionary, ignoredTargetIds, linkedEntities, backlinks, worldEntities] =
+  const [dictionary, ignoredTargetIds, linkedEntities, backlinks, ignoredTargets, worldEntities] =
     await Promise.all([
       buildDictionary(world.id),
       getIgnoredTargetIds(session.user.id, world.id, entity.id),
       listOutgoingLinks(session.user.id, world.id, entity.id),
       listIncomingLinks(session.user.id, world.id, entity.id),
+      listIgnoredTargets(session.user.id, world.id, entity.id),
       listEntities(session.user.id, world.id),
     ]);
   // Mentions manuelles @ (KAN-22) : liste des entites du monde proposees par
@@ -129,6 +132,7 @@ export default async function EntityPage({
           links={linkedEntities}
           label="Entités liées"
           emptyLabel="Aucune entité liée pour l'instant."
+          ignoreContext={{ worldId: world.id, worldSlug: world.slug, entityId: entity.id }}
         />
       </section>
 
@@ -147,6 +151,24 @@ export default async function EntityPage({
           links={backlinks}
           label="Mentionné par"
           emptyLabel="Aucune fiche ne mentionne cette entité pour l'instant."
+        />
+      </section>
+
+      <section
+        aria-labelledby="ignored-links-heading"
+        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+      >
+        <h2
+          id="ignored-links-heading"
+          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+        >
+          Liens ignorés
+        </h2>
+        <IgnoredLinks
+          worldId={world.id}
+          worldSlug={world.slug}
+          entityId={entity.id}
+          targets={ignoredTargets}
         />
       </section>
 

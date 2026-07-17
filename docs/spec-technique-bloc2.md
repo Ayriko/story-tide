@@ -32,7 +32,7 @@ Non éliminatoires mais notées : **C2.1.1/C2.1.2** (protocoles de déploiement 
 2. Mondes (création, liste, paramètres de base)
 3. CRUD entités (personnage, lieu, faction, objet, événement — type = donnée, pas schéma) avec **alias** dès la v1
 4. Éditeur Tiptap (titres, listes, gras/italique, citations, liens, images) avec sauvegarde JSON ProseMirror + auto-save debouncé
-5. **Liaison automatique Aho-Corasick** (différenciateur) : détection serveur asynchrone, surlignage dans l'éditeur, relations `origin=AUTO`, mentions manuelles `@` (**Fait**, KAN-22, cf. §4.4 point 5 / ADR-0011), garde-fous (ignorer/délier une occurrence)
+5. **Liaison automatique Aho-Corasick** (différenciateur) : détection serveur asynchrone, surlignage dans l'éditeur, relations `origin=AUTO`, mentions manuelles `@` (**Fait**, KAN-22, cf. §4.4 point 5 / ADR-0011), garde-fous ignorer/délier une relation AUTO (**Fait**, KAN-23, `TST-LNK-007`) — le marquage « ambigu » cliquable pour trancher une homonymie reste hors périmètre (backlog KAN-19, modèle de données dédié requis)
 6. Backlinks sur chaque fiche. **Fait** (KAN-24, `listIncomingLinks`, section « Mentionné par », cf. §4.4 point 5)
 7. **Graphe de relations** (Cytoscape.js) : vue interactive, filtrage par type, navigation cliquable. **Fait** (KAN-25, décision 2026-07-17, ADR-0012)
 8. Recherche basique dans les entités d'un monde
