@@ -169,3 +169,197 @@
 surlignage KAN-19 sont tous confirmés committés et poussés par Aymeric. Le plan
 des backlinks (KAN-24) est approuvé mais **le code n'est pas encore écrit** — à
 faire à la prochaine reprise.
+
+---
+
+### Session — 2026-07-17 — Backlinks + vidage colonne WIP (KAN-11/12/34) + mentions manuelles @ (KAN-22)
+
+**Thèmes abordés :**
+- Backlinks (KAN-24) : `listIncomingLinks` + section « Mentionné par ».
+- Colonne WIP Jira pleine (4/4) : vidage complet avant d'attaquer le graphe
+  Cytoscape (KAN-25) — clôture de KAN-11 (S3), KAN-12 (déconnexion), KAN-34
+  (câblage CI e2e), et achèvement de KAN-22 (mentions manuelles @, les 5 étapes).
+- Instabilité récurrente de l'extension Claude in Chrome (timeouts d'injection
+  de script) ayant bloqué plusieurs vérifications navigateur dans la session.
+- Diagnostic post-merge d'un « Mentionné par » vide malgré un alias correspondant
+  — finalement pas un bug de code.
+
+**Décisions prises :**
+- **4 tickets WIP traités en une session, pas une sélection partielle** —
+  choisi par Aymeric via question à choix multiple, plutôt que de n'en traiter
+  qu'un ou deux avant le graphe.
+- **Séquencement du plus petit au plus gros** (KAN-11 → KAN-12 → KAN-34 →
+  KAN-22), chacun sur sa propre branche/PR — proposition validée implicitement
+  par Aymeric en poursuivant sans objection ; permet de libérer un créneau WIP
+  à chaque merge plutôt qu'attendre la fin des quatre.
+- **Rendu de la mention manuelle sans préfixe `@` visible** — demandé par
+  Aymeric après un test manuel (« le `@` pourrait être retiré une fois la
+  liaison faite ») ; implémenté directement dans `renderHTML` plutôt qu'un
+  retrait après coup, plus simple que redouté.
+- **`renderText: () => ""` sur le node `mention`** — décision technique pour
+  éviter que le libellé d'une mention manuelle ne réapparaisse dans le
+  `plainText` scanné par le worker AUTO (auto-détection de sa propre mention).
+  Voir ADR-0011.
+- **Réconciliation des `Relation MANUAL` synchrone** (dans l'action de
+  sauvegarde), contrairement au scan AUTO asynchrone — une mention manuelle est
+  une intention explicite et peu nombreuse par fiche, le diff reste dans le
+  budget perf fait en ligne. Voir ADR-0011.
+- **Bug `global-setup.ts` (workers e2e orphelins) explicitement NON corrigé**
+  cette session — nettoyé manuellement à chaque occurrence plutôt que d'élargir
+  le périmètre de KAN-22 à une correction d'infrastructure e2e sans lien direct.
+
+**Éléments notables / appris (gotchas) :**
+- **`@tiptap/suggestion` ferme la popup au premier espace tapé dans la requête**
+  (`allowSpaces` vaut `false` par défaut, le regex de correspondance interne
+  exclut `\s`). Trouvé par le test e2e (`manual-mention.spec.ts` tapait un nom
+  composé complet avant de sélectionner) — **jamais reproduit manuellement**
+  par Aymeric, qui sélectionnait sans taper d'espace. Corrigé par
+  `allowSpaces: true`. Preuve concrète de la valeur du test e2e par rapport à
+  la recette manuelle.
+- **Un test « unitaire » peut taper une vraie base de dev sans le signaler** :
+  `entity-content.test.ts` n'avait pas de mock pour `@/services/relation-service`
+  (ajouté cette session) — les appels à `reconcileManualMentions` atteignaient
+  la VRAIE `@/db/client` ; comme le Postgres dev tournait déjà (Docker up pour
+  une vérification navigateur), les requêtes échouaient contre une base réelle
+  sans donnée attendue, mais l'échec était avalé par le `try/catch` non-fatal
+  de l'action — les tests passaient donc « par accident », sans jamais
+  vérifier le vrai comportement. Corrigé en ajoutant le mock manquant. Piège
+  générique (tout `try/catch` non-fatal masque un mock manquant) — candidat
+  skill si ça se reproduit.
+- **Faux blocage e2e distinct du piège `tail` de la session précédente** : un
+  run Playwright est resté bloqué ~7-8 min sans aucune sortie (pas même le
+  bandeau `dotenvx` habituel). Cette fois **pas** un artefact de pipe — de
+  vrais process `tsx src/worker/index.ts` orphelins de runs e2e précédents
+  (le `worker.kill()` de `global-setup.ts` ne tue pas toute l'arborescence de
+  process sous Windows avec `spawn(..., { shell: true })`) tenaient des
+  connexions ouvertes sur `story_tide_e2e`, bloquant le `DROP SCHEMA public
+  CASCADE` du prochain `global-setup.ts`. Diagnostiqué via
+  `wmic process where "name='node.exe'" get ProcessId,CommandLine` (filtré sur
+  `worker/index`), résolu en tuant les PID orphelins. Distinction utile : un
+  vrai blocage a un état observable (connexions ouvertes, verrou DB) ; un faux
+  blocage n'en a aucun.
+- **`next dev` refuse de démarrer un second serveur pour le même projet, même
+  sur un port différent** : `⨯ Another next dev server is already running`
+  pointant vers le port 3000 alors que Playwright tentait de démarrer son
+  `webServer` sur le port 3100 — verrou par **projet**, pas par port. A
+  bloqué un run e2e tant que le serveur dev resté ouvert (port 3000) n'a pas
+  été tué.
+- **`npm run worker` échoue hors contexte Next** (`tsx src/worker/index.ts`
+  seul ne charge pas `.env`, contrairement à `next dev`/`next build`) :
+  `Variables d'environnement invalides : DATABASE_URL: Invalid input: expected
+  string, received undefined` (+ 9 autres). Contournement ponctuel :
+  `npx tsx --require dotenv/config src/worker/index.ts`.
+- **« Mentionné par » vide malgré un alias correspondant → pas un bug** :
+  Aymeric avait raison de soupçonner l'alias, mais la vraie cause était que
+  **aucun worker ne tournait sur la base de dev** pendant ses tests manuels —
+  les jobs `entity-linking` restaient à l'état `created` dans `pgboss.job`
+  (`completed_on: null`), jamais consommés. `resolveLinks`/le dictionnaire
+  fonctionnaient correctement (vérifié en rejouant la résolution manuellement).
+  Diagnostiqué par script jetable (dictionnaire, matches, `resolveLinks`,
+  requête directe sur `pgboss.job`) plutôt que supposé ; résolu en démarrant le
+  worker manuellement, qui a traité les 3 jobs en attente.
+- **Extension Claude in Chrome instable toute la session** (timeouts
+  d'injection de script, y compris sur `example.com`) — recherché par Aymeric,
+  cause probable = timeout du service worker MV3 / boucle de reconnexion CDP
+  (bugs connus de l'extension, pas du code du projet). Mémorisé
+  (`chrome-extension-service-worker-timeout.md`) : essayer `/chrome reconnect`
+  puis fermer Claude Desktop avant un redémarrage complet de Chrome.
+
+**Commandes utiles de la session :**
+- `wmic process where "name='node.exe'" get ProcessId,CommandLine` — liste les
+  process Node avec leur ligne de commande complète, seul moyen fiable
+  d'identifier lequel est un worker/serveur orphelin avant de le tuer.
+- `taskkill //PID <pid> //F` — tuer un process orphelin identifié (utilisé une
+  dizaine de fois cette session pour des workers e2e/dev server orphelins).
+- `npx tsx --require dotenv/config src/worker/index.ts` — lancer le worker
+  manuellement en dehors de `next dev`/Docker, avec `.env` chargé.
+- Requête directe sur `pgboss.job` (`SELECT id, name, state, data, created_on,
+  completed_on FROM pgboss.job WHERE name = 'entity-linking' ...`) — vérifier
+  si un job de liaison a réellement été consommé par un worker.
+
+**Livrables produits :**
+- **KAN-24 (backlinks)** : `relation-service.ts` (`listIncomingLinks`),
+  `linked-entities.tsx` généralisé, section « Mentionné par » — PR mergée.
+- **KAN-11 (clôture S3)** : `src/lib/storage/s3-adapter.test.ts` (nouveau),
+  doc point d'extension OVH (`spec-technique-bloc2.md` §4.1) — PR mergée.
+- **KAN-12 (déconnexion)** : `logoutAction` (`src/actions/auth.ts`), bouton
+  header (`layout.tsx`), `auth.test.ts` (nouveau), `TST-AUT-008` — PR mergée,
+  vérifiée manuellement par Aymeric dans un vrai navigateur.
+- **KAN-34 (câblage CI e2e)** : job `e2e` dans `.github/workflows/ci.yml`
+  (service `postgres:16`), `playwright.config.ts` (`trace: "retain-on-failure"`)
+  — PR mergée, job vert confirmé sur GitHub.
+- **KAN-22 (mentions manuelles @, 5/5 étapes)** :
+  - Étape 1 : node `mention` (`tiptap-extensions.ts`), `tiptap-mention-attrs.ts`
+    (nouveau, constantes partagées avec le surlignage), validation
+    `assertSafeAttributes`.
+  - Étape 2 : popup de suggestion (`mention-list.tsx` + test, `ReactRenderer`
+    + `@tiptap/suggestion`), `filterMentionSuggestions` (pur, testé).
+  - Étape 3 : `reconcileManualMentions` + `extractMentionedEntityIds`,
+    câblage dans `saveEntityContentAction`.
+  - Étape 4 : rendu + navigation — acquis par réutilisation, vérifié
+    manuellement par Aymeric (Ctrl/Cmd+clic fonctionnel dès l'étape 2/3).
+  - Étape 5 : `e2e/manual-mention.spec.ts` (nouveau, a trouvé le bug
+    `allowSpaces`), `docs/adr/0011-mentions-manuelles-reconciliation.md`
+    (nouveau), `TST-LNK-006`, mises à jour OWASP/RGAA/spec/CHANGELOG.
+  - 4 commits, PR mergée.
+- Gates en fin de session : lint ✅ (0 warning) · typecheck ✅ · tests ✅
+  (217 tests unitaires) · couverture 98,33 % (seuil bloquant 80 %) · build ✅ ·
+  e2e ✅ (3/3 réel : smoke, surlignage, mentions manuelles).
+
+**Avancement certification :**
+- **C2.2.1** : `reconcileManualMentions` reprend le même patron diff
+  ajout/suppression que `scanAndLinkEntity` (KAN-19) sans dupliquer la logique ;
+  constantes DOM partagées entre surlignage et mentions (`tiptap-mention-attrs.ts`).
+- **C2.2.2** : 217 tests, couverture 98,33 % maintenue ; un vrai trou
+  d'isolation de test trouvé et corrigé (mock manquant faisant taper la vraie
+  base dev), documenté ci-dessus.
+- **C2.2.3** : popup de mention entièrement clavier (`listbox`/`option`,
+  `aria-activedescendant`, cf. `accessibilite-rgaa.md`) ; revalidation serveur
+  des id mentionnés contre le monde réel avant écriture (OWASP A01, ligne
+  étendue dans `securite-owasp.md`).
+- **C2.3.1** : `TST-LNK-006` au cahier de recettes ; bug `allowSpaces` trouvé
+  et corrigé par le test e2e avant toute mise en recette manuelle.
+- **C2.4.1** : ADR-0011 (mentions manuelles : rendu, coexistence AUTO/MANUAL,
+  réconciliation synchrone, `allowSpaces`).
+
+**À faire / suite :**
+- **Graphe Cytoscape (KAN-25)** : prochain chantier, plus gros morceau restant
+  avant le 24/07 — toujours à zéro ligne de code.
+- **Quotas freemium (KAN-18)**, **recherche basique (KAN-17)**, **upload
+  d'images (KAN-16)**, **UI ignorer/délier une occurrence (KAN-23)** : non
+  commencés.
+- **CD vers le VPS OVH (KAN-10)** : pas commencé, VPS pas encore commandé.
+- **Bug workers e2e orphelins** (`global-setup.ts`, `worker.kill()`
+  n'atteint pas toute l'arborescence sous Windows) : identifié, contourné
+  manuellement plusieurs fois, **pas corrigé** — à traiter si ça continue de
+  gêner les runs e2e locaux.
+- Reporter cette entrée (les deux blocs du jour) dans `dev-log.md` (hors dépôt)
+  + redéposer dans le projet Claude.
+- Mettre à jour le board Jira : KAN-24, KAN-11, KAN-12, KAN-34, KAN-22 → Done ;
+  KAN-25 à passer en cours au démarrage du chantier graphe.
+
+---
+
+## Décisions techniques
+
+| Date | Décision | Alternatives | Justification |
+|---|---|---|---|
+| 2026-07-17 | 4 branches/PR indépendantes pour vider la colonne WIP, plus petit au plus gros | Une seule grosse PR ; traiter un seul ticket | Libère un créneau WIP à chaque merge plutôt qu'attendre la fin des quatre |
+| 2026-07-17 | Rendu de la mention sans préfixe `@` | Garder `@Label` (comportement par défaut de l'extension) | Cohérence visuelle avec le surlignage AUTO, demandé par Aymeric après test manuel |
+| 2026-07-17 | `renderText: () => ""` sur le node mention | Laisser le comportement par défaut (`"@Label"`) | Évite l'auto-détection AUTO de sa propre mention manuelle via `plainText` |
+| 2026-07-17 | Réconciliation `Relation MANUAL` synchrone à la sauvegarde | Enfiler un job asynchrone comme pour AUTO | Intention explicite, peu de mentions par fiche ; reste dans le budget perf en ligne |
+| 2026-07-17 | Revalidation serveur des id mentionnés contre le monde avant écriture | Faire confiance aux id envoyés par le client | OWASP A01 : un id d'un autre monde ne doit jamais pouvoir créer un lien |
+
+## Erreurs rencontrées & Solutions
+
+| Date | Symptôme exact | Cause | Solution |
+|---|---|---|---|
+| 2026-07-17 | Popup de suggestion se ferme dès qu'un espace est tapé dans la requête | `allowSpaces` vaut `false` par défaut dans `@tiptap/suggestion` (regex exclut `\s`) | `allowSpaces: true` dans la config `suggestion` |
+| 2026-07-17 | `entity-content.test.ts` passait sans jamais vérifier `reconcileManualMentions` | Mock manquant pour `@/services/relation-service` ; l'appel réel touchait la vraie base dev (Docker up), échec avalé par le `try/catch` non-fatal | Ajouter `vi.mock("@/services/relation-service", ...)` |
+| 2026-07-17 | Run e2e bloqué ~7-8 min sans aucune sortie | Workers `tsx src/worker/index.ts` orphelins (kill incomplet sous Windows) tenant des connexions ouvertes, bloquant `DROP SCHEMA` du `global-setup.ts` suivant | Identifier via `wmic process ... get ProcessId,CommandLine` puis `taskkill //PID <pid> //F` |
+| 2026-07-17 | `⨯ Another next dev server is already running` (port 3000) au lancement du `webServer` e2e (port 3100) | Verrou Next.js par **projet**, pas par port | Tuer le serveur dev existant avant de lancer l'e2e localement |
+| 2026-07-17 | « Mentionné par » n'affichait pas une mention détectée via alias | Aucun worker ne tournait sur la base de dev — jobs `entity-linking` restés à l'état `created` dans `pgboss.job` | Démarrer le worker manuellement (`npx tsx --require dotenv/config src/worker/index.ts`) |
+
+⚠️ Rien en attente de commit à la clôture de cette session : les 4 PR (KAN-24,
+KAN-11, KAN-12, KAN-34) et la PR KAN-22 (mentions manuelles, 4 commits) sont
+toutes confirmées committées, poussées et mergées par Aymeric.
