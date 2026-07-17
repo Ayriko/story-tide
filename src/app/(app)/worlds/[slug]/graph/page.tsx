@@ -4,7 +4,8 @@ import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { listWorldRelations } from "@/services/relation-service";
-import { buildGraphElements } from "@/lib/graph-elements";
+import { buildAccessibleGraphEntries, buildGraphElements } from "@/lib/graph-elements";
+import { GraphAccessibleList } from "./graph-accessible-list";
 import { GraphView } from "./graph-view";
 
 export default async function GraphPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -26,10 +27,13 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
     listWorldRelations(session.user.id, world.id),
   ]);
 
-  const elements = buildGraphElements(
-    entities.map((entity) => ({ id: entity.id, name: entity.name, type: entity.type })),
-    relations,
-  );
+  const entityInputs = entities.map((entity) => ({
+    id: entity.id,
+    name: entity.name,
+    type: entity.type,
+  }));
+  const elements = buildGraphElements(entityInputs, relations);
+  const accessibleEntries = buildAccessibleGraphEntries(entityInputs, relations);
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,6 +48,19 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
       </div>
 
       <GraphView worldSlug={world.slug} elements={elements} />
+
+      <section
+        aria-labelledby="graph-accessible-heading"
+        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+      >
+        <h2
+          id="graph-accessible-heading"
+          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+        >
+          Liste accessible
+        </h2>
+        <GraphAccessibleList worldSlug={world.slug} entries={accessibleEntries} />
+      </section>
     </div>
   );
 }
