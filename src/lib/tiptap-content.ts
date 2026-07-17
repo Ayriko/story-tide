@@ -124,3 +124,23 @@ export function parseContent(content: unknown): JSONContent {
 export function extractPlainText(content: JSONContent): string {
   return generateText(content, extensions);
 }
+
+// Extrait les id d'entites mentionnees manuellement (@, KAN-22) - parcours du
+// JSON brut deja valide (pas besoin de reconstruire un Node ProseMirror : la
+// structure { type, attrs?, content? } se parcourt directement). Utilise par
+// saveEntityContentAction pour reconcilier les Relation origin=MANUAL -
+// jamais de confiance aveugle dans ces id cote service (reconcileManualMentions
+// revalide leur appartenance au monde avant toute ecriture, OWASP A01).
+export function extractMentionedEntityIds(content: JSONContent): string[] {
+  const ids = new Set<string>();
+
+  function walk(node: JSONContent): void {
+    if (node.type === "mention" && typeof node.attrs?.id === "string" && node.attrs.id !== "") {
+      ids.add(node.attrs.id);
+    }
+    node.content?.forEach(walk);
+  }
+
+  walk(content);
+  return [...ids];
+}

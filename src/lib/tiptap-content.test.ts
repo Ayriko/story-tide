@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_CONTENT,
   InvalidContentError,
+  extractMentionedEntityIds,
   extractPlainText,
   parseContent,
 } from "./tiptap-content";
@@ -259,5 +260,79 @@ describe("extractPlainText", () => {
     };
 
     expect(extractPlainText(content)).toBe("Rencontre avec  hier.");
+  });
+});
+
+describe("extractMentionedEntityIds", () => {
+  it("retourne un tableau vide sans mention", () => {
+    expect(extractMentionedEntityIds(EMPTY_CONTENT)).toEqual([]);
+  });
+
+  it("extrait l'id d'une mention, quelle que soit sa profondeur d'imbrication", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "blockquote",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "mention", attrs: { id: "entity-1", label: "Aeliana" } }],
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual(["entity-1"]);
+  });
+
+  it("deduplique les mentions repetees de la meme entite", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+            { type: "text", text: " et " },
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+          ],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual(["entity-1"]);
+  });
+
+  it("ignore une mention sans id exploitable (forme malformee)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { label: "Aeliana" } }],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual([]);
+  });
+
+  it("distingue plusieurs entites mentionnees", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [
+            { type: "mention", attrs: { id: "entity-1", label: "Aeliana" } },
+            { type: "mention", attrs: { id: "entity-2", label: "Robert" } },
+          ],
+        },
+      ],
+    };
+
+    expect(extractMentionedEntityIds(content)).toEqual(["entity-1", "entity-2"]);
   });
 });

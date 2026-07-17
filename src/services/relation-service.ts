@@ -1,5 +1,5 @@
 import { prisma } from "@/db/client";
-import type { RelationOrigin } from "@/generated/prisma/client";
+import { RelationOrigin } from "@/generated/prisma/client";
 import { getWorld } from "./world-service";
 
 // Autorisation en cascade (meme pattern que entity-service.ts) : appartenance
@@ -100,4 +100,77 @@ export async function listIncomingLinks(
       return name === undefined ? [] : [{ id: relation.sourceId, name, origin: relation.origin }];
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Reconcilie les Relation origin=MANUAL a partir des mentions @ trouvees dans
+// le contenu au moment de la sauvegarde (KAN-22) - meme patron diff
+// ajout/suppression que scanAndLinkEntity (linker-service.ts), mais jamais la
+// meme origin : la contrainte @@unique([sourceId, targetId, origin]) fait
+// coexister une ligne AUTO et une ligne MANUAL pour le meme couple
+// source/cible sans jamais se percuter - aucun risque d'ecraser un AUTO ici,
+// par construction (filtre origin: MANUAL sur les trois requetes).
+//
+// mentionedEntityIds vient du CLIENT (contenu de l'editeur) : jamais de
+// confiance aveugle. Revalide leur appartenance au monde courant via une
+// requete reelle avant toute ecriture (OWASP A01 - un id d'un autre monde ne
+// doit jamais pouvoir creer une Relation). L'auto-mention (mentionner sa
+// propre fiche) est filtree defensivement, meme si l'UI l'exclut deja.
+export async function reconcileManualMentions(
+  ownerId: string,
+  worldId: string,
+  entityId: string,
+  mentionedEntityIds: string[],
+): Promise<void> {
+  await getWorld(ownerId, worldId);
+
+  const candidateIds = [...new Set(mentionedEntityIds)].filter((id) => id !== entityId);
+  const validTargets =
+    candidateIds.length === 0
+      ? []
+      : await prisma.entity.findMany({
+          where: { id: { in: candidateIds }, worldId },
+          select: { id: true },
+        });
+  const desiredTargets = new Set(validTargets.map((target) => target.id));
+
+  const existingManual = await prisma.relation.findMany({
+    where: { sourceId: entityId, origin: RelationOrigin.MANUAL },
+    select: { targetId: true },
+  });
+  const existingTargets = new Set(existingManual.map((row) => row.targetId));
+
+  const toAdd = [...desiredTargets].filter((targetId) => !existingTargets.has(targetId));
+  const toRemove = [...existingTargets].filter((targetId) => !desiredTargets.has(targetId));
+
+  if (toAdd.length === 0 && toRemove.length === 0) {
+    return;
+  }
+
+  // Transaction : le diff s'applique en un bloc, jamais partiellement.
+  await prisma.$transaction([
+    ...(toAdd.length > 0
+      ? [
+          prisma.relation.createMany({
+            data: toAdd.map((targetId) => ({
+              worldId,
+              sourceId: entityId,
+              targetId,
+              origin: RelationOrigin.MANUAL,
+            })),
+            skipDuplicates: true,
+          }),
+        ]
+      : []),
+    ...(toRemove.length > 0
+      ? [
+          prisma.relation.deleteMany({
+            where: {
+              sourceId: entityId,
+              origin: RelationOrigin.MANUAL,
+              targetId: { in: toRemove },
+            },
+          }),
+        ]
+      : []),
+  ]);
 }

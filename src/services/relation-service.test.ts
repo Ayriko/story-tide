@@ -4,7 +4,12 @@ import type { Entity, LinkIgnore, Relation, World } from "@/generated/prisma/cli
 import { RelationOrigin } from "@/generated/prisma/client";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { WorldNotFoundError } from "./world-service";
-import { getIgnoredTargetIds, listIncomingLinks, listOutgoingLinks } from "./relation-service";
+import {
+  getIgnoredTargetIds,
+  listIncomingLinks,
+  listOutgoingLinks,
+  reconcileManualMentions,
+} from "./relation-service";
 
 // Meme regle que entity-service.test.ts : Prisma mocke, getWorld() n'est pas
 // mocke - on verifie la vraie cascade d'autorisation monde -> LinkIgnore/Relation
@@ -19,17 +24,23 @@ vi.mock("@/db/client", () => ({
     },
     relation: {
       findMany: vi.fn(),
+      createMany: vi.fn(),
+      deleteMany: vi.fn(),
     },
     entity: {
       findMany: vi.fn(),
     },
+    $transaction: vi.fn(),
   },
 }));
 
 const worldFindFirst = vi.mocked(prisma.world.findFirst);
 const linkIgnoreFindMany = vi.mocked(prisma.linkIgnore.findMany);
 const relationFindMany = vi.mocked(prisma.relation.findMany);
+const relationCreateMany = vi.mocked(prisma.relation.createMany);
+const relationDeleteMany = vi.mocked(prisma.relation.deleteMany);
 const entityFindMany = vi.mocked(prisma.entity.findMany);
+const transaction = vi.mocked(prisma.$transaction);
 
 const OWNER_ID = "owner-1";
 const WORLD_ID = "w1";
@@ -246,5 +257,116 @@ describe("listIncomingLinks", () => {
     const result = await listIncomingLinks(OWNER_ID, WORLD_ID, ENTITY_ID);
 
     expect(result).toEqual([]);
+  });
+});
+
+describe("reconcileManualMentions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    relationFindMany.mockResolvedValue([]);
+    entityFindMany.mockResolvedValue([]);
+    transaction.mockResolvedValue([]);
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire", async () => {
+    worldFindFirst.mockResolvedValue(null);
+
+    await expect(reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, ["e2"])).rejects.toThrow(
+      WorldNotFoundError,
+    );
+    expect(entityFindMany).not.toHaveBeenCalled();
+  });
+
+  it("ne fait rien sans mention et sans Relation MANUAL existante", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, []);
+
+    expect(entityFindMany).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("ajoute une Relation MANUAL pour une mention valide du monde", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    entityFindMany.mockResolvedValue([makeEntity({ id: "e2" })]);
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, ["e2"]);
+
+    expect(entityFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ["e2"] }, worldId: WORLD_ID },
+      select: { id: true },
+    });
+    expect(relationCreateMany).toHaveBeenCalledWith({
+      data: [
+        { worldId: WORLD_ID, sourceId: ENTITY_ID, targetId: "e2", origin: RelationOrigin.MANUAL },
+      ],
+      skipDuplicates: true,
+    });
+    expect(relationDeleteMany).not.toHaveBeenCalled();
+    expect(transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("supprime une Relation MANUAL dont la mention a disparu du contenu", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([
+      makeRelation({ sourceId: ENTITY_ID, targetId: "e2", origin: RelationOrigin.MANUAL }),
+    ]);
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, []);
+
+    expect(relationDeleteMany).toHaveBeenCalledWith({
+      where: { sourceId: ENTITY_ID, origin: RelationOrigin.MANUAL, targetId: { in: ["e2"] } },
+    });
+    expect(relationCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("ignore silencieusement un id mentionne qui n'appartient pas au monde (jamais de confiance dans l'input client)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    entityFindMany.mockResolvedValue([]); // aucune entite ne correspond dans CE monde
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, ["entite-d-un-autre-monde"]);
+
+    expect(relationCreateMany).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it("exclut l'auto-mention (une fiche qui se mentionnerait elle-meme)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, [ENTITY_ID]);
+
+    expect(entityFindMany).not.toHaveBeenCalled();
+    expect(relationCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("deduplique les id mentionnes plusieurs fois avant de requeter", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    entityFindMany.mockResolvedValue([makeEntity({ id: "e2" })]);
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, ["e2", "e2"]);
+
+    expect(entityFindMany).toHaveBeenCalledWith({
+      where: { id: { in: ["e2"] }, worldId: WORLD_ID },
+      select: { id: true },
+    });
+  });
+
+  it("ne lit et n'ecrit jamais les relations AUTO (filtre origin=MANUAL explicite)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([
+      makeRelation({ sourceId: ENTITY_ID, targetId: "e2", origin: RelationOrigin.MANUAL }),
+    ]);
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, []);
+
+    expect(relationFindMany).toHaveBeenCalledWith({
+      where: { sourceId: ENTITY_ID, origin: RelationOrigin.MANUAL },
+      select: { targetId: true },
+    });
+    expect(relationDeleteMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ origin: RelationOrigin.MANUAL }),
+      }),
+    );
   });
 });

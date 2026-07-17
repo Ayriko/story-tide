@@ -3,8 +3,14 @@
 import { requireSession } from "@/lib/auth-session";
 import { jobQueue } from "@/lib/queue";
 import { ENTITY_LINKING_QUEUE } from "@/lib/queue/entity-linking";
-import { InvalidContentError, extractPlainText, parseContent } from "@/lib/tiptap-content";
+import {
+  InvalidContentError,
+  extractMentionedEntityIds,
+  extractPlainText,
+  parseContent,
+} from "@/lib/tiptap-content";
 import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
+import { reconcileManualMentions } from "@/services/relation-service";
 import { WorldNotFoundError } from "@/services/world-service";
 
 export type SaveContentResult = { ok: true } | { ok: false; error: string };
@@ -70,6 +76,18 @@ export async function saveEntityContentAction(
     }
     console.error("[entity-content] Enregistrement du contenu échoué :", error);
     return { ok: false, error: "Enregistrement impossible pour le moment." };
+  }
+
+  // Le contenu est deja persiste a ce stade : un echec de reconciliation des
+  // mentions manuelles est loggue (jamais avale) mais ne fait pas echouer la
+  // sauvegarde, meme raison que l'enfilage AUTO ci-dessous - la Relation
+  // MANUAL est une projection derivee du contenu, pas une condition
+  // d'integrite de l'enregistrement lui-meme.
+  try {
+    const mentionedEntityIds = extractMentionedEntityIds(content);
+    await reconcileManualMentions(session.user.id, worldId, entityId, mentionedEntityIds);
+  } catch (error) {
+    console.error("[entity-content] Réconciliation des mentions manuelles échouée :", error);
   }
 
   // Le contenu est deja persiste a ce stade : un echec d'enfilage est loggue
