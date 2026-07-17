@@ -180,6 +180,13 @@ stade (`[Unreleased]`).
   `trace: "retain-on-failure"` (remplace `"on-first-retry"`, inopérant avec
   `retries: 0`) pour que l'artefact `test-results/` publié en cas d'échec
   (`if: failure()`) contienne réellement une trace exploitable.
+- Déconnexion (KAN-12) : `logoutAction` (`src/actions/auth.ts`) appelle
+  `auth.api.signOut` puis redirige vers `/login` — y compris si `signOut`
+  échoue (session déjà expirée), la cause réelle étant systématiquement
+  logguée plutôt qu'avalée. Bouton natif dans le header `(app)`
+  (`src/app/(app)/layout.tsx`, affiche aussi l'e-mail de l'utilisateur
+  connecté), focus visible cohérent avec le reste de la navigation (RGAA).
+  Scénario `TST-AUT-008` au cahier de recettes.
 
 ### Corrigé
 
