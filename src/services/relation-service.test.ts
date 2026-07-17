@@ -8,6 +8,7 @@ import {
   getIgnoredTargetIds,
   listIncomingLinks,
   listOutgoingLinks,
+  listWorldRelations,
   reconcileManualMentions,
 } from "./relation-service";
 
@@ -255,6 +256,50 @@ describe("listIncomingLinks", () => {
     entityFindMany.mockResolvedValue([]);
 
     const result = await listIncomingLinks(OWNER_ID, WORLD_ID, ENTITY_ID);
+
+    expect(result).toEqual([]);
+  });
+});
+
+describe("listWorldRelations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire", async () => {
+    worldFindFirst.mockResolvedValue(null);
+
+    await expect(listWorldRelations(OWNER_ID, WORLD_ID)).rejects.toThrow(WorldNotFoundError);
+    expect(relationFindMany).not.toHaveBeenCalled();
+  });
+
+  it("retourne toutes les relations du monde, select plat (sourceId/targetId/origin)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    const relations = [
+      makeRelation({ sourceId: "e1", targetId: "e2", origin: RelationOrigin.AUTO }),
+      makeRelation({ sourceId: "e2", targetId: "e3", origin: RelationOrigin.MANUAL }),
+    ];
+    relationFindMany.mockResolvedValue(relations);
+
+    const result = await listWorldRelations(OWNER_ID, WORLD_ID);
+
+    // listWorldRelations retransmet tel quel ce que Prisma renvoie (pas de
+    // reshaping comme listOutgoingLinks/listIncomingLinks) - le `select` reel
+    // est ce qui garantit la forme {sourceId,targetId,origin} en production,
+    // verifie ci-dessous via l'appel exact ; le mock complet (convention
+    // prisma-mock-partial-select) sert uniquement a satisfaire le typage.
+    expect(result).toEqual(relations);
+    expect(relationFindMany).toHaveBeenCalledWith({
+      where: { worldId: WORLD_ID },
+      select: { sourceId: true, targetId: true, origin: true },
+    });
+  });
+
+  it("retourne un tableau vide sans relation dans le monde", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([]);
+
+    const result = await listWorldRelations(OWNER_ID, WORLD_ID);
 
     expect(result).toEqual([]);
   });
