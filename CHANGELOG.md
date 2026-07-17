@@ -166,6 +166,11 @@ stade (`[Unreleased]`).
   `label`/`emptyLabel` pour éviter la duplication de markup entre les deux
   sections, chacune gardant un `aria-label` distinct (RGAA). Scénario
   `TST-LNK-005` au cahier de recettes.
+- Clôture de l'abstraction stockage (KAN-11) : `src/lib/storage/s3-adapter.test.ts`
+  couvre la traduction adapter → SDK (`PutObjectCommand`/`DeleteObjectCommand`/
+  `GetObjectCommand`, `forcePathStyle: true` requis par MinIO, expiration par
+  défaut de l'URL signée) ; point d'extension vers OVH Object Storage documenté
+  (`docs/spec-technique-bloc2.md` §4.1).
 
 ### Corrigé
 
