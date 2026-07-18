@@ -363,3 +363,182 @@ faire à la prochaine reprise.
 ⚠️ Rien en attente de commit à la clôture de cette session : les 4 PR (KAN-24,
 KAN-11, KAN-12, KAN-34) et la PR KAN-22 (mentions manuelles, 4 commits) sont
 toutes confirmées committées, poussées et mergées par Aymeric.
+
+---
+
+### Session — 2026-07-17 — Graphe Cytoscape (KAN-25) + garde-fous ignorer/délier (KAN-23)
+
+**Thèmes abordés :**
+- Analyse du concurrent vvd.world déposée par Aymeric (2 fichiers : ADR externe
+  proposant react-flow, entrée design `reference-vvd.md`) — périmètre limité au
+  graphe pour cette session, le reste (couleurs/typo/architecture éditeur)
+  différé à un futur ticket de reprise du front.
+- Graphe de relations (KAN-25, dernier morceau obligatoire du périmètre S30) :
+  décision de rendu, implémentation complète, e2e, docs.
+- Point d'étape avec Aymeric sur la priorisation des tickets restants avant le
+  24/07.
+- Garde-fous « ignorer/délier une relation AUTO » (KAN-23, 2 étapes) : service,
+  Server Actions, UI, e2e, docs — PR mergée.
+- Diagnostic d'un faux blocage Playwright sous Windows (pipe stdout hérité par
+  un worker orphelin).
+
+**Décisions prises :**
+- **Cytoscape.js dès le MVP, sans phase de migration prévue** (ADR-0012) —
+  tranché par Aymeric via question à choix, contre la proposition externe
+  react-flow (SVG/DOM pour le MVP puis migration canvas). Justification :
+  Cytoscape rend déjà nativement sur un seul `<canvas>`, donc le problème de
+  perf DOM que react-flow chercherait à contourner par une migration ultérieure
+  ne se pose pas — l'audit vvd reste utile pour la **forme** (canvas + filtres
+  + navigation cliquable), pas pour la conclusion technique.
+- **`layout: { name: "cose", animate: false }`** plutôt qu'un `layout.stop()`
+  synchronisé avec le cleanup React — supprime par construction la classe de
+  bug (aucune frame différée possible après démontage), pas seulement un
+  correctif ponctuel.
+- **Priorisation post-KAN-25 : finir KAN-16/17/18/23 avant le VPS/CD (KAN-10)**
+  — choisi par Aymeric parmi les options présentées, malgré le risque de
+  planning déjà signalé (la fenêtre VPS est censée être en cours d'après la
+  spec) ; risque explicitement gardé en tête pour resurgir plus tard, pas
+  silencieusement abandonné.
+- **KAN-23 retenu comme premier chantier** (le plus petit des 4 tickets
+  restants, 4 SP) — choisi par Aymeric.
+- **Une seule mécanique « Ignorer ce lien » pour les deux formulations du
+  ticket** (« ignorer une occurrence », « délier une relation AUTO ») — déduit
+  du schéma `LinkIgnore` (`@@unique([entityId, targetId])`, ignore par **paire
+  source→cible**, pas par occurrence précise dans le texte), pas une
+  clarification demandée à Aymeric : les deux formulations se résument à la
+  même écriture.
+- **`getEntity` (pas seulement `getWorld`) pour les nouvelles fonctions**
+  (`ignoreLink`, `unignoreLink`, `listIgnoredTargets`) — ferme un gap
+  d'autorisation identifié dans des fonctions voisines pré-existantes
+  (`listOutgoingLinks`, `listIncomingLinks`, `getIgnoredTargetIds`,
+  `reconcileManualMentions`, `listWorldRelations` ne vérifient que
+  l'appartenance du monde au propriétaire, jamais que `entityId` appartient à
+  `worldId`) sans corriger rétroactivement ce code voisin — hors périmètre
+  chirurgical du ticket, signalé à Aymeric plutôt que corrigé silencieusement.
+
+**Éléments notables / appris (gotchas) :**
+- **Cytoscape + jsdom : `Could not create canvas of type 2d`** — jsdom n'a pas
+  de contexte canvas 2D natif sans le paquet `canvas`. Confirmé que
+  `GraphView` ne peut pas être monté en test unitaire RTL ; accepté comme
+  limite inhérente (même précédent que le wiring `ReactRenderer`/`renderHTML`
+  de Tiptap), vérification déférée à l'e2e.
+- **Race condition du layout `cose` de Cytoscape** : anime par défaut sur
+  plusieurs `requestAnimationFrame` ; si le composant démonte pendant
+  l'animation (navigation), une frame différée s'exécute après `cy.destroy()`
+  et plante (`Cannot read properties of null (reading 'notify')`), reproduit
+  par `e2e/graph.spec.ts`. Voir décision `animate: false` ci-dessus.
+- **Faux blocage Playwright, variante inédite du piège des workers orphelins
+  déjà documenté (`windows-orphan-node-e2e-cleanup`)** : un run de
+  `e2e/link-ignore.spec.ts` piped vers `tail -150` est resté silencieux ~15 min
+  alors que le test avait réussi en 26,6 s (`1 passed`, retrouvé dans le
+  fichier de sortie une fois débloqué). Cause : `global-setup.ts` spawn le
+  worker avec `stdio: "inherit"` — le vrai process `node.exe` du worker hérite
+  du bout écriture du pipe vers `tail` ; `worker.kill()` ne tue que le wrapper
+  shell sous Windows (piège déjà connu), le vrai process survit et garde le
+  pipe ouvert **indéfiniment**, même longtemps après la fin réelle du test.
+  Diagnostiqué par l'état observable plutôt que par déduction : `wmic process
+  ...` puis confirmation de l'âge du process worker via `Get-CimInstance
+  Win32_Process -Filter "ProcessId=<pid>" | Select CreationDate` (le worker
+  datait bien du run en cours, pas un résidu antérieur). Résolu par
+  `taskkill //PID <pid> //F //T` sur toute l'arborescence. Confirmé sur un run
+  complet (5 specs) sans pipe cette fois : l'orphelin réapparaît
+  systématiquement, le pipe n'étant qu'un facteur aggravant, pas la cause
+  racine. Skill `windows-orphan-node-e2e-cleanup` mis à jour avec ce cas.
+
+**Commandes utiles de la session :**
+- `Get-CimInstance Win32_Process -Filter "ProcessId=<pid>" | Select
+  ProcessId,ParentProcessId,CreationDate,CommandLine` — confirme qu'un process
+  suspect date bien du run en cours avant de le tuer.
+- PowerShell, fonction récursive `Get-Descendants($ppid)` sur
+  `Get-CimInstance Win32_Process -Filter "ParentProcessId=$ppid"` — parcourt
+  l'arborescence de process quand `wmic` seul ne suffit pas à relier
+  parent/enfant.
+- `taskkill //PID <pid> //F //T` — tue tout un sous-arbre de process orphelins
+  (`//T` en plus du `//F` habituel).
+- Lancer `npx playwright test` en tâche de fond **sans** `| tail -N` quand
+  possible : évite le piège du pipe qui reste ouvert indéfiniment à cause d'un
+  orphelin.
+
+**Livrables produits :**
+- **KAN-25 (graphe)** : `src/lib/graph-elements.ts` (`buildGraphElements`,
+  `buildAccessibleGraphEntries`, fonctions pures testées isolément),
+  `listWorldRelations` (`relation-service.ts`), `graph-view.tsx` (rendu
+  Cytoscape, filtrage par type sans recréer l'instance, `GraphAccessibleList`),
+  `data-testid="graph-canvas"`, `e2e/graph.spec.ts` (nouveau), ADR-0012 (+
+  index ADR), `TST-GRF-001` à `003`, entrée RGAA dédiée, spec technique §2
+  point 7 marqué **Fait**, CHANGELOG — PR mergée.
+- **KAN-23 (garde-fous ignorer/délier), 2 étapes** :
+  - Étape 1 : `relation-service.ts` (`ignoreLink`, `unignoreLink`,
+    `listIgnoredTargets`, type `IgnoredTarget`), `src/actions/link-ignore.ts`
+    (nouveau), 15 tests `relation-service.test.ts` + 8 tests
+    `link-ignore.test.ts`.
+  - Étape 2 : `linked-entities.tsx` (bouton « Ignorer ce lien » par entrée
+    `origin=AUTO`, côté sortant uniquement), `ignored-links.tsx` (nouveau,
+    section « Liens ignorés » + « Ne plus ignorer »), `page.tsx` (câblage),
+    `e2e/link-ignore.spec.ts` (nouveau), `TST-LNK-007`, `securite-owasp.md`
+    (A01 étendu, gap pré-existant signalé), spec technique §2 point 5 marqué
+    **Fait**, CHANGELOG.
+  - PR mergée (confirmée par Aymeric).
+- `.claude/skills/windows-orphan-node-e2e-cleanup/SKILL.md` mis à jour.
+- Gates en fin de session : lint ✅ (0 warning) · typecheck ✅ · tests ✅
+  (249 tests unitaires) · couverture 98,52 % (seuil bloquant 80 %) · build ✅ ·
+  e2e ✅ (5/5 réel : smoke, graph, manual-mention, link-highlight, link-ignore).
+
+**Avancement certification :**
+- **C2.2.1** : le graphe réutilise le patron déjà établi (fonction pure de
+  mapping testée isolément + wiring framework mince dans un `useEffect`) ;
+  `relation-service.ts` reste la seule couche métier touchée par KAN-23,
+  aucune nouvelle dépendance d'architecture.
+- **C2.2.2** : +32 tests cette session (15 + 8 pour KAN-23, plus les tests
+  purs de `graph-elements.ts` pour KAN-25) ; couverture maintenue à 98,52 %
+  (seuil 80 % largement respecté) ; limite de test documentée pour Cytoscape/
+  jsdom (déférée à l'e2e, pas un trou de couverture silencieux).
+- **C2.2.3** : RGAA — `GraphAccessibleList` (chemin clavier séparé du canvas,
+  ADR-0012) et boutons natifs « Ignorer ce lien »/« Ne plus ignorer » (focus
+  visible, `role="alert"` sur les erreurs) ; OWASP A01 — `targetId` revalidé
+  contre le monde réel avant écriture (`ignoreLink`), gap pré-existant dans du
+  code voisin signalé sans être corrigé hors périmètre.
+- **C2.3.1** : `TST-GRF-001` à `003`, `TST-LNK-007` au cahier de recettes.
+- **C2.4.1** : ADR-0012 (alternatives explicitées, décision justifiée,
+  conséquences RGAA documentées).
+
+**À faire / suite :**
+- Prochaine étape (déjà priorisée par Aymeric) : KAN-16 (upload d'images),
+  KAN-17 (recherche basique), KAN-18 (quotas freemium) — ordre entre les trois
+  restant à confirmer.
+- Gap d'autorisation pré-existant (`entityId` non revérifié contre `worldId`
+  dans `listOutgoingLinks`/`listIncomingLinks`/`getIgnoredTargetIds`/
+  `reconcileManualMentions`/`listWorldRelations`) : mitigé en pratique par les
+  appels UI existants, à corriger si un appel direct de Server Action devient
+  un vecteur d'attaque plausible.
+- `global-setup.ts` ne tue toujours pas toute l'arborescence du worker en fin
+  de run e2e sous Windows — nettoyage manuel systématique en attendant,
+  chantier de fond toujours pas traité.
+- **KAN-10 (CD/VPS)** : toujours différé par choix d'Aymeric, risque de
+  planning à garder en tête.
+- Reporter cette entrée (le troisième bloc du jour) dans `dev-log.md` (hors
+  dépôt) + redéposer dans le projet Claude.
+- Mettre à jour le board Jira : KAN-25 et KAN-23 → Done.
+
+---
+
+## Décisions techniques (session graphe + garde-fous)
+
+| Date | Décision | Alternatives | Justification |
+|---|---|---|---|
+| 2026-07-17 | Cytoscape.js dès le MVP, sans phase de migration (ADR-0012) | react-flow (SVG/DOM) pour le MVP puis migration canvas, proposé par un audit externe | Cytoscape rend déjà nativement sur `<canvas>` : le problème de perf DOM que react-flow contournerait par migration ne se pose pas |
+| 2026-07-17 | `layout: { name: "cose", animate: false }` | `layout.stop()` synchronisé avec le cleanup de l'effet React | Supprime la classe de bug par construction (aucune frame différée possible) plutôt qu'une synchronisation fragile |
+| 2026-07-17 | Priorisation KAN-16/17/18/23 avant KAN-10 (VPS/CD) | Traiter le VPS/CD en premier malgré le risque de planning déjà signalé | Choisi par Aymeric ; risque gardé en tête, pas abandonné |
+| 2026-07-17 | Une seule mécanique « Ignorer ce lien » pour ignorer/délier | Deux mécanismes distincts (un par occurrence texte, un par relation) | `LinkIgnore` ignore par paire source→cible, pas par occurrence précise — déduit du schéma existant |
+| 2026-07-17 | `getEntity` (pas seulement `getWorld`) dans les nouvelles fonctions de `relation-service.ts` | Réutiliser `getWorld` seul, comme le code voisin pré-existant | Ferme un gap d'autorisation (`entityId` non revérifié contre `worldId`) pour le code neuf, sans élargir le correctif au code voisin (hors périmètre) |
+
+## Erreurs rencontrées & Solutions (session graphe + garde-fous)
+
+| Date | Symptôme exact | Cause | Solution |
+|---|---|---|---|
+| 2026-07-17 | `Could not create canvas of type 2d` en tentant un montage RTL de `GraphView` | jsdom n'a pas de contexte canvas 2D natif sans le paquet `canvas` | Limite acceptée, vérification déférée à `e2e/graph.spec.ts` |
+| 2026-07-17 | `Cannot read properties of null (reading 'notify')` après démontage pendant l'animation du layout `cose` | Frame `requestAnimationFrame` différée exécutée après `cy.destroy()` | `layout: { animate: false }` |
+| 2026-07-17 | `npx playwright test e2e/link-ignore.spec.ts \| tail -150` : 0 octet de sortie pendant ~15 min alors que le test avait réussi (`1 passed (26.6s)`) | Worker spawné par `global-setup.ts` avec `stdio: "inherit"` hérite du pipe vers `tail` ; `worker.kill()` ne tue que le wrapper shell sous Windows, le vrai process survit et garde le pipe ouvert indéfiniment | `taskkill //PID <pid> //F //T` sur l'arborescence orpheline (confirmée via l'âge du process) |
+
+⚠️ Rien en attente de commit à la clôture de cette session : KAN-25 et KAN-23
+(les deux étapes) sont confirmés committés, poussés et mergés par Aymeric.
