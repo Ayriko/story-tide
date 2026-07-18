@@ -115,8 +115,9 @@ jobs:
           ENV_NAME: ${{ steps.vars.outputs.env_name }}
           IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
         run: |
+          FILE_ENV=$([ "$ENV_NAME" = "production" ] && echo "prod" || echo "$ENV_NAME")
           ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
             "cd ~/story-tide && \
-             IMAGE_TAG=${IMAGE_TAG} docker compose -p storytide-${ENV_NAME} --env-file deploy/.env.${ENV_NAME} -f deploy/compose.${ENV_NAME}.yml pull && \
-             IMAGE_TAG=${IMAGE_TAG} docker compose -p storytide-${ENV_NAME} --env-file deploy/.env.${ENV_NAME} -f deploy/compose.${ENV_NAME}.yml up -d --remove-orphans --wait --wait-timeout 120 && \
-             docker compose -p storytide-${ENV_NAME} --env-file deploy/.env.${ENV_NAME} -f deploy/compose.${ENV_NAME}.yml ps"
+             IMAGE_TAG=${IMAGE_TAG} docker compose -p storytide-${FILE_ENV} --env-file deploy/.env.${FILE_ENV} -f deploy/compose.${FILE_ENV}.yml pull && \
+             IMAGE_TAG=${IMAGE_TAG} docker compose -p storytide-${FILE_ENV} --env-file deploy/.env.${FILE_ENV} -f deploy/compose.${FILE_ENV}.yml up -d --remove-orphans --wait --wait-timeout 120 && \
+             docker compose -p storytide-${FILE_ENV} --env-file deploy/.env.${FILE_ENV} -f deploy/compose.${FILE_ENV}.yml ps"
