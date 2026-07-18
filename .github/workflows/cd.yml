@@ -1,0 +1,122 @@
+name: CD
+
+# Ne se declenche QUE sur un tag semver (jamais sur push de branche ni PR — la
+# CI, ci.yml, s'en charge et n'est pas touchee par ce fichier). `vX.Y.Z-rc.N`
+# -> staging (automatique) ; `vX.Y.Z` -> production (gate GitHub Environment
+# `production`, approbation manuelle requise avant le job `deploy`). Le VPS
+# ne build JAMAIS : seul ce workflow construit et pousse les images. Voir
+# ADR-0013 et docs/cd.md.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # Construit et pousse les 4 images (app/worker/migrate/backup) sur ghcr.io,
+  # publiques — aucun secret ghcr necessaire cote VPS pour le `pull`.
+  build-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image: app
+            context: .
+            dockerfile: Dockerfile
+            target: app
+          - image: worker
+            context: .
+            dockerfile: Dockerfile
+            target: worker
+          - image: migrate
+            context: .
+            dockerfile: Dockerfile
+            target: migrate
+          # Dockerfile separe (pas de multi-stage) : pas de --target a passer.
+          - image: backup
+            context: ./deploy/backup
+            dockerfile: ./deploy/backup/Dockerfile
+            target: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Métadonnées de l'image (tag git semver -> tag ghcr)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ayriko/story-tide-${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # SSH vers le VPS : synchronise deploy/ puis `docker compose pull && up -d`.
+  # Jamais de build ici — uniquement des images deja poussees par le job
+  # ci-dessus.
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    # Gate cote GitHub (pas sur le VPS) : l'environment `production` porte les
+    # reviewers requis dans les Settings du repo -> ce job se met en pause en
+    # attendant une approbation manuelle avant de continuer. `staging` n'a pas
+    # de reviewer -> deploiement automatique.
+    environment: ${{ contains(github.ref_name, '-rc.') && 'staging' || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Déterminer l'environnement cible et le tag d'image
+        id: vars
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if [[ "${GITHUB_REF_NAME}" == *-rc.* ]]; then
+            echo "env_name=staging" >> "$GITHUB_OUTPUT"
+          else
+            echo "env_name=production" >> "$GITHUB_OUTPUT"
+          fi
+          echo "image_tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Configurer la clé SSH de déploiement
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copier les fichiers d'infra (deploy/) sur le VPS
+        # scp -r avec source en `deploy/.` (contenu, pas le dossier lui-meme) :
+        # fusionne dans ~/story-tide/deploy/ SANS jamais rien supprimer —
+        # les secrets reels (.env.prod, .env.staging, traefik/.env, jamais
+        # dans ce repo) restent intouches sur le VPS a chaque deploiement.
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "mkdir -p ~/story-tide/deploy"
+          scp -r deploy/. "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:~/story-tide/deploy/"
+
+      - name: Déployer (pull + up -d, attend les healthchecks)
+        env:
+          ENV_NAME: ${{ steps.vars.outputs.env_name }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image_tag }}
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "cd ~/story-tide && \
+             IMAGE_TAG=${IMAGE_TAG} docker compose -p storytide-${ENV_NAME} --env-file deploy/.env.${ENV_NAME} -f deploy/compose.${ENV_NAME}.yml pull && \
+             IMAGE_TAG=${IMAGE_TAG} docker compose -p storytide-${ENV_NAME} --env-file deploy/.env.${ENV_NAME} -f deploy/compose.${ENV_NAME}.yml up -d --remove-orphans --wait --wait-timeout 120 && \
+             docker compose -p storytide-${ENV_NAME} --env-file deploy/.env.${ENV_NAME} -f deploy/compose.${ENV_NAME}.yml ps"

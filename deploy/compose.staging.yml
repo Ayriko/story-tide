@@ -1,0 +1,169 @@
+# Stack STAGING — projet Compose isole (`-p storytide-staging`), routee par la
+# stack Traefik partagee (deploy/traefik/) via le reseau externe `web`. Voir
+# ADR-0013 : ce fichier est QUASI IDENTIQUE a compose.prod.yml (seuls le
+# domaine/BETTER_AUTH_URL/nom de router/absence de routeur www changent) —
+# toute evolution doit etre repercutee dans les DEUX fichiers.
+#
+# Usage (CD, voir .github/workflows/cd.yml) :
+#   IMAGE_TAG=<tag> docker compose -p storytide-staging --env-file .env.staging \
+#     -f deploy/compose.staging.yml pull
+#   IMAGE_TAG=<tag> docker compose -p storytide-staging --env-file .env.staging \
+#     -f deploy/compose.staging.yml up -d --remove-orphans
+#
+# IMAGE_TAG est injecte par le workflow CD (jamais present dans .env.staging).
+# Donnees de test uniquement — jamais les donnees de prod (volumes isoles par
+# projet Compose).
+
+services:
+  migrate:
+    image: ghcr.io/ayriko/story-tide-migrate:${IMAGE_TAG}
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+    networks:
+      - internal
+
+  app:
+    image: ghcr.io/ayriko/story-tide-app:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      S3_ENDPOINT: minio
+      S3_PORT: 9000
+      S3_USE_SSL: "false"
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+    # Pas de `ports:` — seul Traefik (reseau `web`) expose l'app a l'exterieur.
+    networks:
+      - internal
+      - web
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: web
+      traefik.http.routers.app-staging.rule: "Host(`staging.storytide.fr`)"
+      traefik.http.routers.app-staging.entrypoints: websecure
+      traefik.http.routers.app-staging.tls.certresolver: le
+      traefik.http.routers.app-staging.middlewares: "secure-headers@file"
+      traefik.http.services.app-staging.loadbalancer.server.port: "3000"
+
+  worker:
+    image: ghcr.io/ayriko/story-tide-worker:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      S3_ENDPOINT: minio
+      S3_PORT: 9000
+      S3_USE_SSL: "false"
+      S3_REGION: ${S3_REGION}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  # Optionnel en staging (donnees de test, valeur de sauvegarde faible) —
+  # laisse actif par defaut pour rester au plus pres de compose.prod.yml
+  # (ADR-0013). Desactiver : `docker compose -p storytide-staging ... rm -sf backup`.
+  backup:
+    image: ghcr.io/ayriko/story-tide-backup:${IMAGE_TAG}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      MINIO_ENDPOINT: "http://minio:9000"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+      BACKUP_RETENTION_DAYS: "7"
+    volumes:
+      - backups:/backups
+    networks:
+      - internal
+
+networks:
+  internal:
+  web:
+    external: true
+
+volumes:
+  pgdata:
+  minio:
+  backups:

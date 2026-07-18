@@ -20,3 +20,4 @@
 | 0010 | Surlignage des liaisons : re-scan côté client plutôt que positions serveur persistées | accepté | 2026-07-16 |
 | 0011 | Mentions manuelles @ : réconciliation synchrone, coexistence avec AUTO | accepté | 2026-07-17 |
 | 0012 | Graphe de relations : Cytoscape.js dès le MVP (pas de migration à prévoir) | accepté | 2026-07-17 |
+| 0013 | Déploiement staging/prod sur un VPS unique : deux stacks Compose isolées + Traefik partagé | accepté | 2026-07-18 |

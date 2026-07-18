@@ -1,0 +1,36 @@
+# Stack Traefik — PARTAGEE entre staging et prod (un seul VPS, un seul
+# titulaire des ports 80/443, un seul acme.json). Voir ADR-0013 :
+# compose.prod.yml et compose.staging.yml sont deux stacks isolees a part,
+# routees par cette meme instance via le reseau externe `web`.
+#
+# Bring-up (une fois, a la main par Aymeric — voir docs/manuels/deploiement.md) :
+#   docker network create web
+#   docker volume create traefik_letsencrypt
+#   docker compose -f deploy/traefik/compose.traefik.yml --env-file deploy/traefik/.env up -d
+
+services:
+  traefik:
+    image: traefik:v3.5
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - web
+    volumes:
+      # Lecture seule : Traefik n'a besoin que d'observer les labels des
+      # conteneurs, jamais d'en creer/detruire.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
+      - traefik_letsencrypt:/letsencrypt
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+
+networks:
+  web:
+    external: true
+
+volumes:
+  traefik_letsencrypt:
+    external: true

@@ -16,6 +16,14 @@ stade (`[Unreleased]`).
   non vide côté serveur (la règle RGAA n'était imposée que côté UI, contournable
   par appel direct de l'action). OWASP A03. (`tiptap-content.ts`,
   `TST-SEC-005` à `TST-SEC-008`)
+- TLS bout en bout (Traefik + Let's Encrypt, OWASP A02) et en-têtes de
+  sécurité (`HSTS`, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, OWASP A05) ; garde-fou ufw/Docker (Docker contourne ufw
+  pour tout port publié — seul Traefik publie 80/443, PostgreSQL/MinIO/
+  worker/migrate/backup n'ont aucun `ports:`) ; provenance des images limitée
+  au workflow CD (`GITHUB_TOKEN` éphémère, pas de credential long-lived,
+  OWASP A08). (KAN-10, `deploy/traefik/`, `.github/workflows/cd.yml`,
+  `TST-SEC-009` à `TST-SEC-011`)
 
 ### Ajouté
 
@@ -237,6 +245,19 @@ stade (`[Unreleased]`).
   (`ignoreLinkAction`/`unignoreLinkAction`). Vérifié en conditions réelles bout
   en bout (`e2e/link-ignore.spec.ts`). Scénario `TST-LNK-007` au cahier de
   recettes.
+- Chaîne de déploiement continu complète (KAN-10) : nouveau stage Docker
+  `migrate` (`FROM deps`, `prisma migrate deploy`, exécuté en service Compose
+  one-shot avant `app`/`worker`) ; stack Traefik partagée (`deploy/traefik/`,
+  TLS Let's Encrypt HTTP-01, redirection HTTP→HTTPS permanente, en-têtes de
+  sécurité via middleware `secure-headers`) ; deux stacks Compose isolées et
+  auto-contenues `deploy/compose.prod.yml`/`compose.staging.yml`
+  (`storytide.fr`/`staging.storytide.fr`, voir ADR-0013) — aucun service hors
+  Traefik ne publie de port (garde-fou ufw/Docker) ; sauvegardes quotidiennes
+  conteneurisées (`deploy/backup/`, `pg_dump` gzip + miroir MinIO, rétention
+  7 j) ; workflow `.github/workflows/cd.yml` (build+push des 4 images sur
+  ghcr.io public, déploiement SSH gaté par un GitHub Environment `production`
+  à approbation manuelle — staging automatique sur tag `-rc.N`). Le VPS ne
+  build jamais. Scénarios `TST-SEC-009` à `TST-SEC-012` au cahier de recettes.
 
 ### Corrigé
 

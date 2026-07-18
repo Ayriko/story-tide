@@ -65,3 +65,9 @@ USER node
 # node est PID 1 (tsx en loader) : SIGTERM arrive directement au handler d'arret
 # gracieux du worker, contrairement a `npm run` qui ne relaie pas le signal.
 CMD ["node", "--import", "tsx", "src/worker/index.ts"]
+
+# --- Cible 3 : migrations Prisma (one-shot, execute par le CD avant app/worker) ---
+FROM deps AS migrate
+ENV NODE_ENV=production
+USER node
+CMD ["npx", "prisma", "migrate", "deploy"]
