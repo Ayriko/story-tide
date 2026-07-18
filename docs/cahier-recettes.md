@@ -299,7 +299,7 @@
 - **Étapes** : 1) `curl -sI https://staging.storytide.fr` (ou `storytide.fr`).
 - **Résultat attendu** : les 4 en-têtes sont présents dans la réponse, avec les valeurs attendues (`Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`).
 - **Critères d'acceptation** : `deploy/traefik/dynamic/middlewares.yml` (`secure-headers`) référencé par les labels Traefik de `deploy/compose.prod.yml`/`compose.staging.yml`.
-- **Type** : sécurité · **Statut** : ⬜ à faire (exécuté sur staging)
+- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur staging: v1.0.0-rc.2)
 
 ## TST-SEC-011 — PostgreSQL et MinIO injoignables depuis Internet (KAN-10)
 
@@ -309,7 +309,7 @@
 - **Étapes** : 1) Depuis une machine externe, `nc -zv <IP_VPS> 5432` puis `nc -zv <IP_VPS> 9000` et `9001`. 2) `docker compose -p storytide-prod ... ps` sur le VPS pour confirmer l'absence de `ports:` publiés sur ces services.
 - **Résultat attendu** : les 3 connexions échouent (timeout/refused) depuis l'extérieur ; `docker compose ps` ne montre aucun port publié pour `postgres`/`minio` autre que via le réseau interne.
 - **Critères d'acceptation** : `deploy/compose.prod.yml`/`compose.staging.yml` — aucun `ports:` sur `postgres`/`minio`/`worker`/`migrate`/`backup`, seul `traefik` publie 80/443.
-- **Type** : sécurité · **Statut** : ⬜ à faire (exécuté sur staging)
+- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur staging: v1.0.0-rc.2)
 
 ## TST-SEC-012 — Déploiement complet déclenché par tag, sans intervention manuelle sur le VPS (KAN-10)
 
