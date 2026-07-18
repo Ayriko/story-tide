@@ -281,6 +281,46 @@
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout `href` dont le protocole n'est pas `http:`/`https:`.
 - **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)
 
+## TST-SEC-009 — Redirection HTTP→HTTPS et certificat TLS valide (KAN-10)
+
+- **Description** : une requête HTTP simple (port 80) est envoyée à `staging.storytide.fr` puis à `storytide.fr`.
+- **Objectif** : vérifier que Traefik redirige systématiquement vers HTTPS et sert un certificat Let's Encrypt valide (pas d'avertissement navigateur, pas de certificat auto-signé).
+- **Préconditions** : Traefik démarré sur le VPS, résolveur Let's Encrypt basculé en production (endpoint prod, après validation sur l'endpoint staging LE), DNS `storytide.fr`/`staging.storytide.fr` résolus vers le VPS.
+- **Étapes** : 1) `curl -I http://storytide.fr` (et `staging.`). 2) `curl -vI https://storytide.fr` (et `staging.`).
+- **Résultat attendu** : l'appel HTTP répond `301`/`308` vers `https://` ; l'appel HTTPS répond `200` avec un certificat émis par Let's Encrypt, chaîne de confiance valide.
+- **Critères d'acceptation** : `deploy/traefik/traefik.yml` — `entryPoints.web.http.redirections` vers `websecure` ; `certificatesResolvers.le.acme.caServer` pointe l'endpoint **prod** (pas staging LE) au moment du test.
+- **Type** : sécurité · **Statut** : ⬜ à faire (exécuté sur staging puis prod)
+
+## TST-SEC-010 — En-têtes de sécurité présents sur les réponses de l'app (KAN-10)
+
+- **Description** : les réponses HTTP de l'app en staging/prod portent les en-têtes de sécurité configurés au niveau Traefik.
+- **Objectif** : vérifier que `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options` et `Referrer-Policy` sont bien présents (OWASP A05).
+- **Préconditions** : Traefik + app démarrés, middleware `secure-headers` attaché au routeur de l'app.
+- **Étapes** : 1) `curl -sI https://staging.storytide.fr` (ou `storytide.fr`).
+- **Résultat attendu** : les 4 en-têtes sont présents dans la réponse, avec les valeurs attendues (`Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`).
+- **Critères d'acceptation** : `deploy/traefik/dynamic/middlewares.yml` (`secure-headers`) référencé par les labels Traefik de `deploy/compose.prod.yml`/`compose.staging.yml`.
+- **Type** : sécurité · **Statut** : ⬜ à faire (exécuté sur staging)
+
+## TST-SEC-011 — PostgreSQL et MinIO injoignables depuis Internet (KAN-10)
+
+- **Description** : tentative de connexion directe aux ports internes (5432, 9000, 9001) depuis une machine externe au VPS.
+- **Objectif** : vérifier le garde-fou « Docker contourne ufw » — seul Traefik doit publier un port, PostgreSQL/MinIO ne doivent jamais être joignables depuis Internet même si ufw autorise 80/443/22 uniquement.
+- **Préconditions** : stack prod (ou staging) démarrée sur le VPS.
+- **Étapes** : 1) Depuis une machine externe, `nc -zv <IP_VPS> 5432` puis `nc -zv <IP_VPS> 9000` et `9001`. 2) `docker compose -p storytide-prod ... ps` sur le VPS pour confirmer l'absence de `ports:` publiés sur ces services.
+- **Résultat attendu** : les 3 connexions échouent (timeout/refused) depuis l'extérieur ; `docker compose ps` ne montre aucun port publié pour `postgres`/`minio` autre que via le réseau interne.
+- **Critères d'acceptation** : `deploy/compose.prod.yml`/`compose.staging.yml` — aucun `ports:` sur `postgres`/`minio`/`worker`/`migrate`/`backup`, seul `traefik` publie 80/443.
+- **Type** : sécurité · **Statut** : ⬜ à faire (exécuté sur staging)
+
+## TST-SEC-012 — Déploiement complet déclenché par tag, sans intervention manuelle sur le VPS (KAN-10)
+
+- **Description** : un tag git `vX.Y.Z-rc.N` (staging) puis `vX.Y.Z` (prod, après approbation de l'environment GitHub) déclenche la chaîne CD de bout en bout.
+- **Objectif** : vérifier que le déploiement est entièrement piloté par CI/CD (build → push ghcr → SSH → pull/up) sans commande tapée à la main sur le VPS.
+- **Préconditions** : secrets GitHub (`VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`) posés, `.env.staging`/`.env.prod` réels présents sur le VPS, Environments GitHub `staging`/`production` configurés (reviewer requis sur `production` uniquement).
+- **Étapes** : 1) Pousser un tag `vX.Y.Z-rc.N`. 2) Observer le run GitHub Actions (`cd.yml`) jusqu'au job `deploy`. 3) Sur le VPS, `docker compose -p storytide-staging ... ps`. 4) Répéter avec un tag `vX.Y.Z` (approuver l'environment `production` dans l'onglet Actions).
+- **Résultat attendu** : les 4 images sont poussées sur ghcr, le job `deploy` réussit (`--wait` healthchecks OK), `docker compose ps` montre tous les services `healthy`/`running`, sans commande manuelle sur le VPS en dehors de l'approbation GitHub pour la prod.
+- **Critères d'acceptation** : `.github/workflows/cd.yml` (jobs `build-push`/`deploy`) ; capture du run + de `docker compose ps` versées en preuve (`docs/cd.md`).
+- **Type** : sécurité / fonctionnel · **Statut** : ⬜ à faire (exécuté sur staging puis prod)
+
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
 - **Description** : le texte d'une fiche mentionne le nom (ou un alias) d'une autre entité du même monde.

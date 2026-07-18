@@ -1,0 +1,4 @@
+# Quotidien a 3h locales (heure du conteneur = heure du VPS). La sortie est
+# redirigee vers le stdout du PID 1 pour rester visible via `docker logs`
+# (crond ne relaie pas stdout des jobs par defaut).
+0 3 * * * /usr/local/bin/backup.sh >>/proc/1/fd/1 2>>/proc/1/fd/2

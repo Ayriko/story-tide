@@ -212,15 +212,23 @@ Seuils cibles, mesurés et tracés (valeurs de départ, ajustables avec justific
 
 ### 9.3 Pipeline
 
-Pipeline GitHub Actions (protocoles à documenter dans `/docs/protocole-ci.md` et `/docs/manuel-deploiement.md`) :
+> **KAN-10 (2026-07-18)** : chaîne CD câblée côté repo — `.github/workflows/cd.yml`,
+> `deploy/` (Traefik, compose prod/staging, backups), ADR-0013,
+> `docs/cd.md`, `docs/manuels/deploiement.md`. **Reste à exécuter par
+> Aymeric sur le VPS** : bring-up Traefik, GitHub Environments, premier tag
+> `-rc` puis prod (voir `docs/manuels/deploiement.md`) — ne pas marquer
+> **Fait** avant `staging.storytide.fr`/`storytide.fr` réellement en ligne en
+> HTTPS (`TST-SEC-009` à `TST-SEC-012`).
+
+Pipeline GitHub Actions (protocoles documentés dans `/docs/cd.md` et `/docs/manuels/deploiement.md`) :
 
 1. **CI (toute PR)** : install (cache) → lint (ESLint + Prettier check, 0 warning) → typecheck (`tsc --noEmit`) → tests + couverture (seuil bloquant, rapport en artefact + commentaire de PR) → build Next.
-2. **CD** : tag `vX.Y.Z-rc.N` → image `-rc` → déploiement **staging** ; tag `vX.Y.Z` (posé après recette OK) → déploiement **production**. Build image multi-stage → push `ghcr.io` → SSH vers le VPS → `docker compose pull && docker compose up -d` → healthcheck.
-3. Secrets GitHub : clé SSH de déploiement dédiée (restreinte), host, token ghcr si package privé.
-4. Compose **dev** ≠ compose **staging** ≠ compose **prod** (staging/prod quasi identiques — seuls domaine, secrets et tag d'image changent ; base commune factorisée).
+2. **CD** : tag `vX.Y.Z-rc.N` → image `-rc` → déploiement **staging** ; tag `vX.Y.Z` (posé après recette OK, gaté par un GitHub Environment `production` à approbation manuelle) → déploiement **production**. Build image multi-stage (4 cibles : app/worker/migrate/backup) → push `ghcr.io` (public) → SSH vers le VPS → `docker compose pull && docker compose up -d --wait` → healthcheck.
+3. Secrets GitHub : clé SSH de déploiement dédiée (restreinte), host — déjà posés (`VPS_HOST`/`VPS_USER`/`VPS_SSH_KEY`) ; pas de token ghcr (packages publics).
+4. Compose **dev** ≠ compose **staging** ≠ compose **prod** (staging/prod quasi identiques — seuls domaine, secrets et tag d'image changent ; deux fichiers séparés auto-contenus, cf. ADR-0013).
 5. **Husky** : hook pre-commit léger (`lint-staged` : ESLint --fix + Prettier sur fichiers stagés, puis `tsc --noEmit` sur tout le projet) — le filet local avant la CI.
 
-**VPS (commande ~13-15 juillet)** : OVH VPS-3 2027, GRA/SBG. Ordre strict : SSH clé-only + firewall (ufw) + fail2ban → Docker → Traefik/Let's Encrypt → premier déploiement pipeline (staging d'abord). Sauvegardes : `pg_dump` quotidien + snapshot volumes MinIO (cron conteneurisé), rétention 7 j — documenté au manuel.
+**VPS** : OVH VPS-3 2027, GRA. Ordre strict : SSH clé-only + firewall (ufw) + fail2ban → Docker → Traefik/Let's Encrypt → premier déploiement pipeline (staging d'abord) — état serveur posé le 2026-07-18, détaillé dans `docs/manuels/deploiement.md`. Sauvegardes : `pg_dump` quotidien + miroir MinIO (cron conteneurisé, `deploy/backup/`), rétention 7 j.
 
 ---
 

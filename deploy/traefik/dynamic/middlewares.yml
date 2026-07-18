@@ -1,0 +1,25 @@
+# Configuration dynamique Traefik (providers.file, watch: true — rechargee a
+# chaud sans redemarrer Traefik). Reutilisee par les routers app de
+# compose.prod.yml et compose.staging.yml.
+
+http:
+  middlewares:
+    # En-tetes de securite (OWASP A05) : HSTS, anti-sniffing, anti-clickjacking,
+    # referrer minimal. CSP complete (nonces Next.js) hors perimetre KAN-10 —
+    # voir docs/securite-owasp.md.
+    secure-headers:
+      headers:
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+
+    # www.storytide.fr -> storytide.fr (prod uniquement ; staging n'a pas de
+    # sous-domaine www).
+    www-to-apex:
+      redirectRegex:
+        regex: "^https://www\\.storytide\\.fr/(.*)"
+        replacement: "https://storytide.fr/${1}"
+        permanent: true

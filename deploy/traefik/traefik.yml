@@ -1,0 +1,53 @@
+# Configuration statique Traefik — stack partagee (staging + prod sur le meme
+# VPS), seul service a publier des ports (80/443). Voir ADR-0013 et
+# docs/manuels/deploiement.md.
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+# Resolveur Let's Encrypt (HTTP-01, pas de DNS provider a configurer).
+# IMPORTANT : demarrer avec `caServer` pointe sur l'endpoint de STAGING Let's
+# Encrypt (rate limit prod : 5 echecs/domaine/heure) tant que le routing n'est
+# pas valide de bout en bout. Basculer en decommentant la ligne prod et en
+# commentant la ligne staging une fois storytide.fr/staging.storytide.fr
+# verifies en HTTPS (voir docs/manuels/deploiement.md, section bascule LE).
+certificatesResolvers:
+  le:
+    acme:
+      email: "${ACME_EMAIL}"
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+      # Actif au demarrage : LE STAGING (rate limit large, certificats non
+      # fiables navigateur — normal, c'est fait pour la mise au point).
+      caServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+      # Une fois staging.storytide.fr ET storytide.fr valides en HTTPS avec ce
+      # resolveur staging : commenter la ligne ci-dessus, decommenter celle-ci,
+      # supprimer le volume `traefik_letsencrypt` (acme.json contient des
+      # certs staging non valides, LE prod exige un acme.json propre), puis
+      # `docker compose ... up -d` pour regenerer de vrais certificats.
+      # caServer: "https://acme-v02.api.letsencrypt.org/directory"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: web
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+api:
+  dashboard: false
+
+log:
+  level: INFO
