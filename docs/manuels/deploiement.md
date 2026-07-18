@@ -66,7 +66,7 @@ du repo).
 
 ```bash
 cd ~/story-tide/deploy/traefik
-docker compose -f compose.traefik.yml --env-file .env up -d
+docker compose -f compose.traefik.yml up -d
 ```
 
 Démarrer avec le résolveur Let's Encrypt en mode **staging**
@@ -110,7 +110,7 @@ docker volume create traefik_letsencrypt
 staging, décommenter la ligne prod (voir commentaire en tête du fichier).
 
 ```bash
-docker compose -f compose.traefik.yml --env-file .env up -d
+docker compose -f compose.traefik.ymlS up -d
 ```
 
 ### 4. Déploiement production

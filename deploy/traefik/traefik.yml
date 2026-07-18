@@ -23,7 +23,7 @@ entryPoints:
 certificatesResolvers:
   le:
     acme:
-      email: "${ACME_EMAIL}"
+      email: "admin@storytide.fr"
       storage: /letsencrypt/acme.json
       httpChallenge:
         entryPoint: web
