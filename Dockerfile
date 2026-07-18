@@ -37,8 +37,9 @@ RUN DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public" \
 FROM base AS prod-deps
 COPY package.json package-lock.json prisma.config.ts ./
 COPY prisma ./prisma
+RUN npm ci --omit=dev --ignore-scripts
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public" \
-    npm ci --omit=dev
+    npx prisma generate
 
 # --- Cible 1 : app Next.js ---
 FROM base AS app
