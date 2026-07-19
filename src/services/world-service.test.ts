@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
-import type { World } from "@/generated/prisma/client";
+import { storage } from "@/lib/storage";
+import type { Image, World } from "@/generated/prisma/client";
 import { WorldOrigin } from "@/generated/prisma/client";
 import {
   WorldNotFoundError,
@@ -28,7 +29,16 @@ vi.mock("@/db/client", () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    image: {
+      findMany: vi.fn(),
+    },
   },
+}));
+
+// Meme regle que pour @/lib/queue dans entity-content.test.ts : mocker le
+// port Storage au niveau module, jamais MinIO reel dans un test unitaire.
+vi.mock("@/lib/storage", () => ({
+  storage: { delete: vi.fn() },
 }));
 
 const worldFindUnique = vi.mocked(prisma.world.findUnique);
@@ -38,6 +48,8 @@ const worldCount = vi.mocked(prisma.world.count);
 const worldCreate = vi.mocked(prisma.world.create);
 const worldUpdate = vi.mocked(prisma.world.update);
 const worldDelete = vi.mocked(prisma.world.delete);
+const imageFindMany = vi.mocked(prisma.image.findMany);
+const storageDelete = vi.mocked(storage.delete);
 
 const OWNER_ID = "owner-1";
 
@@ -50,6 +62,20 @@ function makeWorld(overrides: Partial<World> = {}): World {
     origin: WorldOrigin.USER,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+// Objet complet malgre le `select: { key: true }` reel de deleteWorld (skill
+// prisma-mock-partial-select) - le mock reste type sur le modele complet.
+function makeImage(overrides: Partial<Image> = {}): Image {
+  return {
+    id: "img-1",
+    worldId: "w1",
+    key: "img-key-1",
+    contentType: "image/png",
+    size: 10,
+    createdAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,
   };
 }
@@ -205,11 +231,16 @@ describe("updateWorld", () => {
 });
 
 describe("deleteWorld", () => {
-  it("supprime le monde s'il appartient au proprietaire", async () => {
+  it("supprime le monde s'il appartient au proprietaire (aucune image a purger)", async () => {
     worldFindFirst.mockResolvedValueOnce(makeWorld({ id: "w1" }));
+    imageFindMany.mockResolvedValueOnce([]);
 
     await deleteWorld(OWNER_ID, "w1");
 
+    expect(imageFindMany).toHaveBeenCalledWith({
+      where: { worldId: "w1" },
+      select: { key: true },
+    });
     expect(worldDelete).toHaveBeenCalledWith({ where: { id: "w1" } });
   });
 
@@ -218,5 +249,38 @@ describe("deleteWorld", () => {
 
     await expect(deleteWorld(OWNER_ID, "w1")).rejects.toThrow(WorldNotFoundError);
     expect(worldDelete).not.toHaveBeenCalled();
+    expect(imageFindMany).not.toHaveBeenCalled();
+  });
+
+  it("purge chaque image MinIO du monde avant de supprimer le monde (RGPD)", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld({ id: "w1" }));
+    imageFindMany.mockResolvedValueOnce([
+      makeImage({ key: "img-key-1" }),
+      makeImage({ key: "img-key-2" }),
+    ]);
+    storageDelete.mockResolvedValue(undefined);
+
+    await deleteWorld(OWNER_ID, "w1");
+
+    expect(storageDelete).toHaveBeenCalledWith("img-key-1");
+    expect(storageDelete).toHaveBeenCalledWith("img-key-2");
+    expect(worldDelete).toHaveBeenCalledWith({ where: { id: "w1" } });
+  });
+
+  it("continue et supprime quand meme le monde si la purge d'une image echoue (best-effort, loggue)", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld({ id: "w1" }));
+    imageFindMany.mockResolvedValueOnce([makeImage({ key: "img-key-1" })]);
+    const storageFailure = new Error("MinIO indisponible");
+    storageDelete.mockRejectedValueOnce(storageFailure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await deleteWorld(OWNER_ID, "w1");
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[world] Purge de l'image img-key-1 échouée :",
+      storageFailure,
+    );
+    expect(worldDelete).toHaveBeenCalledWith({ where: { id: "w1" } });
+    consoleError.mockRestore();
   });
 });
