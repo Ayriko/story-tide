@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
-import type { Entity, LinkIgnore, Relation } from "@/generated/prisma/client";
-import { RelationOrigin } from "@/generated/prisma/client";
+import type { Alias, Entity, LinkIgnore, Relation } from "@/generated/prisma/client";
+import { AliasSource, RelationOrigin } from "@/generated/prisma/client";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
+import { normalizeForMatch } from "@/lib/linker/normalize";
 import { buildDictionary, scanAndLinkEntity } from "./linker-service";
 
 // Meme regle que world-service.test.ts / entity-service.test.ts : Prisma
@@ -35,21 +36,39 @@ const transaction = vi.mocked(prisma.$transaction);
 
 const WORLD_ID = "w1";
 
+function makeAlias(overrides: Partial<Alias> = {}): Alias {
+  return {
+    id: "a1",
+    entityId: "e1",
+    value: "Roi du Nord",
+    normalized: normalizeForMatch("Roi du Nord"),
+    active: true,
+    source: AliasSource.MANUAL,
+    createdAt: new Date("2026-07-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-07-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
 // Objet complet (pas un litteral partiel) malgre le `select` reel de
 // buildDictionary : meme convention que world-service.test.ts/
 // entity-service.test.ts (le mock Prisma reste type sur le modele complet).
-function makeEntity(overrides: Partial<Entity> = {}): Entity {
+function makeEntity(overrides: Partial<Entity> & { aliases?: Alias[] } = {}): Entity & {
+  aliases: Alias[];
+} {
+  const { aliases = [], ...entityOverrides } = overrides;
   return {
     id: "e1",
     worldId: WORLD_ID,
     name: "Aeliana",
     type: "character",
-    aliases: [],
     content: EMPTY_CONTENT,
     plainText: "",
+    seedRef: null,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-    ...overrides,
+    ...entityOverrides,
+    aliases,
   };
 }
 
@@ -87,12 +106,16 @@ describe("buildDictionary", () => {
     expect(patterns).toEqual([]);
     expect(entityFindMany).toHaveBeenCalledWith({
       where: { worldId: WORLD_ID },
-      select: { id: true, name: true, aliases: true },
+      select: {
+        id: true,
+        name: true,
+        aliases: { select: { value: true }, where: { active: true } },
+      },
     });
   });
 
   it("produit un seul motif (le nom) pour une entite sans alias", async () => {
-    entityFindMany.mockResolvedValue([makeEntity({ id: "e1", name: "Aeliana", aliases: [] })]);
+    entityFindMany.mockResolvedValue([makeEntity({ id: "e1", name: "Aeliana" })]);
 
     const patterns = await buildDictionary(WORLD_ID);
 
@@ -101,7 +124,14 @@ describe("buildDictionary", () => {
 
   it("produit un motif par alias en plus du motif du nom", async () => {
     entityFindMany.mockResolvedValue([
-      makeEntity({ id: "e1", name: "Jon Neige", aliases: ["Roi du Nord", "Le Batard"] }),
+      makeEntity({
+        id: "e1",
+        name: "Jon Neige",
+        aliases: [
+          makeAlias({ value: "Roi du Nord" }),
+          makeAlias({ value: "Le Batard", normalized: normalizeForMatch("Le Batard") }),
+        ],
+      }),
     ]);
 
     const patterns = await buildDictionary(WORLD_ID);
@@ -115,8 +145,8 @@ describe("buildDictionary", () => {
 
   it("aplati les motifs de plusieurs entites dans l'ordre de la requete", async () => {
     entityFindMany.mockResolvedValue([
-      makeEntity({ id: "e1", name: "Aeliana", aliases: ["Reine du Nord"] }),
-      makeEntity({ id: "e2", name: "Robert", aliases: [] }),
+      makeEntity({ id: "e1", name: "Aeliana", aliases: [makeAlias({ value: "Reine du Nord" })] }),
+      makeEntity({ id: "e2", name: "Robert" }),
     ]);
 
     const patterns = await buildDictionary(WORLD_ID);
