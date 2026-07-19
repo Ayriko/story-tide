@@ -16,9 +16,16 @@ const FIXTURE_PATH = path.resolve(__dirname, "fixtures", "test-image.png");
 // round-trip /api/media -> URL signee MinIO a reellement fonctionne est
 // `naturalWidth > 0` apres chargement complet, pas la seule presence DOM.
 async function expectImageLoaded(locator: Locator): Promise<void> {
+  // loading="lazy" ne declenche le fetch reel qu'a l'intersection avec le
+  // viewport (IntersectionObserver) - scrollIntoViewIfNeeded() la garantit
+  // plutot que de dependre du positionnement fortuit de l'element au moment
+  // de l'insertion (constate flaky en CI, jamais en local : viewport headless
+  // different).
+  await locator.scrollIntoViewIfNeeded();
   await expect
-    .poll(async () =>
-      locator.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+    .poll(
+      async () => locator.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
+      { timeout: 15_000 },
     )
     .toBe(true);
 }
