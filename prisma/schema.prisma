@@ -45,6 +45,7 @@ model World {
   entities    Entity[]
   relations   Relation[]
   linkIgnores LinkIgnore[]
+  images      Image[]
 
   @@unique([ownerId, slug])
   @@index([ownerId])
@@ -120,6 +121,23 @@ model LinkIgnore {
   createdAt DateTime @default(now())
 
   @@unique([entityId, targetId])
+  @@index([worldId])
+}
+
+// Metadonnees d'une image uploadee depuis l'editeur (KAN-16) : la base ne
+// stocke que la reference + les metadonnees, le binaire vit dans MinIO
+// (`key`, port Storage). Scope = le MONDE (pas la fiche) : une image
+// appartient a un monde, reutilisable par n'importe quelle fiche de ce
+// monde - meme frontiere d'autorisation que les autres modeles worldId.
+model Image {
+  id          String   @id @default(cuid())
+  worldId     String
+  world       World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  key         String   @unique
+  contentType String
+  size        Int
+  createdAt   DateTime @default(now())
+
   @@index([worldId])
 }
 

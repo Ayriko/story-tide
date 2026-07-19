@@ -292,6 +292,19 @@ stade (`[Unreleased]`).
   de relations : couleur des nœuds par famille (palette à 8 teintes validée
   par le skill `dataviz`, `TST-GRF-004`) et filtres groupés par famille au
   lieu de 26 cases à plat. Scénario `TST-ENT-009` au cahier de recettes.
+- Upload d'images depuis l'éditeur (KAN-16), via le port `Storage` existant
+  (MinIO, KAN-11 — aucune modification du port) : validation MIME **réelle
+  par magic bytes** (`sniffImageMime`, zéro dépendance tierce — PNG/JPEG/GIF/
+  WebP), taille max 5 Mo, modèle `Image` (métadonnées seules — `worldId`,
+  `key`, `contentType`, `size` ; le binaire vit dans MinIO). Référence stable
+  `/api/media/<imageId>` persistée dans `image.src` (jamais une URL MinIO
+  présignée directe — trop longue et expirante pour la contrainte
+  `isSafeHttpUrl` existante), résolue en URL signée fraîche à **chaque
+  lecture** par un Route Handler dédié qui revalide `getWorld` (OWASP A01,
+  voir ADR-0017). Purge best-effort des objets MinIO à la suppression d'un
+  monde (RGPD « purge monde + binaires », loggée, non bloquante).
+  `loading="lazy"` sur le node `Image` de l'éditeur. Scénarios `TST-SEC-013`
+  et `TST-ENT-010` au cahier de recettes.
 
 ### Corrigé
 

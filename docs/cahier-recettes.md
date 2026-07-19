@@ -354,6 +354,26 @@
 - **Critères d'acceptation** : `.github/workflows/cd.yml` (jobs `build-push`/`deploy`) ; capture du run + de `docker compose ps` versées en preuve (`docs/cd.md`).
 - **Type** : sécurité / fonctionnel · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur prod & staging: v1.0.1)
 
+## TST-SEC-013 — Upload d'image : rejet d'un faux MIME (magic bytes) et d'une taille excessive (KAN-16)
+
+- **Description** : un fichier dont l'extension/le `Content-Type` déclaré prétend être une image, mais dont le contenu réel n'en est pas une (ou dépasse la taille maximale), est uploadé depuis l'éditeur.
+- **Objectif** : vérifier que la validation MIME repose sur les octets réels (magic bytes), pas sur le `Content-Type` déclaré par le navigateur (falsifiable — OWASP A10), et que la borne de taille (5 Mo) est appliquée avant tout envoi vers MinIO.
+- **Préconditions** : une fiche existe, l'éditeur est ouvert.
+- **Étapes** : 1) Ouvrir la popover « Image », choisir un fichier texte renommé en `.png`. 2) Renseigner l'alt, cliquer « Insérer ». 3) Répéter avec un fichier image valide mais supérieur à 5 Mo.
+- **Résultat attendu** : les deux tentatives sont rejetées avec un message clair (« Type de fichier non pris en charge. » / « Image trop volumineuse (5 Mo maximum). ») ; aucun objet n'est créé dans MinIO, aucune ligne `Image` en base.
+- **Critères d'acceptation** : `image-validation.test.ts` (signatures PNG/JPEG/GIF/WebP acceptées, texte brut rejeté) ; `image-service.test.ts` (`uploadImage` : MIME invalide et taille dépassée rejetés avant `storage.upload`/`prisma.image.create`).
+- **Type** : sécurité · **Statut** : ✅ (`image-validation.test.ts`, `image-service.test.ts`)
+
+## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
+
+- **Description** : depuis la popover « Image » de l'éditeur, un utilisateur téléverse un fichier (au lieu de saisir une URL), l'insère avec un texte alternatif, sauvegarde, puis recharge la page.
+- **Objectif** : vérifier le round-trip complet — upload vers MinIO, référence stable persistée (`/api/media/<imageId>`, jamais une URL MinIO présignée directe), résolution en URL signée fraîche à chaque lecture, et survie de l'image après rechargement (frontière RSC → Client).
+- **Préconditions** : une fiche existe, un fichier image valide (PNG/JPEG/GIF/WebP, ≤ 5 Mo) est disponible.
+- **Étapes** : 1) Ouvrir la popover « Image ». 2) Choisir le fichier. 3) Renseigner le texte alternatif (obligatoire). 4) Cliquer « Insérer ». 5) Attendre l'indicateur « Enregistré. ». 6) Recharger la page.
+- **Résultat attendu** : l'image est visible immédiatement après insertion (`src` = `/api/media/<imageId>`, jamais une URL MinIO directe) ; après rechargement, l'image reste visible et chargée (round-trip signé revalidé à chaque lecture).
+- **Critères d'acceptation** : vérifié en conditions réelles bout en bout (`e2e/image-upload.spec.ts`, vrai navigateur Chromium, vrai MinIO, `naturalWidth > 0` après chargement — pas seulement la présence DOM, l'image est `loading="lazy"`).
+- **Type** : fonctionnel (bout en bout) + accessibilité (alt obligatoire, RGAA) · **Statut** : ✅ (`e2e/image-upload.spec.ts`)
+
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
 - **Description** : le texte d'une fiche mentionne le nom (ou un alias) d'une autre entité du même monde.
