@@ -24,3 +24,4 @@
 | 0014 | Quotas freemium en couche service + marqueur `World.origin` anticipatoire | accepté | 2026-07-19 |
 | 0015 | `Alias` comme table dédiée (remplace `Entity.aliases String[]`) | accepté | 2026-07-19 |
 | 0016 | Combobox de type interne, en attendant shadcn (KAN-36) | accepté | 2026-07-19 |
+| 0017 | Upload d'images : référence stable + sniffing maison, pas de librairie tierce | accepté | 2026-07-19 |
