@@ -212,13 +212,13 @@ Seuils cibles, mesurés et tracés (valeurs de départ, ajustables avec justific
 
 ### 9.3 Pipeline
 
-> **KAN-10 (2026-07-18)** : chaîne CD câblée côté repo — `.github/workflows/cd.yml`,
+> **KAN-10 — Fait (2026-07-18)** : chaîne CD câblée côté repo — `.github/workflows/cd.yml`,
 > `deploy/` (Traefik, compose prod/staging, backups), ADR-0013,
-> `docs/cd.md`, `docs/manuels/deploiement.md`. **Reste à exécuter par
-> Aymeric sur le VPS** : bring-up Traefik, GitHub Environments, premier tag
-> `-rc` puis prod (voir `docs/manuels/deploiement.md`) — ne pas marquer
-> **Fait** avant `staging.storytide.fr`/`storytide.fr` réellement en ligne en
-> HTTPS (`TST-SEC-009` à `TST-SEC-012`).
+> `docs/cd.md`, `docs/manuels/deploiement.md`. Bring-up Traefik, GitHub
+> Environments, tag `-rc` puis prod exécutés par Aymeric : **storytide.fr**
+> (v1.0.1) et **staging.storytide.fr** (v1.0.0-rc.2) sont réellement en ligne
+> en HTTPS (`TST-SEC-009` à `TST-SEC-012` exécutables sur staging lors de la
+> recette 20-23/07).
 
 Pipeline GitHub Actions (protocoles documentés dans `/docs/cd.md` et `/docs/manuels/deploiement.md`) :
 
