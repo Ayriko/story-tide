@@ -73,7 +73,9 @@ export function createEditorExtensions(mentionSuggestion?: MentionSuggestionConf
         protocols: ["http", "https"], // jamais javascript:/data: (OWASP A03)
       },
     }),
-    Image,
+    // loading="lazy" (KAN-16, demande du brief) : les images ne se chargent
+    // qu'a l'approche du viewport, pas au montage complet du document.
+    Image.configure({ HTMLAttributes: { loading: "lazy" } }),
     // Mentions manuelles @ (KAN-22) : node atome, jamais du texte editable -
     // memes classe/attribut DOM que le surlignage live (tiptap-mention-attrs.ts)
     // pour reutiliser le meme gestionnaire Ctrl/Cmd+clic (entity-editor.tsx)

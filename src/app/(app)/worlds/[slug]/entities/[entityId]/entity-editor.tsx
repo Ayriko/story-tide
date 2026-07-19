@@ -8,6 +8,7 @@ import { createEditorExtensions, type MentionSuggestionItem } from "@/lib/tiptap
 import { createLinkHighlightExtension, MENTION_TARGET_ATTR } from "@/lib/tiptap-link-highlight";
 import type { Pattern } from "@/lib/linker/aho-corasick";
 import { saveEntityContentAction } from "@/actions/entity-content";
+import { uploadImageAction } from "@/actions/image";
 import { inputClassName, labelClassName, secondaryButtonClassName } from "@/app/(app)/form-styles";
 import { createMentionSuggestion } from "./mention-suggestion";
 
@@ -108,21 +109,49 @@ function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
   );
 }
 
-function ImageControl({ editor }: { editor: Editor }) {
+// Deux facons de fournir l'image : URL manuelle (inchange) OU un fichier
+// choisi, uploade vers MinIO au clic "Inserer" (pas au choix du fichier -
+// evite l'upload orphelin d'un fichier choisi puis jamais insere, KAN-16).
+// Si un fichier est choisi, il prend le pas sur l'URL saisie.
+function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [alt, setAlt] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canInsert = url.trim() !== "" && alt.trim() !== "";
+  const canInsert = (file !== null || url.trim() !== "") && alt.trim() !== "" && !uploading;
 
-  function apply() {
-    if (!canInsert) {
-      return;
-    }
-    editor.chain().focus().setImage({ src: url.trim(), alt: alt.trim() }).run();
+  function reset() {
     setOpen(false);
     setUrl("");
     setAlt("");
+    setFile(null);
+    setError(null);
+  }
+
+  async function apply() {
+    if (!canInsert) {
+      return;
+    }
+    if (file) {
+      setUploading(true);
+      setError(null);
+      const formData = new FormData();
+      formData.set("file", file);
+      const result = await uploadImageAction(worldId, formData);
+      setUploading(false);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      editor.chain().focus().setImage({ src: result.src, alt: alt.trim() }).run();
+      reset();
+      return;
+    }
+    editor.chain().focus().setImage({ src: url.trim(), alt: alt.trim() }).run();
+    reset();
   }
 
   return (
@@ -130,17 +159,35 @@ function ImageControl({ editor }: { editor: Editor }) {
       <ToolbarButton label="Image" onClick={() => setOpen((value) => !value)} />
       {open ? (
         <div className="absolute left-0 top-full z-10 mt-1 flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900">
+          {error ? (
+            <p role="alert" className="text-xs text-red-700 dark:text-red-400">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="image-file" className={labelClassName}>
+              Téléverser une image
+            </label>
+            <input
+              id="image-file"
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              className="w-56 text-xs text-zinc-700 dark:text-zinc-300"
+            />
+          </div>
           <div className="flex flex-col gap-1">
             <label htmlFor="image-url" className={labelClassName}>
-              URL de l&apos;image
+              …ou URL de l&apos;image
             </label>
             <input
               id="image-url"
               type="url"
               value={url}
+              disabled={file !== null}
               onChange={(event) => setUrl(event.target.value)}
               placeholder="https://…"
-              className={`${inputClassName} h-9 w-56`}
+              className={`${inputClassName} h-9 w-56 disabled:cursor-not-allowed disabled:opacity-50`}
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -157,11 +204,12 @@ function ImageControl({ editor }: { editor: Editor }) {
           </div>
           <button
             type="button"
-            onClick={apply}
+            onClick={() => void apply()}
             disabled={!canInsert}
+            aria-busy={uploading}
             className={`${secondaryButtonClassName} h-9 px-3 text-xs`}
           >
-            Insérer
+            {uploading ? "Envoi…" : "Insérer"}
           </button>
         </div>
       ) : null}
@@ -169,7 +217,15 @@ function ImageControl({ editor }: { editor: Editor }) {
   );
 }
 
-function Toolbar({ editor, active }: { editor: Editor; active: ActiveState }) {
+function Toolbar({
+  editor,
+  active,
+  worldId,
+}: {
+  editor: Editor;
+  active: ActiveState;
+  worldId: string;
+}) {
   return (
     <div role="toolbar" aria-label="Mise en forme" className="flex flex-wrap gap-1.5">
       <ToolbarButton
@@ -208,7 +264,7 @@ function Toolbar({ editor, active }: { editor: Editor; active: ActiveState }) {
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       />
       <LinkControl editor={editor} active={active.link} />
-      <ImageControl editor={editor} />
+      <ImageControl editor={editor} worldId={worldId} />
     </div>
   );
 }
@@ -343,7 +399,7 @@ export function EntityEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <Toolbar editor={editor} active={active ?? INACTIVE_STATE} />
+      <Toolbar editor={editor} active={active ?? INACTIVE_STATE} worldId={worldId} />
       <EditorContent
         editor={editor}
         onClickCapture={handleMentionClick}
