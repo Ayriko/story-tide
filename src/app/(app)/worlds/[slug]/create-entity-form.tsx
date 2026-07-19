@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createEntityAction, type EntityFormState } from "@/actions/entity";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES } from "@/lib/entity-schemas";
+import { ENTITY_TYPES } from "@/lib/entity-schemas";
 import {
   fieldErrorClassName,
   formErrorClassName,
@@ -12,6 +12,7 @@ import {
   submitButtonClassName,
   textareaClassName,
 } from "../../form-styles";
+import { EntityTypeCombobox } from "./entity-type-combobox";
 
 const initialState: EntityFormState = {};
 
@@ -71,31 +72,19 @@ export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worl
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="entity-type" className={labelClassName}>
-          Type
-        </label>
-        <select
-          id="entity-type"
-          name="type"
-          required
-          defaultValue={state.values?.type ?? ENTITY_TYPES[0]}
-          aria-invalid={state.errors?.type ? true : undefined}
-          aria-describedby={state.errors?.type ? "entity-type-error" : undefined}
-          className={inputClassName}
-        >
-          {ENTITY_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {ENTITY_TYPE_LABELS[type]}
-            </option>
-          ))}
-        </select>
-        {state.errors?.type ? (
-          <p id="entity-type-error" className={fieldErrorClassName}>
-            {state.errors.type}
-          </p>
-        ) : null}
-      </div>
+      <EntityTypeCombobox
+        id="entity-type"
+        name="type"
+        label="Type"
+        defaultValue={state.values?.type ?? ENTITY_TYPES[0]}
+        invalid={Boolean(state.errors?.type)}
+        describedBy={state.errors?.type ? "entity-type-error" : undefined}
+      />
+      {state.errors?.type ? (
+        <p id="entity-type-error" className={fieldErrorClassName}>
+          {state.errors.type}
+        </p>
+      ) : null}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="entity-aliases" className={labelClassName}>

@@ -4,17 +4,34 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import cytoscape, { type Core, type NodeSingular } from "cytoscape";
 import type { GraphElements } from "@/lib/graph-elements";
-import { ENTITY_TYPES, entityTypeLabel } from "@/lib/entity-schemas";
+import {
+  ENTITY_TYPES,
+  entityTypeGroup,
+  entityTypeLabel,
+  groupedEntityTypes,
+} from "@/lib/entity-schemas";
 
-// Couleurs generiques (palette Tailwind existante) - la palette de marque
-// (NAVY/MINT, cf. docs/design/reference-vvd.md) releve de la reprise visuelle
-// front, hors perimetre de ce chantier (KAN-25 = le graphe uniquement).
-const NODE_COLOR_BY_TYPE: Record<string, string> = {
-  character: "#60a5fa",
-  place: "#34d399",
-  faction: "#f472b6",
-  object: "#fbbf24",
-  event: "#a78bfa",
+// Couleur PAR GROUPE (KAN-18, 26 types groupes en 8 familles), pas par type
+// individuel : 26 teintes distinctes seraient illisibles et intenables cote
+// contraste (C2.2.3). Palette categorique validee par le skill dataviz du
+// projet (8 teintes, ordre fixe, jamais recycle) - valeurs colonne "dark"
+// (app en dark mode par defaut) :
+// `node scripts/validate_palette.js "<8 hex>" --mode dark` -> tous les
+// controles passent (bande de luminosite, plancher de chroma, separation CVD,
+// plancher vision normale, contraste). Le CVD reste en bande 6-8 pour les
+// paires non adjacentes (disposition de graphe = "toutes paires", pas une
+// liste de barres adjacentes) : legal uniquement avec un encodage secondaire
+// - assure ici par les libelles textuels du filtre groupe et de la liste
+// accessible (GraphAccessibleList), jamais la couleur seule.
+const NODE_COLOR_BY_GROUP: Record<string, string> = {
+  Personnages: "#3987e5",
+  Écologie: "#008300",
+  Lieux: "#d55181",
+  Organisation: "#c98500",
+  Magie: "#199e70",
+  Lore: "#d95926",
+  Objets: "#9085e9",
+  Divers: "#e66767",
 };
 const DEFAULT_NODE_COLOR = "#a1a1aa";
 
@@ -52,8 +69,12 @@ export function GraphView({ worldSlug, elements }: { worldSlug: string; elements
         {
           selector: "node",
           style: {
-            "background-color": (node: NodeSingular) =>
-              NODE_COLOR_BY_TYPE[node.data("type") as string] ?? DEFAULT_NODE_COLOR,
+            "background-color": (node: NodeSingular) => {
+              const group = entityTypeGroup(node.data("type") as string);
+              return group
+                ? (NODE_COLOR_BY_GROUP[group] ?? DEFAULT_NODE_COLOR)
+                : DEFAULT_NODE_COLOR;
+            },
             label: "data(label)",
             "font-size": 10,
             color: "#e4e4e7",
@@ -124,23 +145,30 @@ export function GraphView({ worldSlug, elements }: { worldSlug: string; elements
 
   return (
     <div className="flex flex-col gap-3">
-      <fieldset className="flex flex-wrap gap-x-4 gap-y-2">
+      <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Filtrer par type
         </legend>
-        {ENTITY_TYPES.map((type) => (
-          <label
-            key={type}
-            className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300"
-          >
-            <input
-              type="checkbox"
-              checked={!hiddenTypes.has(type)}
-              onChange={() => toggleType(type)}
-              className="h-4 w-4 rounded border-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:focus-visible:outline-zinc-50"
-            />
-            {entityTypeLabel(type)}
-          </label>
+        {groupedEntityTypes().map(({ group, types }) => (
+          <fieldset key={group} className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <legend className="w-full text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              {group}
+            </legend>
+            {types.map((type) => (
+              <label
+                key={type}
+                className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300"
+              >
+                <input
+                  type="checkbox"
+                  checked={!hiddenTypes.has(type)}
+                  onChange={() => toggleType(type)}
+                  className="h-4 w-4 rounded border-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:focus-visible:outline-zinc-50"
+                />
+                {entityTypeLabel(type)}
+              </label>
+            ))}
+          </fieldset>
         ))}
       </fieldset>
       <div

@@ -3,7 +3,6 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { updateEntityAction, type EntityFormState } from "@/actions/entity";
-import { ENTITY_TYPE_LABELS, ENTITY_TYPES } from "@/lib/entity-schemas";
 import {
   fieldErrorClassName,
   formErrorClassName,
@@ -12,6 +11,7 @@ import {
   submitButtonClassName,
   textareaClassName,
 } from "@/app/(app)/form-styles";
+import { EntityTypeCombobox } from "../../entity-type-combobox";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -87,31 +87,19 @@ export function EditEntityForm({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="entity-type" className={labelClassName}>
-          Type
-        </label>
-        <select
-          id="entity-type"
-          name="type"
-          required
-          defaultValue={state.values?.type ?? type}
-          aria-invalid={state.errors?.type ? true : undefined}
-          aria-describedby={state.errors?.type ? "entity-type-error" : undefined}
-          className={inputClassName}
-        >
-          {ENTITY_TYPES.map((entityType) => (
-            <option key={entityType} value={entityType}>
-              {ENTITY_TYPE_LABELS[entityType]}
-            </option>
-          ))}
-        </select>
-        {state.errors?.type ? (
-          <p id="entity-type-error" className={fieldErrorClassName}>
-            {state.errors.type}
-          </p>
-        ) : null}
-      </div>
+      <EntityTypeCombobox
+        id="entity-type"
+        name="type"
+        label="Type"
+        defaultValue={state.values?.type ?? type}
+        invalid={Boolean(state.errors?.type)}
+        describedBy={state.errors?.type ? "entity-type-error" : undefined}
+      />
+      {state.errors?.type ? (
+        <p id="entity-type-error" className={fieldErrorClassName}>
+          {state.errors.type}
+        </p>
+      ) : null}
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="entity-aliases" className={labelClassName}>
