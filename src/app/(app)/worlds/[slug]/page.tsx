@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
-import { entityTypeLabel } from "@/lib/entity-schemas";
 import { RenameWorldForm } from "./rename-world-form";
 import { DeleteWorldForm } from "./delete-world-form";
 import { CreateEntityForm } from "./create-entity-form";
+import { EntitySearch } from "./entity-search";
 
 export default async function WorldPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -46,25 +46,11 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
 
         <CreateEntityForm worldId={world.id} worldSlug={world.slug} />
 
-        {entities.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">Aucune fiche pour le moment.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {entities.map((entity) => (
-              <li key={entity.id}>
-                <Link
-                  href={`/worlds/${world.slug}/entities/${entity.id}`}
-                  className="flex items-center justify-between rounded-md border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-950 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-50"
-                >
-                  <span>{entity.name}</span>
-                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                    {entityTypeLabel(entity.type)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        <EntitySearch
+          worldId={world.id}
+          worldSlug={world.slug}
+          initialEntities={entities.map(({ id, name, type }) => ({ id, name, type }))}
+        />
       </section>
 
       <section

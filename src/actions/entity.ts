@@ -3,12 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-session";
-import { createEntitySchema, updateEntitySchema } from "@/lib/entity-schemas";
+import { createEntitySchema, searchEntitiesSchema, updateEntitySchema } from "@/lib/entity-schemas";
 import {
   EntityNotFoundError,
   createEntity,
   deleteEntity,
+  searchEntities,
   updateEntity,
+  type EntitySearchResult,
 } from "@/services/entity-service";
 import { WorldNotFoundError } from "@/services/world-service";
 import type { ZodError } from "zod";
@@ -23,6 +25,9 @@ export type EntityFormState = {
 export type EntityDeleteState = {
   formError?: string;
 };
+
+export type SearchEntitiesResult =
+  { ok: true; entities: EntitySearchResult[] } | { ok: false; error: string };
 
 function stringField(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -163,4 +168,36 @@ export async function deleteEntityAction(
 
   revalidatePath(`/worlds/${worldSlug}`);
   redirect(`/worlds/${worldSlug}`);
+}
+
+// Lecture, pas une mutation : appelee directement depuis le client (recherche
+// au fil de la frappe, debounce), pas via useActionState/redirect - meme
+// raison que saveEntityContentAction. worldId vient du client donc non fiable :
+// searchEntities revalide l'appartenance via getWorld (OWASP A01).
+export async function searchEntitiesAction(
+  worldId: string,
+  rawQuery: string,
+): Promise<SearchEntitiesResult> {
+  const parsed = searchEntitiesSchema.safeParse({ query: rawQuery });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Requête invalide." };
+  }
+
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Session expirée. Reconnectez-vous." };
+  }
+
+  try {
+    const entities = await searchEntities(session.user.id, worldId, parsed.data.query);
+    return { ok: true, entities };
+  } catch (error) {
+    if (error instanceof WorldNotFoundError) {
+      return { ok: false, error: "Monde introuvable." };
+    }
+    console.error("[entity] Recherche de fiches échouée :", error);
+    return { ok: false, error: "Recherche impossible pour le moment." };
+  }
 }

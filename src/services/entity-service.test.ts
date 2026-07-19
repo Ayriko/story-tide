@@ -9,6 +9,7 @@ import {
   deleteEntity,
   getEntity,
   listEntities,
+  searchEntities,
   updateEntity,
   updateEntityContent,
 } from "./entity-service";
@@ -123,6 +124,74 @@ describe("listEntities", () => {
     worldFindFirst.mockResolvedValueOnce(null);
 
     await expect(listEntities(OWNER_ID, WORLD_ID)).rejects.toThrow(WorldNotFoundError);
+    expect(entityFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("searchEntities", () => {
+  it("trouve les entites par nom, insensible a la casse", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindMany.mockResolvedValueOnce([
+      makeEntity({ id: "e1", name: "Aeliana", aliases: [] }),
+      makeEntity({ id: "e2", name: "Bram", aliases: [] }),
+    ]);
+
+    const results = await searchEntities(OWNER_ID, WORLD_ID, "AELIANA");
+
+    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character" }]);
+    expect(entityFindMany).toHaveBeenCalledWith({
+      where: { worldId: WORLD_ID },
+      select: { id: true, name: true, type: true, aliases: true },
+      orderBy: { name: "asc" },
+    });
+  });
+
+  it("trouve les entites par alias quand le nom ne correspond pas, insensible a la casse", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindMany.mockResolvedValueOnce([
+      makeEntity({ id: "e1", name: "Néron", aliases: ["Le Tyran"] }),
+      makeEntity({ id: "e2", name: "Bram", aliases: [] }),
+    ]);
+
+    const results = await searchEntities(OWNER_ID, WORLD_ID, "TYRAN");
+
+    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character" }]);
+  });
+
+  it("trouve les entites par nom, insensible aux accents", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindMany.mockResolvedValueOnce([
+      makeEntity({ id: "e1", name: "Néron", aliases: [] }),
+      makeEntity({ id: "e2", name: "Bram", aliases: [] }),
+    ]);
+
+    const results = await searchEntities(OWNER_ID, WORLD_ID, "neron");
+
+    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character" }]);
+  });
+
+  it("ne renvoie pas aliases dans la projection", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindMany.mockResolvedValueOnce([makeEntity({ id: "e1", aliases: ["La Reine"] })]);
+
+    const results = await searchEntities(OWNER_ID, WORLD_ID, "Aeliana");
+
+    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character" }]);
+  });
+
+  it("renvoie un tableau vide si aucune fiche ne correspond", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindMany.mockResolvedValueOnce([makeEntity({ id: "e1", name: "Aeliana" })]);
+
+    const results = await searchEntities(OWNER_ID, WORLD_ID, "Zorglub");
+
+    expect(results).toEqual([]);
+  });
+
+  it("leve WorldNotFoundError si le monde n'appartient pas au proprietaire, sans interroger les entites", async () => {
+    worldFindFirst.mockResolvedValueOnce(null);
+
+    await expect(searchEntities(OWNER_ID, WORLD_ID, "Aeliana")).rejects.toThrow(WorldNotFoundError);
     expect(entityFindMany).not.toHaveBeenCalled();
   });
 });
