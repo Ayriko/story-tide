@@ -124,6 +124,12 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide_e2e?schema=public"
+      # playwright.config.ts lance `next dev` sur le port 3100 (PORT), pas le
+      # 3000 du placeholder workflow (jamais reellement utilise par
+      # quality/test/build). .env.e2e est gitignore (absent en CI) : sans cet
+      # override, uploadImage() persiste des src pointant vers :3000, ou rien
+      # n'ecoute - l'image ne charge jamais (KAN-16, image-upload.spec.ts).
+      BETTER_AUTH_URL: "http://localhost:3100"
     steps:
       - uses: actions/checkout@v4
 
