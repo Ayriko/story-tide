@@ -104,14 +104,16 @@ Règles : l'UI n'importe jamais Prisma ; les services ne connaissent ni pg-boss 
 ### 4.3 Modèle de données v1 (Prisma — esquisse)
 
 ```prisma
-model World   { id, name, slug, ownerId, createdAt, updatedAt, entities[] }
+model World   { id, name, slug, ownerId, origin /* USER|INTRO|DEMO, KAN-18 */, createdAt, updatedAt, entities[] }
 model Entity  {
   id, worldId, name, type            // type: String ("character"|"place"|...) — donnée, pas schéma
-  aliases     String[]               // ⚠ dès la v1 : surnoms/titres, dictionnaire de l'automate
+  aliases     Alias[]                // table dédiée depuis KAN-18 (ex-String[]) : surnoms/titres, dictionnaire de l'automate
   content     Json                   // JSON ProseMirror (Tiptap)
   plainText   String                 // texte extrait, pour le scan + la recherche
+  seedRef     String?                // clé d'idempotence de seed (KAN-35), KAN-18
   createdAt, updatedAt
 }
+model Alias   { id, entityId, value, normalized, active, source /* MANUAL|SEED */ }
 model Relation {
   id, worldId, sourceId, targetId
   origin      RelationOrigin         // MANUAL | AUTO — ne jamais écraser MANUAL lors des re-scans

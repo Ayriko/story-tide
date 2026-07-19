@@ -21,3 +21,6 @@
 | 0011 | Mentions manuelles @ : réconciliation synchrone, coexistence avec AUTO | accepté | 2026-07-17 |
 | 0012 | Graphe de relations : Cytoscape.js dès le MVP (pas de migration à prévoir) | accepté | 2026-07-17 |
 | 0013 | Déploiement staging/prod sur un VPS unique : deux stacks Compose isolées + Traefik partagé | accepté | 2026-07-18 |
+| 0014 | Quotas freemium en couche service + marqueur `World.origin` anticipatoire | accepté | 2026-07-19 |
+| 0015 | `Alias` comme table dédiée (remplace `Entity.aliases String[]`) | accepté | 2026-07-19 |
+| 0016 | Combobox de type interne, en attendant shadcn (KAN-36) | accepté | 2026-07-19 |

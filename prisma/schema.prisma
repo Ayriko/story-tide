@@ -13,12 +13,33 @@ enum RelationOrigin {
   AUTO
 }
 
+// Origine du monde (KAN-18) : USER = cree normalement par un utilisateur,
+// compte pour le quota freemium. INTRO = monde d'introduction "Atheraus",
+// clone a l'inscription (KAN-35, pas encore construit). DEMO = monde du
+// compte de demonstration jury, distinct du monde d'intro par utilisateur.
+// INTRO et DEMO sont hors quota freemium sur les DEUX axes (mondes ET
+// entites - voir world-service.ts/entity-service.ts).
+enum WorldOrigin {
+  USER
+  INTRO
+  DEMO
+}
+
+// Origine d'un alias (KAN-18) : MANUAL = saisi par un utilisateur via le
+// formulaire de fiche. SEED = cree par un script de seed (KAN-35, pas encore
+// construit) - reserve, aucune logique n'en depend encore.
+enum AliasSource {
+  MANUAL
+  SEED
+}
+
 model World {
   id          String       @id @default(cuid())
   name        String
   slug        String
   ownerId     String
   owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  origin      WorldOrigin  @default(USER)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   entities    Entity[]
@@ -35,18 +56,41 @@ model Entity {
   world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
   name      String
   type      String // "character"|"place"|... - donnee, pas schema
-  aliases   String[] // des la v1 : dictionnaire de l'automate
   content   Json // JSON ProseMirror (Tiptap)
   plainText String // texte extrait, pour scan + recherche
+  // Cle d'idempotence de seed (KAN-35, pas encore construit) : distincte du
+  // slug (modifiable par l'utilisateur apres clonage) - permet au script de
+  // seed de savoir si une entite a deja ete creee lors d'un rejeu.
+  seedRef   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  aliases         Alias[]
   sourceRelations Relation[]   @relation("RelationSource")
   targetRelations Relation[]   @relation("RelationTarget")
   linkIgnoresFrom LinkIgnore[] @relation("LinkIgnoreEntity")
   linkIgnoresTo   LinkIgnore[] @relation("LinkIgnoreTarget")
 
+  @@unique([worldId, seedRef])
   @@index([worldId])
+}
+
+// Table dediee (KAN-18, remplace Entity.aliases String[]) : attributs propres
+// (actif/inactif, source) et index sur la forme normalisee pour le
+// chargement du dictionnaire Aho-Corasick (linker-service.ts).
+model Alias {
+  id         String      @id @default(cuid())
+  entityId   String
+  entity     Entity      @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  value      String
+  normalized String // sortie de normalizeForMatch(value) - jamais recalculee ailleurs
+  active     Boolean     @default(true)
+  source     AliasSource @default(MANUAL)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([entityId, value])
+  @@index([normalized])
 }
 
 model Relation {

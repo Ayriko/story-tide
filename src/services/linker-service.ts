@@ -12,14 +12,18 @@ import { resolveLinks } from "@/lib/linker/resolve-links";
 export async function buildDictionary(worldId: string): Promise<Pattern[]> {
   const entities = await prisma.entity.findMany({
     where: { worldId },
-    select: { id: true, name: true, aliases: true },
+    select: {
+      id: true,
+      name: true,
+      aliases: { select: { value: true }, where: { active: true } },
+    },
   });
 
   const patterns: Pattern[] = [];
   for (const entity of entities) {
     patterns.push({ entityId: entity.id, term: entity.name });
     for (const alias of entity.aliases) {
-      patterns.push({ entityId: entity.id, term: alias });
+      patterns.push({ entityId: entity.id, term: alias.value });
     }
   }
   return patterns;

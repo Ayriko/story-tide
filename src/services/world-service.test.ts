@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
 import type { World } from "@/generated/prisma/client";
+import { WorldOrigin } from "@/generated/prisma/client";
 import {
   WorldNotFoundError,
+  WorldQuotaExceededError,
   createWorld,
   deleteWorld,
   getWorld,
@@ -21,6 +23,7 @@ vi.mock("@/db/client", () => ({
       findUnique: vi.fn(),
       findMany: vi.fn(),
       findFirst: vi.fn(),
+      count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
@@ -31,6 +34,7 @@ vi.mock("@/db/client", () => ({
 const worldFindUnique = vi.mocked(prisma.world.findUnique);
 const worldFindMany = vi.mocked(prisma.world.findMany);
 const worldFindFirst = vi.mocked(prisma.world.findFirst);
+const worldCount = vi.mocked(prisma.world.count);
 const worldCreate = vi.mocked(prisma.world.create);
 const worldUpdate = vi.mocked(prisma.world.update);
 const worldDelete = vi.mocked(prisma.world.delete);
@@ -43,6 +47,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     ownerId: OWNER_ID,
     name: "Eldoria",
     slug: "eldoria",
+    origin: WorldOrigin.USER,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,
@@ -55,11 +60,15 @@ beforeEach(() => {
 
 describe("createWorld", () => {
   it("derive le slug du nom et cree le monde quand le slug est libre", async () => {
+    worldCount.mockResolvedValueOnce(0);
     worldFindUnique.mockResolvedValueOnce(null);
     worldCreate.mockResolvedValueOnce(makeWorld({ id: "w1", slug: "eldoria" }));
 
     const world = await createWorld(OWNER_ID, { name: "Eldoria" });
 
+    expect(worldCount).toHaveBeenCalledWith({
+      where: { ownerId: OWNER_ID, origin: WorldOrigin.USER },
+    });
     expect(worldCreate).toHaveBeenCalledWith({
       data: { ownerId: OWNER_ID, name: "Eldoria", slug: "eldoria" },
     });
@@ -67,6 +76,7 @@ describe("createWorld", () => {
   });
 
   it("suffixe le slug en cas de collision pour ce proprietaire", async () => {
+    worldCount.mockResolvedValueOnce(0);
     worldFindUnique
       .mockResolvedValueOnce(makeWorld({ id: "existing" })) // "eldoria" deja pris
       .mockResolvedValueOnce(null); // "eldoria-2" libre
@@ -78,6 +88,26 @@ describe("createWorld", () => {
     expect(worldCreate).toHaveBeenCalledWith({
       data: { ownerId: OWNER_ID, name: "Eldoria", slug: "eldoria-2" },
     });
+  });
+
+  it("autorise la creation juste sous la limite (2 mondes existants)", async () => {
+    worldCount.mockResolvedValueOnce(2);
+    worldFindUnique.mockResolvedValueOnce(null);
+    worldCreate.mockResolvedValueOnce(makeWorld({ id: "w3" }));
+
+    await createWorld(OWNER_ID, { name: "Eldoria" });
+
+    expect(worldCreate).toHaveBeenCalled();
+  });
+
+  it("leve WorldQuotaExceededError a la limite (3 mondes existants), sans creer", async () => {
+    worldCount.mockResolvedValueOnce(3);
+
+    await expect(createWorld(OWNER_ID, { name: "Eldoria" })).rejects.toThrow(
+      WorldQuotaExceededError,
+    );
+    expect(worldFindUnique).not.toHaveBeenCalled();
+    expect(worldCreate).not.toHaveBeenCalled();
   });
 });
 

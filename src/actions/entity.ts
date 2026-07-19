@@ -6,6 +6,7 @@ import { requireSession } from "@/lib/auth-session";
 import { createEntitySchema, searchEntitiesSchema, updateEntitySchema } from "@/lib/entity-schemas";
 import {
   EntityNotFoundError,
+  EntityQuotaExceededError,
   createEntity,
   deleteEntity,
   searchEntities,
@@ -88,6 +89,9 @@ export async function createEntityAction(
   } catch (error) {
     if (error instanceof WorldNotFoundError) {
       return { formError: "Monde introuvable.", values };
+    }
+    if (error instanceof EntityQuotaExceededError) {
+      return { formError: error.message, values };
     }
     console.error("[entity] Création de fiche échouée :", error);
     return { formError: "Création impossible pour le moment. Réessayez.", values };

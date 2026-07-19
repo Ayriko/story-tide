@@ -27,7 +27,10 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   // 2. Creer l'entite CIBLE (type "Lieu", pour exercer un type different).
   const targetName = `Valombre ${Date.now()}`;
   await page.getByLabel("Nom", { exact: true }).fill(targetName);
-  await page.getByLabel("Type").selectOption("place");
+  const typeCombobox = page.getByRole("combobox", { name: "Type" });
+  await typeCombobox.click();
+  await typeCombobox.fill("Lieu");
+  await page.getByRole("option", { name: "Lieu" }).click();
   await page.getByRole("button", { name: "Créer la fiche" }).click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 

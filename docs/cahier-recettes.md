@@ -5,11 +5,14 @@
 > Préconditions, Étapes, Résultat attendu, Critères d'acceptation). Cas passants ET
 > cas d'échec. Statut : ⬜ à faire / ✅ OK / ❌ KO (→ `plan-correction-bogues.md`).
 >
-> État au 2026-07-17 : scénarios **AUT**, **SEC**, **MND** (mondes), **ENT**
-> (entités), **LNK** (liaison/graphe) et **GRF** (graphe) exécutés en conditions
-> réelles (base Postgres réelle, deux comptes réels via l'API Better Auth) —
-> pas encore exécutés sur staging (pas de staging à ce stade). Catégorie
-> **QOT** (quotas freemium) : pas encore de scénario, la feature n'existe pas.
+> État au 2026-07-19 : scénarios **AUT**, **SEC**, **MND** (mondes), **ENT**
+> (entités), **LNK** (liaison/graphe), **GRF** (graphe) et **QOT** (quotas
+> freemium, KAN-18) exécutés en conditions réelles (base Postgres réelle,
+> comptes réels via l'API Better Auth) — pas encore exécutés sur staging au
+> sens recette officielle (staging existe depuis KAN-10, la recette staging
+> planifiée se tient du 20 au 23/07). `TST-QOT-003` (exemption du monde
+> d'introduction) reste vérifié uniquement par test unitaire tant que KAN-35
+> (le monde d'introduction lui-même) n'est pas construit.
 
 ## TST-AUT-001 — Inscription avec des identifiants valides
 
@@ -251,6 +254,16 @@
 - **Critères d'acceptation** : `searchEntities` renvoie `[]` sans erreur ; `e2e/entity-search.spec.ts` vérifie l'affichage du message vide.
 - **Type** : fonctionnel · **Statut** : ⬜ à faire (exécuté sur staging)
 
+## TST-ENT-009 — Sélecteur de type cherchable et groupé (KAN-18)
+
+- **Description** : à la création/modification d'une fiche, le champ Type est un combobox cherchable (26 types répartis en 8 familles) plutôt qu'un `<select>` plat — filtrage au fil de la frappe, groupes visibles, navigation clavier complète.
+- **Objectif** : vérifier que les 5 types historiques restent sélectionnables à l'identique, que la recherche filtre correctement par libellé, et que le clavier (flèches, Entrée, Échap) permet une sélection complète sans souris.
+- **Préconditions** : aucune (page de création de fiche).
+- **Étapes** : 1) Ouvrir le combobox Type. 2) Taper un fragment de libellé (ex. « arme »). 3) Sélectionner un résultat au clavier (flèches + Entrée).
+- **Résultat attendu** : la liste affiche les types groupés par famille (8 en-têtes) ; la frappe filtre en direct ; le type sélectionné apparaît dans le champ et est bien celui soumis au formulaire ; `Échap` ferme la liste sans changer la sélection.
+- **Critères d'acceptation** : `entity-type-combobox.test.tsx` (filtrage, sélection souris/clavier, état vide « Aucun type trouvé. », `Échap`, retour au dernier type valide au blur) ; `entity-schemas.test.ts` (26 types, 8 groupes, 5 ids historiques conservés) ; vérifié en conditions réelles dans `e2e/graph.spec.ts` (création d'une fiche de type « Lieu » via le combobox).
+- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ✅ (`entity-type-combobox.test.tsx`, `entity-schemas.test.ts`, `e2e/graph.spec.ts`)
+
 ## TST-SEC-004 — Rejet d'un contenu hors du schéma strict de l'éditeur
 
 - **Description** : une requête de sauvegarde envoie un JSON contenant un node désactivé (ex. `codeBlock`) ou structurellement invalide, en contournant l'éditeur réel.
@@ -440,3 +453,43 @@
 - **Résultat attendu** : la liste affiche l'entité source et un lien vers chaque cible ; suivre le lien navigue vers la bonne fiche (`<h1>` de la fiche cible).
 - **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement par source, tri, entité sans relation sortante absente de la liste mais atteignable comme cible, extrémité disparue omise silencieusement) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, navigation clavier/lecteur d'écran).
 - **Type** : accessibilité (élim.) · **Statut** : ✅ (`graph-elements.test.ts`, `e2e/graph.spec.ts`)
+
+## TST-GRF-004 — Graphe : couleur et filtre par famille de types (KAN-18)
+
+- **Description** : avec 26 types d'entités désormais regroupés en 8 familles, les nœuds du graphe sont colorés par famille (pas par type individuel, illisible à 26 teintes) et les filtres sont regroupés par famille (`<fieldset>` imbriqué par groupe) plutôt qu'en 26 cases à plat.
+- **Objectif** : vérifier que le filtre par type reste fonctionnel pendant la coexistence des 26 types, que chaque famille a bien sa propre teinte, et que la couleur n'est jamais le seul moyen de distinguer un type (libellés textuels toujours présents).
+- **Préconditions** : un monde contient des entités d'au moins deux types de familles différentes.
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'un filtre existe pour chaque type, regroupé sous l'en-tête de sa famille. 3) Décocher un filtre.
+- **Résultat attendu** : chaque famille a son propre en-tête (`<legend>`) regroupant ses types ; décocher un filtre masque bien les nœuds de ce type précis (pas toute la famille) ; le libellé texte du type reste visible au clic/survol d'un nœud (couleur = famille, jamais l'unique moyen d'identifier le type précis).
+- **Critères d'acceptation** : palette à 8 teintes validée par le skill `dataviz` du projet (`node scripts/validate_palette.js`, bande de luminosité/chroma/CVD/contraste, toutes passantes en mode sombre) ; vérifié en conditions réelles (`e2e/graph.spec.ts` : filtre « Lieu » présent, coché, décochable, fiche créée via le combobox de type KAN-18).
+- **Type** : fonctionnel + accessibilité (couleur jamais seule, C2.2.3) · **Statut** : ✅ (`e2e/graph.spec.ts`)
+
+## TST-QOT-001 — Quota de mondes : blocage au-delà de 3 mondes gratuits
+
+- **Description** : l'offre gratuite limite un compte à 3 mondes (hors futur monde d'introduction, KAN-35) ; une tentative de création d'un 4ᵉ monde est refusée avec un message clair.
+- **Objectif** : vérifier que la limite est appliquée en couche service (non contournable), que la création juste sous la limite réussit, et que le message d'erreur est visible et accessible (`role="alert"`).
+- **Préconditions** : le compte possède déjà 3 mondes (`origin: USER`).
+- **Étapes** : 1) Créer 3 mondes successivement (chacun doit réussir). 2) Tenter la création d'un 4ᵉ monde.
+- **Résultat attendu** : les 3 premières créations réussissent et redirigent vers le monde créé ; la 4ᵉ tentative reste sur `/worlds` et affiche « Limite de mondes atteinte pour l'offre gratuite (3 maximum). ».
+- **Critères d'acceptation** : `world-service.test.ts` (`createWorld` : sous la limite, à la limite → `WorldQuotaExceededError`, `world.create` jamais appelé) ; vérifié en conditions réelles bout en bout (`e2e/quota.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée).
+- **Type** : fonctionnel (bout en bout) + sécurité (OWASP A04, anti-abus) · **Statut** : ✅ (`world-service.test.ts`, `e2e/quota.spec.ts`)
+
+## TST-QOT-002 — Quota d'entités : blocage au-delà de 50 fiches gratuites par monde
+
+- **Description** : l'offre gratuite limite un monde (`origin: USER`) à 50 entités ; une tentative de création d'une 51ᵉ fiche est refusée avec un message clair.
+- **Objectif** : vérifier que la limite est appliquée en couche service, que la création juste sous la limite réussit, et que le message d'erreur est visible.
+- **Préconditions** : un monde du compte contient déjà 49 fiches.
+- **Étapes** : 1) Créer la 50ᵉ fiche du monde (doit réussir). 2) Tenter la création d'une 51ᵉ fiche.
+- **Résultat attendu** : la 50ᵉ création réussit et redirige vers la fiche créée ; la 51ᵉ tentative affiche « Limite de fiches atteinte pour ce monde (offre gratuite : 50 maximum). ».
+- **Critères d'acceptation** : `entity-service.test.ts` (`createEntity` : sous la limite, à la limite → `EntityQuotaExceededError`, `entity.create` jamais appelé) ; vérifié en conditions réelles bout en bout (`e2e/quota.spec.ts`, seed direct des 49 premières fiches via `pg.Client`, les 2 fiches déterminantes créées via la vraie UI).
+- **Type** : fonctionnel (bout en bout) + sécurité (OWASP A04, anti-abus) · **Statut** : ✅ (`entity-service.test.ts`, `e2e/quota.spec.ts`)
+
+## TST-QOT-003 — Exemption de quota pour les mondes `origin` INTRO/DEMO
+
+- **Description** : un monde marqué `origin: INTRO` (KAN-35, monde d'introduction "Atheraus" cloné à l'inscription — pas encore construit) ou `origin: DEMO` (compte de démonstration jury) n'est jamais compté parmi les 3 mondes gratuits, et ses entités ne sont jamais plafonnées à 50.
+- **Objectif** : vérifier dès maintenant (anticipation KAN-18, avant que KAN-35 n'existe et qu'un compte démo soit provisionné) que la logique de comptage exclut correctement les deux valeurs `origin != USER`, pour qu'aucune ligne de `world-service.ts`/`entity-service.ts` n'ait à être retouchée par la suite.
+- **Préconditions** : un monde `origin: INTRO` (ou `DEMO`) contient déjà 50 entités (ou plus) ; le compte possède déjà 3 mondes `origin: USER`.
+- **Étapes** : 1) Créer une entité supplémentaire dans le monde `origin: INTRO`/`DEMO`. 2) (Hypothétique tant que KAN-35 n'existe pas) Créer un monde `origin: USER` alors que 3 mondes `USER` existent déjà en plus du monde INTRO/DEMO.
+- **Résultat attendu** : la création d'entité réussit sans jamais interroger le compteur (`entity.count` non appelé) ; un monde `origin: INTRO`/`DEMO` ne fait jamais échouer une création de monde par ailleurs légitime.
+- **Critères d'acceptation** : `entity-service.test.ts` (« saute le contrôle de quota pour un monde origin=INTRO/DEMO, même au-delà de la limite ») ; `world-service.test.ts` (le comptage `createWorld` filtre explicitement `origin: WorldOrigin.USER`).
+- **Type** : fonctionnel · **Statut** : ✅ vérifié par test unitaire uniquement — aucun monde réel n'a encore `origin: INTRO`/`DEMO` tant que KAN-35 n'est pas construit et qu'aucun compte démo n'est provisionné, pas de vérification e2e/staging possible avant cette date (pas de sur-déclaration).

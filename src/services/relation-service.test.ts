@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
-import type { Entity, LinkIgnore, Relation, World } from "@/generated/prisma/client";
-import { RelationOrigin } from "@/generated/prisma/client";
+import type { Alias, Entity, LinkIgnore, Relation, World } from "@/generated/prisma/client";
+import { RelationOrigin, WorldOrigin } from "@/generated/prisma/client";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { WorldNotFoundError } from "./world-service";
 import {
@@ -63,6 +63,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     ownerId: OWNER_ID,
     name: "Eldoria",
     slug: "eldoria",
+    origin: WorldOrigin.USER,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,
@@ -96,18 +97,26 @@ function makeRelation(overrides: Partial<Relation> = {}): Relation {
   };
 }
 
-function makeEntity(overrides: Partial<Entity> = {}): Entity {
+// aliases: [] par defaut - entity-service.ts.getEntity() (appele en cascade
+// par relation-service.ts) fait toujours include:{aliases:true} et aplatit
+// via toEntityRecord, le mock doit donc fournir le tableau meme si ce fichier
+// n'en verifie jamais le contenu.
+function makeEntity(overrides: Partial<Entity> & { aliases?: Alias[] } = {}): Entity & {
+  aliases: Alias[];
+} {
+  const { aliases = [], ...entityOverrides } = overrides;
   return {
     id: "e2",
     worldId: WORLD_ID,
     name: "Aeliana",
     type: "character",
-    aliases: [],
     content: EMPTY_CONTENT,
     plainText: "",
+    seedRef: null,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
-    ...overrides,
+    ...entityOverrides,
+    aliases,
   };
 }
 
