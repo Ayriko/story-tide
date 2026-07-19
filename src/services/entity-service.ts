@@ -2,8 +2,11 @@ import type { JSONContent } from "@tiptap/core";
 import { prisma } from "@/db/client";
 import type { CreateEntityInput, UpdateEntityInput } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, extractPlainText } from "@/lib/tiptap-content";
+import { normalizeForMatch } from "@/lib/linker/normalize";
 import type { Entity } from "@/generated/prisma/client";
 import { getWorld } from "./world-service";
+
+export type EntitySearchResult = { id: string; name: string; type: string };
 
 export class EntityNotFoundError extends Error {
   constructor() {
@@ -38,6 +41,35 @@ export async function createEntity(
 export async function listEntities(ownerId: string, worldId: string): Promise<Entity[]> {
   await getWorld(ownerId, worldId);
   return prisma.entity.findMany({ where: { worldId }, orderBy: { createdAt: "desc" } });
+}
+
+// Recherche basique (KAN-17, spec §2.8) : filtre en memoire sur name+aliases
+// apres chargement scope worldId. `aliases` est un String[] PostgreSQL natif -
+// Prisma n'offre aucun operateur substring insensible-casse sur les elements
+// d'un tableau (`contains`/`mode:insensitive` ne marche que sur un String, pas
+// dans un tableau), d'ou ce filtrage cote TS plutot qu'en base. Suffisant pour
+// le volume de fiches d'un monde au MVP ; le full-text (index dedie) est P1,
+// hors perimetre. `normalizeForMatch` (moteur de liaison) rend la recherche
+// insensible a la casse ET aux accents, coherente avec le dictionnaire AC.
+export async function searchEntities(
+  ownerId: string,
+  worldId: string,
+  query: string,
+): Promise<EntitySearchResult[]> {
+  await getWorld(ownerId, worldId);
+  const needle = normalizeForMatch(query);
+  const entities = await prisma.entity.findMany({
+    where: { worldId },
+    select: { id: true, name: true, type: true, aliases: true },
+    orderBy: { name: "asc" },
+  });
+  return entities
+    .filter(
+      (entity) =>
+        normalizeForMatch(entity.name).includes(needle) ||
+        entity.aliases.some((alias) => normalizeForMatch(alias).includes(needle)),
+    )
+    .map(({ id, name, type }) => ({ id, name, type }));
 }
 
 export async function getEntity(

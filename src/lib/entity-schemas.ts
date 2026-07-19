@@ -28,6 +28,10 @@ export const createEntitySchema = z.object({
 // Meme forme que la creation : le type peut etre change apres coup.
 export const updateEntitySchema = createEntitySchema;
 
+export const searchEntitiesSchema = z.object({
+  query: z.string().trim().min(1, "Saisir un terme.").max(100, "100 caractères maximum."),
+});
+
 // Entity.type est un String Prisma libre (donnee, pas schema) : rien ne
 // garantit statiquement qu'une valeur lue en base correspond a une cle connue
 // de ENTITY_TYPE_LABELS. Lookup sur en tolerant une valeur inconnue plutot
@@ -39,3 +43,4 @@ export function entityTypeLabel(type: string): string {
 export type EntityType = (typeof ENTITY_TYPES)[number];
 export type CreateEntityInput = z.infer<typeof createEntitySchema>;
 export type UpdateEntityInput = z.infer<typeof updateEntitySchema>;
+export type SearchEntitiesInput = z.infer<typeof searchEntitiesSchema>;
