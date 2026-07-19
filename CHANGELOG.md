@@ -264,6 +264,34 @@ stade (`[Unreleased]`).
   la page du monde (`searchEntities`, `entity-service.ts`, cascade
   d'autorisation `getWorld`, OWASP A01). Scénarios `TST-ENT-007`/`TST-ENT-008`
   au cahier de recettes.
+- Quotas freemium (KAN-18, sans Stripe) : 3 mondes par compte, 50 entités par
+  monde, appliqués en couche service (`WorldQuotaExceededError`/
+  `EntityQuotaExceededError`, non contournables — OWASP A04) via
+  `createWorld`/`createEntity`. `enum WorldOrigin { USER, INTRO, DEMO }`
+  (`World.origin`, `@default(USER)`) posé par anticipation du futur monde
+  d'introduction "Atheraus" (KAN-35) et d'un compte de démonstration jury :
+  les deux sont hors quota sur les deux axes, aucune logique à retoucher
+  quand ils existeront (voir ADR-0014). Scénarios `TST-QOT-001` à
+  `TST-QOT-003` au cahier de recettes.
+- `Entity.aliases` migré d'un `String[]` vers une table `Alias` dédiée
+  (`value`, `normalized`, `active`, `source` MANUAL/SEED) : index sur la
+  forme normalisée (accélère `searchEntities` KAN-17 et `buildDictionary` du
+  moteur de liaison), attributs propres pour un usage futur (désactiver un
+  alias, distinguer les alias de seed). Contrat externe inchangé
+  (`aliases: string[]` toujours renvoyé par `entity-service.ts` — zéro
+  changement dans les actions/formulaires). Migration en deux temps
+  (expand/contract) avec backfill des données réelles de production via
+  l'extension Postgres `unaccent` (voir ADR-0015). `Entity.seedRef` (clé
+  d'idempotence pour le futur script de seed KAN-35) posé en même temps.
+- Taxonomie des types d'entités étendue de 5 à 26, regroupés en 8 familles
+  (`ENTITY_TYPE_REFERENCE`, `src/lib/entity-schemas.ts`) — les 5 ids
+  historiques (`character`/`place`/`faction`/`object`/`event`) conservés à
+  l'identique. Sélecteur de type devenu un combobox interne cherchable et
+  groupé (`EntityTypeCombobox`, patron d'accessibilité de `mention-list.tsx`
+  réutilisé — voir ADR-0016, remplacement prévu par shadcn en KAN-36). Graphe
+  de relations : couleur des nœuds par famille (palette à 8 teintes validée
+  par le skill `dataviz`, `TST-GRF-004`) et filtres groupés par famille au
+  lieu de 26 cases à plat. Scénario `TST-ENT-009` au cahier de recettes.
 
 ### Corrigé
 
