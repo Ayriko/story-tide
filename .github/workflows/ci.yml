@@ -120,6 +120,25 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      # KAN-16 : e2e/image-upload.spec.ts fait un vrai aller-retour MinIO.
+      # bitnami/minio (contrairement a minio/minio) demarre le serveur
+      # uniquement via variables d'env - un service GitHub Actions ne peut pas
+      # surcharger la commande du conteneur. MINIO_DEFAULT_BUCKETS cree le
+      # bucket au demarrage (equivalent du minio-setup de docker-compose.dev.yml).
+      # Identifiants alignes sur S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET ci-dessous.
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: ci
+          MINIO_ROOT_PASSWORD: ci-secret-placeholder
+          MINIO_DEFAULT_BUCKETS: story-tide-ci
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide_e2e?schema=public"
     steps:
