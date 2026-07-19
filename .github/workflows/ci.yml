@@ -18,6 +18,8 @@ env:
   # connecte reellement a Postgres/MinIO au build ni aux tests unitaires
   # (fakes memoire). Ces valeurs documentent aussi l'env attendu. Au niveau
   # workflow (et non duplique par job) : une seule source pour les 3 jobs.
+  # S3_ACCESS_KEY >= 3 caracteres : seul le job e2e demarre un vrai MinIO
+  # (KAN-16), qui refuse de booter sous ce seuil ("ci" ne suffisait pas).
   DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide?schema=public"
   BETTER_AUTH_SECRET: "ci-placeholder-secret-at-least-32-characters"
   BETTER_AUTH_URL: "http://localhost:3000"
@@ -25,7 +27,7 @@ env:
   S3_PORT: "9000"
   S3_USE_SSL: "false"
   S3_REGION: "us-east-1"
-  S3_ACCESS_KEY: "ci"
+  S3_ACCESS_KEY: "ci-access-key"
   S3_SECRET_KEY: "ci-secret-placeholder"
   S3_BUCKET: "story-tide-ci"
 
@@ -140,20 +142,22 @@ jobs:
       # fournir des arguments de commande a un service (seulement des
       # options docker). Demarrage manuel + attente de sante + creation du
       # bucket via mc, meme logique que le minio-setup de docker-compose.dev.yml.
-      # Identifiants alignes sur S3_ACCESS_KEY/S3_SECRET_KEY/S3_BUCKET (env du workflow).
+      # Identifiants derives de S3_ACCESS_KEY/S3_SECRET_KEY/S3_PORT/S3_BUCKET
+      # (env du workflow) - source unique, ne peut pas diverger.
       - name: Démarrer MinIO
         run: |
-          docker run -d --name minio-e2e -p 9000:9000 \
-            -e MINIO_ROOT_USER=ci \
-            -e MINIO_ROOT_PASSWORD=ci-secret-placeholder \
+          docker run -d --name minio-e2e -p "${S3_PORT}:9000" \
+            -e MINIO_ROOT_USER="$S3_ACCESS_KEY" \
+            -e MINIO_ROOT_PASSWORD="$S3_SECRET_KEY" \
             minio/minio server /data
-          timeout 30 sh -c 'until curl -sf http://localhost:9000/minio/health/live; do sleep 1; done'
+          timeout 60 sh -c 'until curl -sf "http://localhost:${S3_PORT}/minio/health/live"; do sleep 1; done' \
+            || { echo "MinIO n'a pas démarré :"; docker logs minio-e2e; exit 1; }
 
       - name: Créer le bucket MinIO
         run: |
           docker run --rm --network host \
-            -e MC_HOST_local=http://ci:ci-secret-placeholder@localhost:9000 \
-            minio/mc mb --ignore-existing local/story-tide-ci
+            -e MC_HOST_local="http://$S3_ACCESS_KEY:$S3_SECRET_KEY@localhost:$S3_PORT" \
+            minio/mc mb --ignore-existing "local/$S3_BUCKET"
 
       - run: npm run test:e2e
 
