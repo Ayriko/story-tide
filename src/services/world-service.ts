@@ -1,6 +1,7 @@
 import { prisma } from "@/db/client";
 import { slugify } from "@/lib/slugify";
 import { FREE_WORLD_LIMIT } from "@/lib/quotas";
+import { storage } from "@/lib/storage";
 import type { CreateWorldInput, UpdateWorldInput } from "@/lib/world-schemas";
 import type { World } from "@/generated/prisma/client";
 import { WorldOrigin } from "@/generated/prisma/client";
@@ -91,7 +92,28 @@ export async function updateWorld(
   return prisma.world.update({ where: { id: world.id }, data: { name: input.name, slug } });
 }
 
+// RGPD ("purge monde + binaires") : les objets MinIO ne sont PAS supprimes par
+// la cascade Prisma (onDelete: Cascade ne connait que les lignes DB, jamais le
+// stockage externe) - il faut donc les purger explicitement avant de
+// supprimer le monde. Best-effort (decision Aymeric, KAN-16) : un echec de
+// storage.delete est loggue (jamais avale) mais ne bloque pas la suppression
+// du monde - un objet MinIO orphelin sans reference DB est une donnee inerte,
+// rattrapable par un futur job de menage, plutot qu'un incident de stockage
+// transitoire qui empecherait un utilisateur de supprimer son monde.
 export async function deleteWorld(ownerId: string, worldId: string): Promise<void> {
   const world = await getWorld(ownerId, worldId);
+  const images = await prisma.image.findMany({
+    where: { worldId: world.id },
+    select: { key: true },
+  });
+  await Promise.all(
+    images.map(async (image) => {
+      try {
+        await storage.delete(image.key);
+      } catch (error) {
+        console.error(`[world] Purge de l'image ${image.key} échouée :`, error);
+      }
+    }),
+  );
   await prisma.world.delete({ where: { id: world.id } });
 }
