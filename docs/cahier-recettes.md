@@ -231,6 +231,26 @@
 - **Critères d'acceptation** : `npm run test:e2e` vert ; la base de dev (`story_tide`) reste inchangée pendant et après l'exécution (vérifié par comptage de lignes avant/après) ; la base e2e est repartie de zéro à chaque run (pas d'accumulation de données entre exécutions).
 - **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/smoke.spec.ts`, vérifié en conditions réelles contre un vrai navigateur Chromium et une vraie base Postgres)
 
+## TST-ENT-007 — Recherche basique par nom et par alias (KAN-17)
+
+- **Description** : dans la page d'un monde, un champ de recherche filtre en direct la liste des fiches par nom ou par alias, insensible à la casse et aux accents.
+- **Objectif** : vérifier que la recherche trouve une fiche par son nom même avec une casse différente, trouve une fiche par un alias qui ne correspond pas à son nom, et que la recherche reste scopée au monde courant (patron d'autorisation `getWorld`).
+- **Préconditions** : un monde contient au moins deux fiches, l'une avec un alias distinct de son nom.
+- **Étapes** : 1) Ouvrir la page du monde. 2) Saisir le nom d'une fiche (casse différente) dans le champ « Rechercher une fiche ». 3) Effacer et saisir l'alias d'une autre fiche.
+- **Résultat attendu** : à l'étape 2, seule la fiche dont le nom correspond apparaît ; à l'étape 3, seule la fiche dont l'alias correspond apparaît (par la fiche dont le nom ne correspond pas).
+- **Critères d'acceptation** : `searchEntities` (`entity-service.test.ts`) couvre nom/alias/casse/accents ; `e2e/entity-search.spec.ts` vérifié en conditions réelles (vrai navigateur, debounce, Server Action).
+- **Type** : fonctionnel · **Statut** : ⬜ à faire (exécuté sur staging)
+
+## TST-ENT-008 — Recherche sans correspondance et scope par monde (KAN-17)
+
+- **Description** : une recherche qui ne correspond à aucune fiche du monde courant.
+- **Objectif** : vérifier l'état vide explicite (pas un tableau vide silencieux côté UI) et que la recherche ne remonte jamais une fiche d'un autre monde.
+- **Préconditions** : un monde avec au moins une fiche.
+- **Étapes** : 1) Saisir une requête ne correspondant à aucune fiche. 2) Vérifier que le message « Aucune entité trouvée. » s'affiche.
+- **Résultat attendu** : message d'état vide explicite ; aucune fiche d'un autre monde ne peut jamais apparaître (la cascade d'autorisation `getWorld` revalide le `worldId` à chaque appel, `WorldNotFoundError` sinon — même garde-fou que le reste des fonctions de `entity-service.ts`, OWASP A01).
+- **Critères d'acceptation** : `searchEntities` renvoie `[]` sans erreur ; `e2e/entity-search.spec.ts` vérifie l'affichage du message vide.
+- **Type** : fonctionnel · **Statut** : ⬜ à faire (exécuté sur staging)
+
 ## TST-SEC-004 — Rejet d'un contenu hors du schéma strict de l'éditeur
 
 - **Description** : une requête de sauvegarde envoie un JSON contenant un node désactivé (ex. `codeBlock`) ou structurellement invalide, en contournant l'éditeur réel.

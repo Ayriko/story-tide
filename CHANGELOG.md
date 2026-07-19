@@ -258,6 +258,12 @@ stade (`[Unreleased]`).
   ghcr.io public, déploiement SSH gaté par un GitHub Environment `production`
   à approbation manuelle — staging automatique sur tag `-rc.N`). Le VPS ne
   build jamais. Scénarios `TST-SEC-009` à `TST-SEC-012` au cahier de recettes.
+- Recherche basique par nom et par alias (KAN-17) dans les entités du monde
+  courant, insensible à la casse et aux accents (`normalizeForMatch`, partagé
+  avec le moteur de liaison automatique) ; filtre en direct avec debounce dans
+  la page du monde (`searchEntities`, `entity-service.ts`, cascade
+  d'autorisation `getWorld`, OWASP A01). Scénarios `TST-ENT-007`/`TST-ENT-008`
+  au cahier de recettes.
 
 ### Corrigé
 
