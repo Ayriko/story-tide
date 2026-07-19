@@ -1,12 +1,21 @@
 import { prisma } from "@/db/client";
 import { slugify } from "@/lib/slugify";
+import { FREE_WORLD_LIMIT } from "@/lib/quotas";
 import type { CreateWorldInput, UpdateWorldInput } from "@/lib/world-schemas";
 import type { World } from "@/generated/prisma/client";
+import { WorldOrigin } from "@/generated/prisma/client";
 
 export class WorldNotFoundError extends Error {
   constructor() {
     super("Monde introuvable.");
     this.name = "WorldNotFoundError";
+  }
+}
+
+export class WorldQuotaExceededError extends Error {
+  constructor() {
+    super("Limite de mondes atteinte pour l'offre gratuite (3 maximum).");
+    this.name = "WorldQuotaExceededError";
   }
 }
 
@@ -36,7 +45,15 @@ async function resolveUniqueSlug(
   }
 }
 
+// Quota verifie avant resolveUniqueSlug (evite un travail inutile si la
+// creation sera de toute facon refusee). origin=USER explicite : un monde
+// INTRO (KAN-35) ou DEMO (compte de demonstration jury) ne compte jamais
+// parmi les FREE_WORLD_LIMIT mondes du proprietaire.
 export async function createWorld(ownerId: string, input: CreateWorldInput): Promise<World> {
+  const count = await prisma.world.count({ where: { ownerId, origin: WorldOrigin.USER } });
+  if (count >= FREE_WORLD_LIMIT) {
+    throw new WorldQuotaExceededError();
+  }
   const slug = await resolveUniqueSlug(ownerId, slugify(input.name));
   return prisma.world.create({ data: { ownerId, name: input.name, slug } });
 }

@@ -9,6 +9,7 @@ import {
   deleteWorld,
   updateWorld,
   WorldNotFoundError,
+  WorldQuotaExceededError,
 } from "@/services/world-service";
 import type { ZodError } from "zod";
 
@@ -62,6 +63,9 @@ export async function createWorldAction(
     const world = await createWorld(session.user.id, parsed.data);
     slug = world.slug;
   } catch (error) {
+    if (error instanceof WorldQuotaExceededError) {
+      return { formError: error.message, values };
+    }
     // Repli generique (erreur inattendue, ex. panne DB) : ne jamais avaler la
     // cause reelle derriere un message vague (cf. CLAUDE.md).
     console.error("[world] Création de monde échouée :", error);
