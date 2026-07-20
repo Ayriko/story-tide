@@ -9,7 +9,9 @@ import { createLinkHighlightExtension, MENTION_TARGET_ATTR } from "@/lib/tiptap-
 import type { Pattern } from "@/lib/linker/aho-corasick";
 import { saveEntityContentAction } from "@/actions/entity-content";
 import { uploadImageAction } from "@/actions/image";
-import { inputClassName, labelClassName, secondaryButtonClassName } from "@/app/(app)/form-styles";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createMentionSuggestion } from "./mention-suggestion";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
@@ -39,11 +41,9 @@ const INACTIVE_STATE: ActiveState = {
 };
 
 const toolbarButtonBase =
-  "rounded-md border px-2 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:outline-zinc-50";
-const toolbarButtonActive =
-  "border-zinc-950 bg-zinc-950 text-zinc-50 dark:border-zinc-50 dark:bg-zinc-50 dark:text-zinc-950";
-const toolbarButtonInactive =
-  "border-zinc-300 text-zinc-900 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-900";
+  "rounded-md border px-2 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50";
+const toolbarButtonActive = "border-primary bg-primary text-primary-foreground";
+const toolbarButtonInactive = "border-input text-foreground hover:bg-accent";
 
 function ToolbarButton({
   label,
@@ -84,25 +84,21 @@ function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
     <div className="relative">
       <ToolbarButton label="Lien" active={active} onClick={() => setOpen((value) => !value)} />
       {open ? (
-        <div className="absolute left-0 top-full z-10 mt-1 flex gap-2 rounded-md border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900">
-          <label className="sr-only" htmlFor="link-url">
+        <div className="absolute left-0 top-full z-10 mt-1 flex gap-2 rounded-md border border-border bg-popover p-2">
+          <Label className="sr-only" htmlFor="link-url">
             URL du lien
-          </label>
-          <input
+          </Label>
+          <Input
             id="link-url"
             type="url"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="https://…"
-            className={`${inputClassName} h-9 w-48`}
+            className="h-9 w-48"
           />
-          <button
-            type="button"
-            onClick={apply}
-            className={`${secondaryButtonClassName} h-9 px-3 text-xs`}
-          >
+          <Button type="button" variant="secondary" size="sm" onClick={apply}>
             Appliquer
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -158,59 +154,54 @@ function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) 
     <div className="relative">
       <ToolbarButton label="Image" onClick={() => setOpen((value) => !value)} />
       {open ? (
-        <div className="absolute left-0 top-full z-10 mt-1 flex flex-col gap-2 rounded-md border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="absolute left-0 top-full z-10 mt-1 flex flex-col gap-2 rounded-md border border-border bg-popover p-2">
           {error ? (
-            <p role="alert" className="text-xs text-red-700 dark:text-red-400">
+            <p role="alert" className="text-xs text-destructive">
               {error}
             </p>
           ) : null}
           <div className="flex flex-col gap-1">
-            <label htmlFor="image-file" className={labelClassName}>
-              Téléverser une image
-            </label>
+            <Label htmlFor="image-file">Téléverser une image</Label>
             <input
               id="image-file"
               type="file"
               accept="image/png,image/jpeg,image/gif,image/webp"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              className="w-56 text-xs text-zinc-700 dark:text-zinc-300"
+              className="w-56 text-xs text-muted-foreground"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="image-url" className={labelClassName}>
-              …ou URL de l&apos;image
-            </label>
-            <input
+            <Label htmlFor="image-url">…ou URL de l&apos;image</Label>
+            <Input
               id="image-url"
               type="url"
               value={url}
               disabled={file !== null}
               onChange={(event) => setUrl(event.target.value)}
               placeholder="https://…"
-              className={`${inputClassName} h-9 w-56 disabled:cursor-not-allowed disabled:opacity-50`}
+              className="h-9 w-56"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="image-alt" className={labelClassName}>
-              Texte alternatif
-            </label>
-            <input
+            <Label htmlFor="image-alt">Texte alternatif</Label>
+            <Input
               id="image-alt"
               type="text"
               value={alt}
               onChange={(event) => setAlt(event.target.value)}
-              className={`${inputClassName} h-9 w-56`}
+              className="h-9 w-56"
             />
           </div>
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => void apply()}
             disabled={!canInsert}
             aria-busy={uploading}
-            className={`${secondaryButtonClassName} h-9 px-3 text-xs`}
           >
             {uploading ? "Envoi…" : "Insérer"}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -411,9 +402,9 @@ export function EntityEditor({
         // pointille discret, jamais du texte plein (ne doit pas se confondre
         // avec un vrai lien "http" du node Link). Ctrl/Cmd+clic navigue
         // (handleMentionClick) ; sans modificateur, clic simple = edition.
-        className="min-h-[200px] rounded-md border border-zinc-200 px-3 py-2 text-sm text-zinc-950 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:focus-within:outline-zinc-50 [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:text-lg [&_h3]:font-semibold [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-zinc-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-zinc-600 dark:[&_blockquote]:border-zinc-700 dark:[&_blockquote]:text-zinc-400 [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-zinc-400 [&_.entity-mention]:underline-offset-2 dark:[&_.entity-mention]:decoration-zinc-600"
+        className="min-h-[200px] rounded-md border border-input px-3 py-2 text-sm text-foreground focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-lg [&_h3]:font-medium [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-muted-foreground [&_.entity-mention]:underline-offset-2"
       />
-      <p aria-live="polite" className="text-xs text-zinc-500 dark:text-zinc-400">
+      <p aria-live="polite" className="text-xs text-muted-foreground">
         {status === "saving" ? "Enregistrement…" : null}
         {status === "saved" ? "Enregistré." : null}
         {status === "error" ? (errorMessage ?? "Erreur d'enregistrement.") : null}
