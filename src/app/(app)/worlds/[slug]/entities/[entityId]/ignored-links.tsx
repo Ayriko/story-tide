@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { unignoreLinkAction, type LinkIgnoreFormState } from "@/actions/link-ignore";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import type { IgnoredTarget } from "@/services/relation-service";
 
 const initialState: LinkIgnoreFormState = {};
@@ -10,14 +12,16 @@ const initialState: LinkIgnoreFormState = {};
 function UnignoreButton() {
   const { pending } = useFormStatus();
   return (
-    <button
+    <Button
       type="submit"
+      variant="outline"
+      size="sm"
       disabled={pending}
       aria-busy={pending}
-      className="shrink-0 rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-50"
+      className="shrink-0"
     >
       {pending ? "..." : "Ne plus ignorer"}
-    </button>
+    </Button>
   );
 }
 
@@ -41,7 +45,7 @@ function UnignoreLinkForm({
       <input type="hidden" name="targetId" value={targetId} />
       <UnignoreButton />
       {state.formError ? (
-        <span role="alert" className="text-xs text-red-700 dark:text-red-400">
+        <span role="alert" className="text-xs text-destructive">
           {state.formError}
         </span>
       ) : null}
@@ -66,27 +70,22 @@ export function IgnoredLinks({
   targets: IgnoredTarget[];
 }) {
   if (targets.length === 0) {
-    return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Aucun lien ignoré pour l&apos;instant.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">Aucun lien ignoré pour l&apos;instant.</p>;
   }
 
   return (
     <ul className="flex flex-col gap-2">
       {targets.map((target) => (
-        <li
-          key={target.id}
-          className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-950 dark:border-zinc-800 dark:text-zinc-50"
-        >
-          <span>{target.name}</span>
-          <UnignoreLinkForm
-            worldId={worldId}
-            worldSlug={worldSlug}
-            entityId={entityId}
-            targetId={target.id}
-          />
+        <li key={target.id}>
+          <Card className="flex-row items-center justify-between px-4 py-3">
+            <span className="text-sm font-medium text-foreground">{target.name}</span>
+            <UnignoreLinkForm
+              worldId={worldId}
+              worldSlug={worldSlug}
+              entityId={entityId}
+              targetId={target.id}
+            />
+          </Card>
         </li>
       ))}
     </ul>
