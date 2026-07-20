@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { searchEntitiesAction } from "@/actions/entity";
 import { entityTypeLabel } from "@/lib/entity-schemas";
-import { inputClassName, labelClassName } from "@/app/(app)/form-styles";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import type { EntitySearchResult } from "@/services/entity-service";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -63,14 +65,11 @@ export function EntitySearch({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor="entity-search" className={labelClassName}>
-          Rechercher une fiche
-        </label>
-        <input
+        <Label htmlFor="entity-search">Rechercher une fiche</Label>
+        <Input
           type="search"
           id="entity-search"
           name="entity-search"
-          className={inputClassName}
           placeholder="Nom ou alias…"
           value={query}
           onChange={(event) => {
@@ -81,7 +80,7 @@ export function EntitySearch({
       </div>
 
       {errorMessage ? (
-        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+        <p role="alert" className="text-sm text-destructive">
           {errorMessage}
         </p>
       ) : null}
@@ -93,7 +92,7 @@ export function EntitySearch({
       </p>
 
       {results.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-muted-foreground">
           {query.trim().length === 0 ? "Aucune fiche pour le moment." : "Aucune entité trouvée."}
         </p>
       ) : (
@@ -102,12 +101,14 @@ export function EntitySearch({
             <li key={entity.id}>
               <Link
                 href={`/worlds/${worldSlug}/entities/${entity.id}`}
-                className="flex items-center justify-between rounded-md border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-950 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-900 dark:focus-visible:outline-zinc-50"
+                className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                <span>{entity.name}</span>
-                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                  {entityTypeLabel(entity.type)}
-                </span>
+                <Card className="flex-row items-center justify-between px-4 py-3 transition-colors hover:bg-accent">
+                  <span className="text-sm font-medium text-foreground">{entity.name}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {entityTypeLabel(entity.type)}
+                  </span>
+                </Card>
               </Link>
             </li>
           ))}
