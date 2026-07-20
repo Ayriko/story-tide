@@ -87,23 +87,19 @@ export default async function EntityPage({
       <div>
         <Link
           href={`/worlds/${world.slug}`}
-          className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
+          className="text-sm text-muted-foreground hover:text-foreground hover:underline"
         >
           ← {world.name}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
-          {entity.name}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {entityTypeLabel(entity.type)}
-        </p>
+        <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">{entity.name}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{entityTypeLabel(entity.type)}</p>
       </div>
 
       <section
         aria-labelledby="content-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-6"
       >
-        <h2 id="content-heading" className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+        <h2 id="content-heading" className="font-heading text-lg font-medium text-foreground">
           Contenu
         </h2>
         <EntityEditor
@@ -119,11 +115,11 @@ export default async function EntityPage({
 
       <section
         aria-labelledby="linked-entities-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-6"
       >
         <h2
           id="linked-entities-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+          className="font-heading text-lg font-medium text-foreground"
         >
           Entités liées
         </h2>
@@ -138,12 +134,9 @@ export default async function EntityPage({
 
       <section
         aria-labelledby="backlinks-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-6"
       >
-        <h2
-          id="backlinks-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
-        >
+        <h2 id="backlinks-heading" className="font-heading text-lg font-medium text-foreground">
           Mentionné par
         </h2>
         <LinkedEntities
@@ -156,12 +149,9 @@ export default async function EntityPage({
 
       <section
         aria-labelledby="ignored-links-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-6"
       >
-        <h2
-          id="ignored-links-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
-        >
+        <h2 id="ignored-links-heading" className="font-heading text-lg font-medium text-foreground">
           Liens ignorés
         </h2>
         <IgnoredLinks
@@ -174,11 +164,11 @@ export default async function EntityPage({
 
       <section
         aria-labelledby="edit-entity-section-heading"
-        className="flex flex-col gap-6 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-6 border-t border-border pt-6"
       >
         <h2
           id="edit-entity-section-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+          className="font-heading text-lg font-medium text-foreground"
         >
           Paramètres
         </h2>
