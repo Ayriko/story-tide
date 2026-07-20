@@ -40,22 +40,22 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
       <div>
         <Link
           href={`/worlds/${world.slug}`}
-          className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
+          className="text-sm text-muted-foreground hover:text-foreground hover:underline"
         >
           ← {world.name}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">Graphe</h1>
+        <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">Graphe</h1>
       </div>
 
       <GraphView worldSlug={world.slug} elements={elements} />
 
       <section
         aria-labelledby="graph-accessible-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-6"
       >
         <h2
           id="graph-accessible-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+          className="font-heading text-lg font-medium text-foreground"
         >
           Liste accessible
         </h2>

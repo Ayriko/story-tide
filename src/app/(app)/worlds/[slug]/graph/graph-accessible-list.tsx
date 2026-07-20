@@ -13,11 +13,7 @@ export function GraphAccessibleList({
   entries: AccessibleGraphEntry[];
 }) {
   if (entries.length === 0) {
-    return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Aucune relation pour l&apos;instant.
-      </p>
-    );
+    return <p className="text-sm text-muted-foreground">Aucune relation pour l&apos;instant.</p>;
   }
 
   return (
@@ -27,7 +23,7 @@ export function GraphAccessibleList({
           <li key={entry.id}>
             <Link
               href={`/worlds/${worldSlug}/entities/${entry.id}`}
-              className="text-sm font-medium text-zinc-950 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:text-zinc-50 dark:focus-visible:outline-zinc-50"
+              className="text-sm font-medium text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {entry.name}
             </Link>
@@ -36,7 +32,7 @@ export function GraphAccessibleList({
                 <li key={target.id}>
                   <Link
                     href={`/worlds/${worldSlug}/entities/${target.id}`}
-                    className="text-sm text-zinc-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:text-zinc-400 dark:focus-visible:outline-zinc-50"
+                    className="text-sm text-muted-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     → {target.name}
                   </Link>

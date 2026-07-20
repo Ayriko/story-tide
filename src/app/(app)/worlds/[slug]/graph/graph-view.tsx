@@ -146,24 +146,17 @@ export function GraphView({ worldSlug, elements }: { worldSlug: string; elements
   return (
     <div className="flex flex-col gap-3">
       <fieldset className="flex flex-col gap-3">
-        <legend className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Filtrer par type
-        </legend>
+        <legend className="mb-1 text-sm font-medium text-foreground">Filtrer par type</legend>
         {groupedEntityTypes().map(({ group, types }) => (
           <fieldset key={group} className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            <legend className="w-full text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-              {group}
-            </legend>
+            <legend className="w-full text-xs font-semibold text-muted-foreground">{group}</legend>
             {types.map((type) => (
-              <label
-                key={type}
-                className="flex items-center gap-1.5 text-sm text-zinc-700 dark:text-zinc-300"
-              >
+              <label key={type} className="flex items-center gap-1.5 text-sm text-foreground">
                 <input
                   type="checkbox"
                   checked={!hiddenTypes.has(type)}
                   onChange={() => toggleType(type)}
-                  className="h-4 w-4 rounded border-zinc-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 dark:border-zinc-700 dark:focus-visible:outline-zinc-50"
+                  className="h-4 w-4 rounded border-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 />
                 {entityTypeLabel(type)}
               </label>
@@ -175,7 +168,7 @@ export function GraphView({ worldSlug, elements }: { worldSlug: string; elements
         ref={containerRef}
         aria-hidden="true"
         data-testid="graph-canvas"
-        className="h-[600px] w-full rounded-md border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950"
+        className="h-[600px] w-full rounded-md border border-border bg-background"
       />
     </div>
   );
