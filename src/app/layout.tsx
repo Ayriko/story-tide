@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
+  // Fraunces expose des axes optiques variables (opsz) - registre "ecriture/
+  // recit" plus marque a l'usage titre (reference-vvd.md §2.2).
+  axes: ["opsz"],
 });
 
 export const metadata: Metadata = {
@@ -23,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="fr" className={`${inter.variable} ${fraunces.variable} h-full antialiased`}>
       {/* suppressHydrationWarning : des extensions navigateur (ex. ColorZilla,
           cz-shortcut-listen) injectent des attributs sur <body> avant
           l'hydratation React - faux positif documente, hors de portee de
