@@ -305,6 +305,15 @@ stade (`[Unreleased]`).
   monde (RGPD « purge monde + binaires », loggée, non bloquante).
   `loading="lazy"` sur le node `Image` de l'éditeur. Scénarios `TST-SEC-013`
   et `TST-ENT-010` au cahier de recettes.
+- Passe visuelle du parcours démo (KAN-36) : thème navy/mint (palette Bloc 1)
+  posé sur connexion/accueil → mondes → fiche d'entité → éditeur → backlinks
+  → graphe, via **shadcn/ui sur Radix Primitives** (composants vendored dans
+  `src/components/ui/` — voir ADR-0018). Aucun changement de logique métier,
+  d'autorisation, ni du schéma de nodes/décorations Tiptap ou du rendu
+  Cytoscape (ADR-0012). `EntityTypeCombobox` reconstruit sur le `Command` de
+  shadcn/`cmdk` (solde ADR-0016), comportement identique, les 7 tests
+  existants passent sans adaptation. Écrans hors parcours démo non touchés
+  (coexistence assumée, documentée à l'ADR).
 
 ### Corrigé
 

@@ -66,6 +66,65 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   `<nav aria-label="Graphe (liste accessible)">` + `<ul>` imbriquées de vrais
   `<Link>`, reflétant les mêmes relations que le canvas, navigable au Tab et
   annoncée normalement par un lecteur d'écran.
+- **Passe visuelle shadcn/ui sur Radix (2026-07-20, KAN-36, ADR-0018)** — thème
+  navy/mint (Bloc 1) posé sur le parcours démo entier (connexion → mondes →
+  fiche → éditeur → backlinks → graphe), composants vendored dans
+  `src/components/ui/` sur primitives `@radix-ui/*` (`Label`, `Popover`) et
+  `cmdk` (`Command`, solde ADR-0016 sur `EntityTypeCombobox`) :
+  - **Contraste vérifié par calcul, pas à l'œil** : chaque paire
+    texte/fond de la nouvelle palette a été passée par la formule de luminance
+    relative WCAG 2.1 avant d'être fixée dans `globals.css` (script Node
+    ponctuel, valeurs commentées en tête du fichier). Ça a **détecté une
+    régression avant livraison** : `--destructive` repris par réflexe du rouge
+    déjà utilisé dans l'ancien `form-styles.ts` (`#B91C1C`, pensé pour texte
+    sur fond clair) ne donnait que **1,86:1** en texte direct sur la nouvelle
+    surface sombre (INK) — largement sous le seuil 4,5:1. Remplacé par
+    l'équivalent clair (`#FCA5A5`, le grain que l'ancien code réservait déjà à
+    `dark:text-red-400` sans jamais l'appliquer par défaut) : 6,30:1 sur INK.
+    Même méthode pour le panneau de connexion translucide (`bg-card/45` sur
+    fond flouté) : contraste recalculé au pire cas (fond le plus clair
+    derrière le flou) avant de choisir l'opacité, jamais après.
+  - **Bascule Connexion/Inscription** (`auth-tabs.tsx`) : première version
+    posée avec `role="tablist"`/`role="tab"` + `aria-selected` — corrigé avant
+    livraison en `<nav>` + `aria-current="page"`, parce que ce sont deux
+    vraies navigations de page (changement d'URL), pas un panneau qui change
+    sans rechargement. `role="tab"` sans la navigation clavier fléchée qu'il
+    implique aurait été pire que pas de rôle du tout (un lecteur d'écran
+    annonce « onglet 1 sur 2 » puis les flèches ne font rien).
+  - **Focus visible sur les cartes-liens** (`worlds/page.tsx`,
+    `entity-search.tsx`, `linked-entities.tsx`) : premier essai avec l'anneau
+    de focus posé sur la `Card` (un `<div>` non focusable) et
+    `focus-visible:outline-none` sur le `<Link>` réellement focusable
+    au-dessus — aurait supprimé l'indicateur de focus sans le remplacer.
+    Corrigé : l'anneau `focus-visible:outline` reste sur l'élément natif
+    réellement focusable (le `<Link>`), jamais sur un conteneur décoratif.
+  - **`EntityTypeCombobox` sur `cmdk`** (solde ADR-0016) : `Command` posé avec
+    `shouldFilter={false}` — l'architecture de filtrage (état contrôlé,
+    substring, pas le scoring flou par défaut de `cmdk`) reste identique à
+    l'ancien composant, `cmdk` n'apporte que le rendu ARIA
+    (combobox/listbox/option) et la navigation clavier (flèches/Entrée/
+    Home/End), déjà audités plutôt que réimplémentés à la main. Les 7 tests
+    existants (clavier : `ArrowDown`/`Enter`/`Échap`, filtrage, `blur`)
+    passent **sans aucune adaptation** — meilleur que ce que l'ADR-0016
+    anticipait. Deux lacunes d'environnement jsdom découvertes au passage et
+    corrigées en polyfills globaux (`vitest.setup.ts`, pas de bidouille par
+    test) : `ResizeObserver` et `Element.scrollIntoView`, tous deux utilisés
+    en interne par `cmdk`, absents de jsdom.
+  - **Surlignage AUTO / mentions manuelles** (`entity-mention`, partagé par
+    construction entre décorations live et nœuds mention persistés,
+    `tiptap-mention-attrs.ts`) : couleur de la décoration (soulignement
+    pointillé) re-tintée sur la nouvelle palette, l'indice **non-couleur**
+    (le pointillé lui-même) conservé à l'identique — c'est lui qui satisfait
+    « jamais par la couleur seule », pas une distinction nouvelle entre les
+    deux mécanismes (qui partagent délibérément le même traitement visuel,
+    par design antérieur à cette session).
+  - **Point de vigilance non corrigé, hors périmètre assumé** : la couleur des
+    arêtes du graphe Cytoscape (`#52525B`, dans le tableau `style:` que
+    ADR-0012 réserve explicitement) n'offrait déjà que ~2,57:1 sur l'ancien
+    fond — sous le seuil 3:1 (objets graphiques, WCAG 1.4.11). Antérieur à
+    cette session, pas aggravé (conteneur reposé sur le token le plus sombre
+    de la palette), mais pas corrigé — à reprendre si le rendu Cytoscape
+    lui-même est un jour retouché.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
@@ -126,3 +185,16 @@ d'assertion a11y dédiée, voir ci-dessous).
   "Graphe (liste accessible)" })`) — preuve que le chemin clavier fonctionne
   indépendamment du canvas Cytoscape, toujours pas un remplacement d'un audit
   axe-core pleine page.
+- **Passe visuelle KAN-36 (2026-07-20)** : l'extension Chrome de pilotage a de
+  nouveau timeout dès la première page (voir dev-log, même incident récurrent
+  que le 2026-07-14/15) — pas de parcours clavier Tab-par-Tab observé
+  visuellement cette session sur le parcours démo restylé. Vérifié à la
+  place : les 9 specs e2e (Playwright, vrai navigateur) passent sur chaque
+  écran retouché, y compris `entity-type-combobox.test.tsx` qui exerce de
+  vraies séquences clavier (`user.keyboard("{ArrowDown}{ArrowDown}{Enter}")`,
+  `{Escape}`) via `@testing-library/user-event` — pas de simple clic
+  programmatique. **Reste un vrai gap, pas silencieux** : un balayage Tab
+  complet du parcours démo (focus visible partout, ordre logique) n'a pas été
+  fait dans un vrai navigateur cette session — à faire manuellement par
+  Aymeric ou lors d'une prochaine session avec l'extension fonctionnelle,
+  avant la recette sur staging (spec §6).
