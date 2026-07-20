@@ -64,3 +64,73 @@
 | 2026-07-20 | Test e2e : `expect(locator).toBeVisible()` échoue (« Received: hidden ») alors que l'upload fonctionne réellement | Fixture PNG 1×1 px + `loading="lazy"` : `toBeVisible()` ne prouve pas qu'une image a fini de charger | Remplacé par `img.complete && img.naturalWidth > 0` via `expect.poll` |
 | 2026-07-20 | `FATAL ERROR: Committing semi space failed. Allocation failed - JavaScript heap out of memory` (webServer Playwright) | 8 workers parallèles contre un seul `webServer` Next.js dev, une fois la 9e spec e2e ajoutée | `npx playwright test --workers=2` pour cette session |
 | 2026-07-20 | Run e2e suivant resté figé sans sortie après le crash OOM | `reuseExistingServer` a réutilisé silencieusement le `webServer`/worker restés vivants (mais morts fonctionnellement) après le crash | `Get-CimInstance ... CreationDate` pour identifier les orphelins, `taskkill /F /T`, puis relance propre |
+
+---
+
+### Session — 2026-07-20 (suite) — CI e2e : rendre le check vert (KAN-16)
+
+**Thèmes abordés :**
+- Le check `e2e` de la PR `feat/kan-16-upload-images` a échoué 4 fois de suite après merge de la feature — MinIO n'avait jamais tourné en CI avant KAN-16 (premier ticket à l'exercer réellement, cf. gotcha e2e ci-dessus).
+
+**Décisions prises :**
+- `services:` GitHub Actions abandonné pour MinIO au profit d'un `docker run` manuel dans deux steps dédiés (« Démarrer MinIO » / « Créer le bucket MinIO ») — un service GHA ne peut pas fournir d'arguments de commande (`server /data`), or `minio/minio` en a besoin pour démarrer.
+- Identifiants MinIO/mc dérivés des variables d'env `S3_*` du workflow (pas de valeurs dupliquées en dur dans les steps) — source unique, ne peut pas diverger.
+- `BETTER_AUTH_URL` overridé au niveau du job `e2e` (`http://localhost:3100`), même patron que l'override déjà existant sur `DATABASE_URL` — les deux existent parce que ce job seul touche de vrais services, contrairement aux placeholders Zod-valides du niveau workflow.
+
+**Éléments notables / appris (gotchas) :**
+- **Catalogue Docker Hub Bitnami, 2025** : la plupart des images `bitnami/*` ont perdu leur tag `:latest` gratuit (déplacé vers `bitnamilegacy`, le namespace `bitnami/*` actuel nécessite majoritairement un abonnement payant). `bitnami/minio:latest` ne se résout plus (`manifest unknown`) — à garder en tête pour toute autre image Bitnami future.
+- **Contrainte de démarrage MinIO** : `MINIO_ROOT_USER` doit faire ≥ 3 caractères, sinon le process quitte immédiatement après création du conteneur — sans message d'erreur direct, juste un healthcheck qui time out (`exit code 124`). Diagnostiqué par déduction (mode plan, sans log MinIO direct) ; `docker logs` ajouté après coup pour la prochaine fois.
+- **Fausse piste `loading="lazy"`** : le test `image-upload.spec.ts` échouait à `expectImageLoaded` (5000ms puis 15000ms même après `scrollIntoViewIfNeeded`) — le commentaire préexistant du test sur l'IntersectionObserver rendait cette explication très plausible, mais un timeout de 15s sur une fixture de 68 octets qui échoue de façon 100% reproductible ne peut pas être un simple problème de timing. La vraie cause était ailleurs (voir suivant).
+- **`.env.e2e` gitignoré ⇒ absent en CI** : `playwright.config.ts` lance toujours `next dev` sur le port **3100**, mais rien dans le workflow ne le disait à la CI — le `BETTER_AUTH_URL` utilisé restait le placeholder `:3000` du niveau workflow (jamais réellement branché ailleurs). `uploadImage()` persiste `src` en `${BETTER_AUTH_URL}/api/media/<id>` : toutes les images de la CI pointaient donc vers un port où rien n'écoutait — c'était la cause racine réelle, pas le lazy-loading.
+
+**Livrables produits (complément) :**
+- `.github/workflows/ci.yml` : `S3_ACCESS_KEY` ≥ 3 caractères, steps MinIO dérivés de l'env + diagnostics `docker logs`, override `BETTER_AUTH_URL` du job `e2e`.
+- `e2e/image-upload.spec.ts` : `scrollIntoViewIfNeeded()` + poll 15s dans `expectImageLoaded` — durcissement légitime conservé, mais n'était pas la cause de l'échec.
+- Gate : `e2e` CI ✅ (confirmé vert par Aymeric).
+
+**À faire / suite (complément) :**
+- Rien de nouveau committé par cette session de débogage au-delà des 3 commits `fix(ci)`/`fix(e2e)` déjà poussés sur `feat/kan-16-upload-images` — la PR est prête à merger une fois la CI confirmée verte sur GitHub.
+
+---
+
+### Session — 2026-07-20 (suite 2) — KAN-36 : passe visuelle, P2 (Dialogs) et P3 (dashboard de monde)
+
+**Thèmes abordés :**
+- Passe visuelle shadcn/ui sur Radix (P1/P1-bis/P1-ter) : shell app (sidebar repliable, TopBar unifiée, breadcrumb) — déjà couvert par les entrées précédentes, non détaillé de nouveau ici.
+- **P2** : sortie des formulaires inline (création/renommage/suppression de monde et de fiche) vers des `Dialog`/`AlertDialog` Radix.
+- Correctif combobox (3 itérations, cf. gotchas) sur `EntityTypeCombobox`.
+- **P3** : dashboard de monde (« De retour à l'œuvre ») — fiches récentes, panneau graphe permanent, chips d'action rapide, compteurs.
+
+**Décisions prises :**
+- Bouton de suppression dans un `AlertDialog` : jamais `AlertDialogAction` — son `onClick` referme le calque de façon synchrone avant qu'une Server Action asynchrone ait pu renvoyer une erreur ; un `Button` simple suffit puisque le succès `redirect()` démonte tout le Dialog et l'échec le laisse ouvert avec l'erreur visible.
+- Tri « fiches récentes » (P3b) : **tri de lecture uniquement**, dans la page (`[...entities].sort(...)`) — `listEntities` reste inchangé (`orderBy: createdAt`, partagé par la sidebar et le graphe), `EntityRecord` exposait déjà `updatedAt`. Zéro service touché, plus strict que ce que le garde-fou du plan autorisait.
+- Panneau graphe du dashboard : réutilisation du `GraphView` existant via deux props optionnelles (`showFilters`, `canvasClassName`), pas un composant dupliqué — `/graph` (filtres complets, 600px) reste le seul chemin accessible (clavier + liste), le panneau miniature n'est qu'un aperçu non interactif au clavier avec un bouton « Agrandir ».
+- Chip « Rechercher » : ne recrée aucun champ — délègue le focus à la recherche déjà existante de la sidebar via un événement DOM privé (même patron que l'événement de repli de sidebar posé en P1-ter), en dépliant la sidebar au passage si repliée.
+
+**Éléments notables / appris (gotchas) :**
+- **Combobox — 3 itérations avant la bonne solution.** (1) Panneau en `<div absolute>` simple, rogné par l'`overflow-hidden` du `Card` qui le contenait (bloc P1/P2 initial) → passage à `Popover`/`PopoverContent` (Portal Radix). (2) Régression : `PopoverAnchor` n'est pas exempté par Radix de sa détection « clic en dehors » (contrairement à `PopoverTrigger`) → fermeture instantanée au focus, contournée involontairement en cliquant sur l'icône loupe (tick différent). Neutralisé via `onPointerDownOutside`/`onInteractOutside`/`onFocusOutside` + icône corrigée (chevron au lieu de loupe). (3) Nouvelle régression signalée par Aymeric : la molette ne scrollait plus (seul le clavier, via `scrollIntoView()`, fonctionnait) — le Popover se porte hors du DOM du Dialog (portails frères sous `<body>`), et le verrou de scroll modal du Dialog bloquait la molette sur ce contenu porté ailleurs. **Solution finale** : retour à l'architecture d'origine (`<div absolute>` simple, sans Portal) — devenue sûre car ce composant ne vit plus jamais dans un `Card` depuis P2 (uniquement dans `DialogContent`, sans `overflow-hidden`) ; suppression complète de la mécanique Popover plutôt qu'un nouveau contournement. Confirmé par Aymeric : clavier et molette fonctionnels, icône correcte.
+- **Faux hang e2e, cette fois réel.** Après relance du run e2e pour P3, le process est resté à zéro sortie pendant plus de 9 minutes sans qu'aucun `next dev` ni écouteur sur le port 3100 n'existe (`Get-NetTCPConnection`/`curl` négatifs) — contrairement au gotcha connu (pipe bloqué par un orphelin alors que le test avait réellement fini), ici le serveur web n'avait tout simplement jamais démarré. Tâche arrêtée (`TaskStop`), workers orphelins nettoyés, relance **sans** le `| tail -150` habituel (susceptible de masquer une sortie déjà écrite si le pipe reste ouvert) — la relance a immédiatement progressé normalement. Cause racine du premier blocage non identifiée avec certitude (probable contention au tout premier lancement de `next dev` en arrière-plan) ; à surveiller si ça se reproduit.
+- **Collision de nom accessible, provoquée par le dashboard lui-même.** La chip « Nouvelle fiche » du dashboard réutilise `CreateEntityDialog` (bon réflexe DRY) mais avec le même texte que le bouton déjà présent dans la sidebar — les deux montés simultanément sur `/worlds/[slug]` cassent `getByRole("button",{name:"+ Nouvelle fiche"})` (violation « strict mode ») sur 8 specs e2e d'un coup. Corrigé à la source (prop `triggerLabel` sur `CreateEntityDialog`, la chip dashboard utilise « Nouvelle fiche » sans le préfixe `+`) plutôt qu'en re-scopant chaque spec.
+- **Même famille de bug, deuxième occurrence.** `entity-search.spec.ts` utilisait `page.getByRole("list")` sans le scoper — fonctionnait tant qu'une seule liste existait sur `/worlds/[slug]` ; le nouveau panneau « Fiches récentes » du dashboard en ajoute une deuxième. Corrigé en scopant au `<nav aria-label="Fiches du monde">` de la sidebar (le scope que le test visait réellement depuis le début).
+
+**Commandes utiles de la session :**
+- `Get-NetTCPConnection -LocalPort 3100` + `curl -sS -m 5 http://localhost:3100/` — distingue un vrai serveur dev qui répond d'un port mort, plus fiable qu'attendre une sortie qui ne viendra jamais si le webServer n'a jamais démarré.
+- Éviter `npx playwright test ... | tail -N` en arrière-plan sous Windows : si un descendant garde le pipe ouvert, `tail` (sans `-f`) n'affiche jamais rien même si le process a déjà tout écrit et quitté — lancer la commande seule et lire le fichier de sortie du harness directement.
+
+**Livrables produits :**
+- P2 : `Dialog`/`AlertDialog` pour création/renommage/suppression (monde et fiche), formulaires devenus sans en-tête propre.
+- Correctif combobox : `entity-type-combobox.tsx` (architecture finale documentée en tête de fichier), 8e test de non-régression clavier.
+- P3 : `worlds/[slug]/page.tsx` (dashboard), `entity-type-icon.tsx` (extraction), `dashboard-search-chip.tsx`, `graph-view.tsx` (+`showFilters`/`canvasClassName`), `create-entity-dialog.tsx` (+`triggerLabel`), `world-shell.tsx`/`entity-search.tsx` (événement `story-tide:focus-search`).
+- Docs : `docs/accessibilite-rgaa.md` (Dialogs P2, dashboard P3), `docs/cahier-recettes.md` (`TST-MND-006`, `TST-MND-007`).
+- Gates : lint ✅ 0 warning · typecheck ✅ · tests ✅ 310/310, couverture **98,74 %** · build ✅ · e2e ✅ 9/9 (`--workers=2`).
+
+**Avancement certification :**
+- **C2.2.1** : aucun service/action/schéma touché pour P3 ; `GraphView` étendu par des props optionnelles rétrocompatibles, pas dupliqué.
+- **C2.2.2** : couverture maintenue à 98,74 % sans nouveau test unitaire dédié (P3 = composition de briques déjà testées) ; 2 bugs e2e réels détectés et corrigés par les gates existants, pas de nouveau test requis (collisions de nommage, pas de nouvelle logique).
+- **C2.2.3** : dashboard entièrement navigable au clavier hormis le canvas Cytoscape (affordance souris assumée, équivalent accessible sur `/graph`), `<h1>` unique conservé, icônes toujours accompagnées de texte.
+- **C2.3.1** : `TST-MND-006`/`TST-MND-007` ajoutés (cas passant + état vide).
+
+**À faire / suite :**
+- **Vérification visuelle manuelle par Aymeric requise avant de considérer P3 terminé** (jamais faite par Claude in Chrome, conformément à la consigne de session).
+- **État git à trancher par Aymeric** : P1-ter, P2 (Dialogs) et P3 (dashboard) sont tous les trois encore non committés dans le même arbre de travail — aucune des commandes de commit « un écran = un commit » proposées phase par phase n'a été exécutée entre-temps. Décision à prendre : un commit unique couvrant les trois phases, ou un découpage manuel (`git add -p`) par Aymeric.
+- P4 (fiche entité, pattern cardHeader), P5 (graphe plein écran depuis le panneau du dashboard), P5b (palette Ctrl+K, panneau raccourcis) restent à faire si le temps le permet avant le gel du 24/07.

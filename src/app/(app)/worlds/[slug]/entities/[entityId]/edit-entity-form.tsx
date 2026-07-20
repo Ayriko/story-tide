@@ -18,6 +18,10 @@ function SubmitButton() {
   );
 }
 
+// Formulaire nu (KAN-36 P2) : le titre vient du DialogTitle du Dialog
+// englobant (entity-settings-dialog.tsx). Succes = updateEntityAction
+// redirige (actions/entity.ts), echec = l'etat re-affiche l'erreur dans le
+// Dialog toujours ouvert.
 export function EditEntityForm({
   worldId,
   worldSlug,
@@ -39,16 +43,7 @@ export function EditEntityForm({
   const [state, formAction] = useActionState(updateEntityAction, initialState);
 
   return (
-    <form
-      action={formAction}
-      noValidate
-      aria-labelledby="edit-entity-heading"
-      className="flex flex-col gap-3"
-    >
-      <h3 id="edit-entity-heading" className="font-heading text-sm font-medium text-foreground">
-        Modifier la fiche
-      </h3>
-
+    <form action={formAction} noValidate className="flex flex-col gap-3">
       <input type="hidden" name="worldId" value={worldId} />
       <input type="hidden" name="worldSlug" value={worldSlug} />
       <input type="hidden" name="entityId" value={entityId} />

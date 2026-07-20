@@ -10,7 +10,9 @@ import type { EntitySearchResult } from "@/services/entity-service";
 import { LocalClock } from "../../local-clock";
 import { TopBar } from "../../top-bar";
 import { UserMenu } from "../../user-menu";
+import { FOCUS_SEARCH_EVENT } from "./entity-search";
 import { Sidebar } from "./sidebar";
+import { WorldSettingsDialog } from "./world-settings-dialog";
 
 const COLLAPSE_STORAGE_KEY = "story-tide:sidebar-collapsed";
 // Evenement DOM prive (pas "storage", qui ne se declenche que dans les
@@ -86,6 +88,20 @@ export function WorldShell({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // Chip "Rechercher" du dashboard (KAN-36 P3) : deplie la sidebar si repliee
+  // avant que entity-search.tsx (meme evenement, ecouteur separe) ne mette le
+  // focus dans le champ - sinon le champ reste focusable mais visuellement
+  // clippe (largeur 0) tant que la sidebar est repliee.
+  useEffect(() => {
+    function onFocusSearch() {
+      if (getSnapshot()) {
+        setCollapsedPersisted(false);
+      }
+    }
+    window.addEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
+    return () => window.removeEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
+  }, []);
+
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <div
@@ -107,7 +123,7 @@ export function WorldShell({
                 size="icon"
                 onClick={() => setCollapsedPersisted(!collapsed)}
                 aria-label={
-                  collapsed ? "Afficher la liste des fiches" : "Masquer la liste des fiches"
+                  collapsed ? "Afficher la liste des entrées" : "Masquer la liste des entrées"
                 }
               >
                 {collapsed ? (
@@ -143,6 +159,7 @@ export function WorldShell({
           }
           right={
             <>
+              <WorldSettingsDialog worldId={worldId} worldName={worldName} />
               <LocalClock />
               <UserMenu name={userName} email={userEmail} />
             </>

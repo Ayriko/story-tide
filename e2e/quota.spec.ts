@@ -15,6 +15,7 @@ test("le quota de mondes bloque la creation au-dela de 3 mondes gratuits", async
   await page.waitForURL("**/worlds");
 
   for (let i = 1; i <= 3; i++) {
+    await page.getByRole("button", { name: "+ Nouveau monde" }).click();
     await page.getByLabel("Nom du monde").fill(`Monde Quota ${i} ${Date.now()}`);
     await page.getByRole("button", { name: "Créer le monde" }).click();
     await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -22,6 +23,7 @@ test("le quota de mondes bloque la creation au-dela de 3 mondes gratuits", async
   }
 
   // 4e monde : bloque, reste sur /worlds (pas de redirection).
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(`Monde Quota 4 ${Date.now()}`);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await expect(
@@ -43,6 +45,7 @@ test("le quota d'entites bloque la creation au-dela de 50 fiches gratuites par m
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Entites ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -83,15 +86,17 @@ test("le quota d'entites bloque la creation au-dela de 50 fiches gratuites par m
 
   // 50e fiche (via UI) : juste sous la limite, doit reussir.
   await page.goto(worldUrl);
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(`Fiche 50 ${Date.now()}`);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // 51e fiche (via UI) : a la limite, doit etre bloquee.
   await page.goto(worldUrl);
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(`Fiche 51 ${Date.now()}`);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await expect(
-    page.getByText("Limite de fiches atteinte pour ce monde (offre gratuite : 50 maximum)."),
+    page.getByText("Limite d'entrées atteinte pour ce monde (offre gratuite : 50 maximum)."),
   ).toBeVisible();
 });

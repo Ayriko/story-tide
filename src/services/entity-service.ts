@@ -21,14 +21,14 @@ function toEntityRecord(entity: Entity & { aliases: Alias[] }): EntityRecord {
 
 export class EntityNotFoundError extends Error {
   constructor() {
-    super("Fiche introuvable.");
+    super("Entrée introuvable.");
     this.name = "EntityNotFoundError";
   }
 }
 
 export class EntityQuotaExceededError extends Error {
   constructor() {
-    super("Limite de fiches atteinte pour ce monde (offre gratuite : 50 maximum).");
+    super("Limite d'entrées atteinte pour ce monde (offre gratuite : 50 maximum).");
     this.name = "EntityQuotaExceededError";
   }
 }

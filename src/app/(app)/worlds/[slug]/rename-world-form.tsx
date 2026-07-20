@@ -16,21 +16,16 @@ function SubmitButton() {
   );
 }
 
+// Formulaire nu (KAN-36 P2) : le titre vient du DialogTitle du Dialog
+// englobant (world-settings-dialog.tsx). Succes = updateWorldAction redirige
+// (actions/world.ts), echec = l'etat re-affiche l'erreur dans le Dialog
+// toujours ouvert.
 export function RenameWorldForm({ worldId, name }: { worldId: string; name: string }) {
   const initialState: WorldFormState = { values: { name } };
   const [state, formAction] = useActionState(updateWorldAction, initialState);
 
   return (
-    <form
-      action={formAction}
-      noValidate
-      aria-labelledby="rename-world-heading"
-      className="flex flex-col gap-3"
-    >
-      <h3 id="rename-world-heading" className="font-heading text-sm font-medium text-foreground">
-        Renommer
-      </h3>
-
+    <form action={formAction} noValidate className="flex flex-col gap-3">
       <input type="hidden" name="worldId" value={worldId} />
 
       {state.formError ? (

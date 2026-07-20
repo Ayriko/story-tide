@@ -154,6 +154,26 @@
 - **Critères d'acceptation** : navigable sans souris (boutons natifs, pas de `window.confirm` bloquant) ; un clic sur « Annuler » n'entraîne aucune suppression.
 - **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteWorld` + `listWorlds` après suppression)
 
+## TST-MND-006 — Dashboard de monde : fiches récentes, panneau graphe, actions rapides (KAN-36 P3)
+
+- **Description** : la page d'accueil d'un monde (`/worlds/[slug]`) affiche les fiches les plus récemment modifiées, un panneau graphe permanent (aperçu du même graphe que `/worlds/[slug]/graph`), des chips d'action rapide (« Nouvelle fiche », « Rechercher ») et des compteurs (fiches par catégorie, dernière modification).
+- **Objectif** : vérifier que l'ordre des fiches récentes suit bien la date de modification (pas de création), que le panneau graphe reflète les entités/relations réelles avec un accès « Agrandir » vers la vue complète, et que les actions rapides fonctionnent sans dupliquer de logique existante.
+- **Préconditions** : un monde contient plusieurs fiches, dont certaines modifiées après leur création (ordre `createdAt` et `updatedAt` divergents).
+- **Étapes** : 1) Ouvrir `/worlds/[slug]`. 2) Modifier une fiche ancienne puis revenir à l'accueil. 3) Vérifier son rang dans « Fiches récentes ». 4) Cliquer « Agrandir » sur le panneau graphe. 5) Cliquer la chip « Nouvelle fiche », puis « Rechercher ».
+- **Résultat attendu** : la fiche modifiée remonte en tête de « Fiches récentes » (tri `updatedAt` décroissant) ; « Agrandir » navigue vers `/worlds/[slug]/graph` (filtres + liste accessible complets) ; « Nouvelle fiche » ouvre le Dialog de création ; « Rechercher » déplie la sidebar si repliée et place le focus dans son champ de recherche existant.
+- **Critères d'acceptation** : tri de lecture uniquement, aucun service modifié (`listEntities` reste trié par `createdAt`, inchangé pour la sidebar/le graphe) ; le panneau miniature n'expose aucun filtre clavier dupliqué (l'équivalent accessible complet reste sur `/graph`) ; vérifié en conditions réelles (`e2e/smoke.spec.ts`, `e2e/graph.spec.ts`, `e2e/entity-search.spec.ts` — parcours passant par `/worlds/[slug]` inchangés après l'ajout du dashboard) + vérification manuelle Aymeric.
+- **Type** : fonctionnel · **Statut** : ✅ (gates automatisés : lint, `tsc`, 310/310 tests unitaires à 98,74 % de couverture, build, 9/9 e2e) — vérification manuelle Aymeric en attente.
+
+## TST-MND-007 — Dashboard de monde : monde sans fiche (état vide)
+
+- **Description** : un monde nouvellement créé, sans aucune fiche, affiche son dashboard.
+- **Objectif** : vérifier qu'aucune erreur ne survient et qu'un état vide explicite est affiché plutôt qu'une liste/graphe silencieusement absents.
+- **Préconditions** : un monde vient d'être créé, aucune fiche n'existe encore.
+- **Étapes** : 1) Créer un monde. 2) Observer sa page d'accueil sans créer de fiche.
+- **Résultat attendu** : « Fiches récentes » affiche « Aucune fiche pour le moment. » ; le panneau graphe se monte sans erreur (0 nœud, 0 arête) ; les compteurs par catégorie n'affichent que celles ayant au moins une fiche (aucune ligne à 0) ; aucune ligne « Dernière modification » (aucune date disponible).
+- **Critères d'acceptation** : pas d'exception serveur ni client sur un tableau d'entités vide (`buildGraphElements([], [])`, déjà couvert par `graph-elements.test.ts`) ; vérification manuelle Aymeric.
+- **Type** : fonctionnel (cas limite) · **Statut** : ✅ (couvert par construction : mêmes fonctions que TST-MND-006 sur un tableau vide, `graph-elements.test.ts`) — vérification manuelle Aymeric en attente.
+
 ## TST-SEC-002 — Accès à un monde d'autrui via URL directe
 
 - **Description** : un utilisateur connecté saisit directement l'URL `/worlds/<slug>` d'un monde qui ne lui appartient pas.

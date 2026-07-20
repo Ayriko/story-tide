@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { LocalClock } from "../local-clock";
 import { TopBar } from "../top-bar";
 import { UserMenu } from "../user-menu";
-import { CreateWorldForm } from "./create-world-form";
+import { CreateWorldDialog } from "./create-world-dialog";
 
 export const metadata: Metadata = {
   title: "Mes mondes",
@@ -47,11 +47,14 @@ export default async function WorldsPage() {
       >
         <Card className="w-full max-w-2xl border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
           <div className="flex flex-col gap-8 px-6 py-8 sm:px-8 sm:py-10">
-            <div>
-              <h1 className="font-heading text-2xl font-medium text-foreground">Mes mondes</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Crée un monde pour commencer à y écrire des fiches.
-              </p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h1 className="font-heading text-2xl font-medium text-foreground">Mes mondes</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Crée un monde pour commencer à y écrire des entrées.
+                </p>
+              </div>
+              <CreateWorldDialog />
             </div>
 
             {worlds.length === 0 ? (
@@ -74,8 +77,6 @@ export default async function WorldsPage() {
                 ))}
               </ul>
             )}
-
-            <CreateWorldForm />
           </div>
         </Card>
       </main>

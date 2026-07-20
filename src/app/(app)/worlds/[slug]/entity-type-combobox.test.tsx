@@ -77,6 +77,27 @@ describe("EntityTypeCombobox", () => {
     expect(hiddenValue(container)).toBe("flora");
   });
 
+  it("le dernier type du dernier groupe reste atteignable au clavier (non-regression : panneau rogne par un ancetre overflow-hidden)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
+    );
+
+    const input = screen.getByRole("combobox", { name: "Type" });
+    await user.click(input);
+    // 26 types au total (ENTITY_TYPES, entity-schemas.ts) - 25 ArrowDown depuis
+    // le premier (Personnage, index 0) atteint le dernier (Note, "Divers",
+    // dernier groupe). Avant le passage sur Popover/PopoverContent (portail
+    // Radix), le panneau etait un <div absolute> a l'interieur d'un
+    // conteneur overflow-hidden (Card) qui le rognait a l'affichage bien
+    // avant ce point.
+    await user.keyboard("{ArrowDown}".repeat(25));
+    expect(screen.getByRole("option", { name: "Note" })).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{Enter}");
+    expect(hiddenValue(container)).toBe("note");
+  });
+
   it("Echap ferme la liste sans changer la selection", async () => {
     const user = userEvent.setup();
     const { container } = render(

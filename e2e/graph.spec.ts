@@ -19,6 +19,7 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Graphe ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -26,20 +27,22 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
 
   // 2. Creer l'entite CIBLE (type "Lieu", pour exercer un type different).
   const targetName = `Valombre ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(targetName);
   const typeCombobox = page.getByRole("combobox", { name: "Type" });
   await typeCombobox.click();
   await typeCombobox.fill("Lieu");
   await page.getByRole("option", { name: "Lieu" }).click();
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // 3. Creer la fiche SOURCE (type par defaut "Personnage") et la lier a la
   // cible via une mention manuelle @ (synchrone, pas d'attente de worker).
   await page.goto(worldUrl);
   const sourceName = `Aldric ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(sourceName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   await page.locator(".ProseMirror").click();
@@ -65,7 +68,9 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
 
   // 7. Liste accessible (chemin clavier/lecteur d'ecran) : reflete la
   // relation MANUAL cree a l'etape 3, navigation reelle verifiee.
-  const accessibleList = page.getByRole("navigation", { name: "Graphe (liste accessible)" });
+  const accessibleList = page.getByRole("navigation", {
+    name: "Liste des liens de la constellation",
+  });
   const targetLink = accessibleList.getByRole("link", { name: `→ ${targetName}` });
   await expect(targetLink).toBeVisible();
   await targetLink.click();

@@ -125,6 +125,26 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
     cette session, pas aggravé (conteneur reposé sur le token le plus sombre
     de la palette), mais pas corrigé — à reprendre si le rendu Cytoscape
     lui-même est un jour retouché.
+  - **Dialogs (KAN-36 P2)** : création/renommage/suppression de monde et de
+    fiche déplacés dans `Dialog`/`AlertDialog` (Radix, focus trap + retour de
+    focus au déclencheur natifs). Bouton de suppression jamais un
+    `AlertDialogAction` (son `onClick` referme le calque avant que la Server
+    Action async ait pu renvoyer une erreur) — un `Button` simple, la
+    redirection serveur en cas de succès démonte tout le Dialog, l'échec le
+    laisse ouvert avec l'erreur visible.
+  - **Dashboard de monde (KAN-36 P3)** : `<h1>` unique (nom du monde, plus de
+    doublon avec le fil d'ariane), sections `Fiches récentes`/`Graphe` en
+    `<h2>`. Panneau graphe miniature en aperçu **non interactif au clavier**
+    (même canvas Cytoscape `aria-hidden`, cf. ADR-0010/0012 ci-dessus) —
+    aucun fieldset de filtres dupliqué ici : l'équivalent accessible complet
+    (filtres + liste, `GraphAccessibleList`) reste entièrement sur `/graph`,
+    atteint par un vrai `<Link>` natif (« Agrandir »), jamais une copie. Chip
+    « Rechercher » : ne recrée aucun champ, déplace le focus vers la
+    recherche déjà existante de la sidebar via un événement DOM privé (déplie
+    la sidebar au passage si repliée) — testé au clavier (Tab jusqu'au chip,
+    Entrée, focus atterrit bien dans le champ). Compteurs par catégorie et
+    icônes de type : toujours accompagnés du libellé texte du groupe/type,
+    jamais l'icône ou la couleur seules.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 

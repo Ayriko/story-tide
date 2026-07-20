@@ -80,7 +80,7 @@ describe("ignoreLinkAction", () => {
       formData({ worldId: "w1", worldSlug: "eldoria", entityId: "e1", targetId: "e2" }),
     );
 
-    expect(result).toEqual({ formError: "Fiche introuvable." });
+    expect(result).toEqual({ formError: "Entrée introuvable." });
   });
 
   it("retourne une erreur 'fiche introuvable' si l'entite n'existe pas", async () => {
@@ -92,7 +92,7 @@ describe("ignoreLinkAction", () => {
       formData({ worldId: "w1", worldSlug: "eldoria", entityId: "e1", targetId: "e2" }),
     );
 
-    expect(result).toEqual({ formError: "Fiche introuvable." });
+    expect(result).toEqual({ formError: "Entrée introuvable." });
   });
 
   it("retourne une erreur generique pour tout autre echec, loggue sans l'avaler", async () => {

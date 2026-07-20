@@ -111,7 +111,7 @@ describe("saveEntityContentAction", () => {
 
     const result = await saveEntityContentAction("w1", "e1", JSON.stringify(EMPTY_CONTENT));
 
-    expect(result).toEqual({ ok: false, error: "Fiche introuvable." });
+    expect(result).toEqual({ ok: false, error: "Entrée introuvable." });
   });
 
   it("retourne une erreur 'fiche introuvable' si l'entite n'existe pas", async () => {
@@ -120,7 +120,7 @@ describe("saveEntityContentAction", () => {
 
     const result = await saveEntityContentAction("w1", "e1", JSON.stringify(EMPTY_CONTENT));
 
-    expect(result).toEqual({ ok: false, error: "Fiche introuvable." });
+    expect(result).toEqual({ ok: false, error: "Entrée introuvable." });
   });
 
   it("retourne une erreur generique pour tout autre echec du service", async () => {

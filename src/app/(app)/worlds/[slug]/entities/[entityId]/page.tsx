@@ -12,9 +12,8 @@ import {
 } from "@/services/relation-service";
 import { entityTypeLabel } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
-import { EditEntityForm } from "./edit-entity-form";
-import { DeleteEntityForm } from "./delete-entity-form";
 import { EntityEditor } from "./entity-editor";
+import { EntitySettingsDialog } from "./entity-settings-dialog";
 import { IgnoredLinks } from "./ignored-links";
 import { LinkedEntities } from "./linked-entities";
 
@@ -84,15 +83,27 @@ export default async function EntityPage({
 
   return (
     <div className="flex flex-col gap-10">
-      <div>
-        <Link
-          href={`/worlds/${world.slug}`}
-          className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-        >
-          ← {world.name}
-        </Link>
-        <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">{entity.name}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{entityTypeLabel(entity.type)}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <Link
+            href={`/worlds/${world.slug}`}
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            ← {world.name}
+          </Link>
+          <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">{entity.name}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{entityTypeLabel(entity.type)}</p>
+        </div>
+        {/* Position provisoire (KAN-36 P2) : le vrai emplacement (cardHeader
+            dense) arrive en P4. */}
+        <EntitySettingsDialog
+          worldId={world.id}
+          worldSlug={world.slug}
+          entityId={entity.id}
+          name={entity.name}
+          type={entity.type}
+          aliases={entity.aliases}
+        />
       </div>
 
       <section
@@ -121,12 +132,12 @@ export default async function EntityPage({
           id="linked-entities-heading"
           className="font-heading text-lg font-medium text-foreground"
         >
-          Entités liées
+          Renvois
         </h2>
         <LinkedEntities
           worldSlug={world.slug}
           links={linkedEntities}
-          label="Entités liées"
+          label="Renvois"
           emptyLabel="Aucune entité liée pour l'instant."
           ignoreContext={{ worldId: world.id, worldSlug: world.slug, entityId: entity.id }}
         />
@@ -137,13 +148,13 @@ export default async function EntityPage({
         className="flex flex-col gap-2 border-t border-border pt-6"
       >
         <h2 id="backlinks-heading" className="font-heading text-lg font-medium text-foreground">
-          Mentionné par
+          Échos
         </h2>
         <LinkedEntities
           worldSlug={world.slug}
           links={backlinks}
-          label="Mentionné par"
-          emptyLabel="Aucune fiche ne mentionne cette entité pour l'instant."
+          label="Échos"
+          emptyLabel="Aucune entrée ne mentionne cette entité pour l'instant."
         />
       </section>
 
@@ -160,27 +171,6 @@ export default async function EntityPage({
           entityId={entity.id}
           targets={ignoredTargets}
         />
-      </section>
-
-      <section
-        aria-labelledby="edit-entity-section-heading"
-        className="flex flex-col gap-6 border-t border-border pt-6"
-      >
-        <h2
-          id="edit-entity-section-heading"
-          className="font-heading text-lg font-medium text-foreground"
-        >
-          Paramètres
-        </h2>
-        <EditEntityForm
-          worldId={world.id}
-          worldSlug={world.slug}
-          entityId={entity.id}
-          name={entity.name}
-          type={entity.type}
-          aliases={entity.aliases}
-        />
-        <DeleteEntityForm worldId={world.id} worldSlug={world.slug} entityId={entity.id} />
       </section>
     </div>
   );

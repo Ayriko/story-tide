@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
+import { Command as CommandPrimitive } from "cmdk";
+import { ChevronsUpDown } from "lucide-react";
 import {
   ENTITY_TYPE_REFERENCE,
   entityTypeLabel,
@@ -8,13 +10,8 @@ import {
   type EntityType,
 } from "@/lib/entity-schemas";
 import { Label } from "@/components/ui/label";
-import {
-  Command,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 
 // Combobox base sur le Command de shadcn/cmdk (KAN-36, solde ADR-0016) -
 // remplace l'implementation interne posee par KAN-18 en attendant ce
@@ -23,6 +20,40 @@ import {
 // filtrage substring de l'ancien composant, cmdk n'apporte que le rendu ARIA
 // (combobox/listbox/option) et la navigation clavier (fleches/Entree/Home/
 // End), deja audites plutot que reimplementes a la main.
+//
+// Panneau d'options en <div absolute> simple (PAS Popover/PopoverContent -
+// deux tentatives essayees puis abandonnees, cf. historique) :
+// 1) v1 (KAN-36) : le panneau vivait dans un `Card` (`overflow-hidden` dans
+//    sa classe de base) - tout ce qui depassait du bord de la carte etait
+//    rogne a l'affichage, ni la molette ni le clavier ne pouvaient
+//    "recuperer" un contenu paint-clippe. Fixe en passant par
+//    Popover/PopoverContent (Portal Radix, jamais soumis a l'overflow d'un
+//    ancetre).
+// 2) Ce fix a lui-meme introduit deux regressions (constatees par Aymeric) :
+//    `PopoverAnchor` n'est pas exempte par Radix de sa detection "interaction
+//    en dehors" (contrairement a `PopoverTrigger`) -> fermeture instantanee
+//    au focus ; et une fois ouvert, le SCROLL A LA MOLETTE ne fonctionnait
+//    plus du tout (seul le clavier, qui appelle scrollIntoView() en JS,
+//    fonctionnait) - cause tres probable : le Popover se portage en dehors
+//    du DOM du Dialog (portails Radix independants, freres sous <body>, pas
+//    imbriques), et le verrou de defilement du Dialog MODAL (qui bloque le
+//    scroll de tout ce qui n'est pas reconnu comme faisant partie de son
+//    propre sous-arbre) bloque la molette sur ce contenu porte ailleurs -
+//    un scrollIntoView() JS n'est pas un evenement wheel, il n'est jamais
+//    intercepte par ce verrou, d'ou la difference exacte de symptome.
+// 3) Depuis KAN-36 P2, ce composant ne vit plus JAMAIS dans un `Card` - il ne
+//    vit plus que dans un `DialogContent` (creation ou reglages), qui n'a
+//    PAS `overflow-hidden` dans sa classe de base (dialog.tsx) - le probleme
+//    d'origine (1) ne peut donc plus se produire. Retour a un simple
+//    <div absolute> (comme avant KAN-36), sans aucun Portal ni mecanisme de
+//    Radix a neutraliser - plus simple, et les deux classes de bug
+//    disparaissent par construction plutot que d'etre contournees.
+//
+// Icone : CommandInput de shadcn (command.tsx) embarque en dur une loupe
+// (InputGroupAddon + SearchIcon) - adaptee a une vraie recherche (sidebar),
+// pas a ce selecteur de TYPE. Utilise ici le primitif brut Command.Input du
+// paquet cmdk (celui que CommandInput enveloppe de toute facon) avec une
+// icone chevron (plus juste pour un combobox/select), meme mecanique cmdk.
 //
 // L'accessible name du champ (role="combobox") vient du `label` interne de
 // cmdk (associe via un <label> invisible que cmdk genere lui-meme, id auto) -
@@ -97,25 +128,30 @@ export function EntityTypeCombobox({
       <Label>{label}</Label>
       <input type="hidden" name={name} value={selected} />
       <Command shouldFilter={false} label={label} className="overflow-visible bg-transparent p-0">
-        <CommandInput
-          value={query}
-          onValueChange={(value) => {
-            setQuery(value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onKeyDown={onKeyDown}
-          onBlur={() => {
-            // Le texte tape peut ne correspondre a aucun type (recherche en
-            // cours abandonnee) - revenir au libelle du dernier type valide
-            // selectionne, jamais a une valeur flottante invalide.
-            setQuery(entityTypeLabel(selected));
-            setOpen(false);
-          }}
-          aria-invalid={invalid ? true : undefined}
-          aria-describedby={describedBy}
-          className="h-11 rounded-md border border-input bg-transparent px-3"
-        />
+        <InputGroup>
+          <CommandPrimitive.Input
+            value={query}
+            onValueChange={(value: string) => {
+              setQuery(value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            onBlur={() => {
+              // Le texte tape peut ne correspondre a aucun type (recherche en
+              // cours abandonnee) - revenir au libelle du dernier type valide
+              // selectionne, jamais a une valeur flottante invalide.
+              setQuery(entityTypeLabel(selected));
+              setOpen(false);
+            }}
+            aria-invalid={invalid ? true : undefined}
+            aria-describedby={describedBy}
+            className="flex-1 rounded-none border-0 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+          />
+          <InputGroupAddon align="inline-end">
+            <ChevronsUpDown aria-hidden="true" className="size-4 opacity-50" />
+          </InputGroupAddon>
+        </InputGroup>
         {open ? (
           <div className="absolute top-full z-10 mt-1 w-full rounded-md border border-border bg-popover shadow-md">
             <CommandList label={label} className="max-h-72">

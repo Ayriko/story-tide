@@ -17,7 +17,7 @@ export function GraphAccessibleList({
   }
 
   return (
-    <nav aria-label="Graphe (liste accessible)">
+    <nav aria-label="Liste des liens de la constellation">
       <ul className="flex flex-col gap-3">
         {entries.map((entry) => (
           <li key={entry.id}>

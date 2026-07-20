@@ -44,7 +44,7 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
         >
           ← {world.name}
         </Link>
-        <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">Graphe</h1>
+        <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">Constellation</h1>
       </div>
 
       <GraphView worldSlug={world.slug} elements={elements} />

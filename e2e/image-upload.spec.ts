@@ -43,13 +43,15 @@ test("upload d'image : insertion, sauvegarde, et persistance apres rechargement"
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Image ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
 
   const entityName = `Portrait ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(entityName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // Ouvre la popover "Image", choisit le fichier de fixture, renseigne l'alt,

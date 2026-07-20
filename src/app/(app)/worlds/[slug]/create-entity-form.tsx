@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
 import { EntityTypeCombobox } from "./entity-type-combobox";
 
 const initialState: EntityFormState = {};
@@ -16,95 +15,82 @@ const initialState: EntityFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending} aria-busy={pending}>
-      {pending ? "Création..." : "Créer la fiche"}
+    <Button type="submit" disabled={pending} aria-busy={pending} data-testid="create-entity-submit">
+      {pending ? "Création..." : "Créer l'entrée"}
     </Button>
   );
 }
 
+// Formulaire nu (KAN-36 P2) : le "chrome" (titre, cadre) vient desormais du
+// Dialog qui l'enveloppe (create-entity-dialog.tsx) - DialogTitle porte deja
+// le nom accessible de la boite de dialogue. Succes = createEntityAction
+// redirige (actions/entity.ts) : la page entiere (donc ce Dialog) est
+// demontee, aucune fermeture explicite requise. Echec = l'etat re-affiche
+// l'erreur, le Dialog reste simplement ouvert.
 export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worldSlug: string }) {
   const [state, formAction] = useActionState(createEntityAction, initialState);
 
   return (
-    <Card>
-      <CardContent>
-        <form
-          action={formAction}
-          noValidate
-          aria-labelledby="create-entity-heading"
-          className="flex flex-col gap-3"
-        >
-          <h3
-            id="create-entity-heading"
-            className="font-heading text-sm font-medium text-foreground"
-          >
-            Nouvelle fiche
-          </h3>
+    <form action={formAction} noValidate className="flex flex-col gap-3">
+      <input type="hidden" name="worldId" value={worldId} />
+      <input type="hidden" name="worldSlug" value={worldSlug} />
 
-          <input type="hidden" name="worldId" value={worldId} />
-          <input type="hidden" name="worldSlug" value={worldSlug} />
+      {state.formError ? (
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {state.formError}
+        </p>
+      ) : null}
 
-          {state.formError ? (
-            <p
-              role="alert"
-              className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {state.formError}
-            </p>
-          ) : null}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="entity-name">Nom</Label>
+        <Input
+          id="entity-name"
+          name="name"
+          type="text"
+          required
+          defaultValue={state.values?.name ?? ""}
+          aria-invalid={state.errors?.name ? true : undefined}
+          aria-describedby={state.errors?.name ? "entity-name-error" : undefined}
+        />
+        {state.errors?.name ? (
+          <p id="entity-name-error" className="text-sm text-destructive">
+            {state.errors.name}
+          </p>
+        ) : null}
+      </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="entity-name">Nom</Label>
-            <Input
-              id="entity-name"
-              name="name"
-              type="text"
-              required
-              defaultValue={state.values?.name ?? ""}
-              aria-invalid={state.errors?.name ? true : undefined}
-              aria-describedby={state.errors?.name ? "entity-name-error" : undefined}
-            />
-            {state.errors?.name ? (
-              <p id="entity-name-error" className="text-sm text-destructive">
-                {state.errors.name}
-              </p>
-            ) : null}
-          </div>
+      <EntityTypeCombobox
+        id="entity-type"
+        name="type"
+        label="Type"
+        defaultValue={state.values?.type ?? ENTITY_TYPES[0]}
+        invalid={Boolean(state.errors?.type)}
+        describedBy={state.errors?.type ? "entity-type-error" : undefined}
+      />
+      {state.errors?.type ? (
+        <p id="entity-type-error" className="text-sm text-destructive">
+          {state.errors.type}
+        </p>
+      ) : null}
 
-          <EntityTypeCombobox
-            id="entity-type"
-            name="type"
-            label="Type"
-            defaultValue={state.values?.type ?? ENTITY_TYPES[0]}
-            invalid={Boolean(state.errors?.type)}
-            describedBy={state.errors?.type ? "entity-type-error" : undefined}
-          />
-          {state.errors?.type ? (
-            <p id="entity-type-error" className="text-sm text-destructive">
-              {state.errors.type}
-            </p>
-          ) : null}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="entity-aliases">Alias (un par ligne)</Label>
+        <Textarea
+          id="entity-aliases"
+          name="aliases"
+          rows={3}
+          defaultValue={state.values?.aliases ?? ""}
+          aria-invalid={state.errors?.aliases ? true : undefined}
+          aria-describedby={state.errors?.aliases ? "entity-aliases-error" : undefined}
+        />
+        {state.errors?.aliases ? (
+          <p id="entity-aliases-error" className="text-sm text-destructive">
+            {state.errors.aliases}
+          </p>
+        ) : null}
+      </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="entity-aliases">Alias (un par ligne)</Label>
-            <Textarea
-              id="entity-aliases"
-              name="aliases"
-              rows={3}
-              defaultValue={state.values?.aliases ?? ""}
-              aria-invalid={state.errors?.aliases ? true : undefined}
-              aria-describedby={state.errors?.aliases ? "entity-aliases-error" : undefined}
-            />
-            {state.errors?.aliases ? (
-              <p id="entity-aliases-error" className="text-sm text-destructive">
-                {state.errors.aliases}
-              </p>
-            ) : null}
-          </div>
-
-          <SubmitButton />
-        </form>
-      </CardContent>
-    </Card>
+      <SubmitButton />
+    </form>
   );
 }

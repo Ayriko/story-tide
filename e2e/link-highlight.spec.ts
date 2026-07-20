@@ -19,6 +19,7 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Highlight ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -26,8 +27,9 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
 
   // 2. Creer l'entite CIBLE (ce que la fiche B va mentionner).
   const targetName = `Aldric ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(targetName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
   const targetMatch = /\/entities\/([^/]+)$/.exec(page.url());
   // Le groupe captant existe forcement des lors que le regex matche (une
@@ -41,8 +43,9 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   // 3. Retour au monde, creer la fiche SOURCE (celle qui va mentionner la cible).
   await page.goto(worldUrl);
   const sourceName = `Chronique ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(sourceName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
   const sourceUrl = page.url();
 
@@ -75,7 +78,7 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   // ecrite par le worker - poll par rechargements successifs, le rendu etant
   // cote serveur (RSC), pas reactif a un evenement client.
   await page.goto(sourceUrl);
-  const linkedEntitiesNav = page.getByRole("navigation", { name: "Entités liées" });
+  const linkedEntitiesNav = page.getByRole("navigation", { name: "Renvois" });
   await expect(async () => {
     await page.reload();
     await expect(linkedEntitiesNav.getByRole("link", { name: targetName })).toBeVisible();
