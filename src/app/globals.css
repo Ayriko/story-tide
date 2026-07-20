@@ -59,9 +59,14 @@
    NAVY-sur-MINT (primary-foreground) = 5.62:1 ; foreground/accent (35% TEAL
    sur INK) = 7.8:1. #EDF2F2 (foreground) et #8FA6AF (muted-foreground) ne
    font pas partie des 6 tokens actes : neutres necessaires, absents de la
-   palette source qui ne definit que fond/surface/accent. --destructive
-   reutilise le rouge deja en usage dans form-styles.ts (coherence), pas
-   AMBER (reserve aux alertes par la palette source). */
+   palette source qui ne definit que fond/surface/accent. --destructive :
+   d'abord repris du rouge de form-styles.ts (#B91C1C, "red-700") en pensant
+   coherence avec l'existant - mais ce rouge est concu pour texte-sur-clair,
+   contraste mesure de seulement 1.86:1 en texte direct sur INK. Remplace par
+   l'equivalent "red-300" (#FCA5A5, le grain que le code existant reservait
+   deja a `dark:text-red-400` sans jamais l'appliquer par defaut) : 6.30:1 sur
+   INK, 5.23:1 meme tinte a 10% - AMBER reste reserve aux alertes uniquement,
+   pas au destructive. */
 :root {
   --background: #122a3a; /* NAVY */
   --foreground: #edf2f2;
@@ -77,7 +82,7 @@
   --muted-foreground: #8fa6af;
   --accent: #175160; /* 35% TEAL sur INK, cf. commentaire ci-dessus */
   --accent-foreground: #edf2f2;
-  --destructive: #b91c1c;
+  --destructive: #fca5a5;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #1fb39a; /* MINT - focus */
@@ -95,6 +100,16 @@
   --sidebar-accent-foreground: #edf2f2;
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #1fb39a;
+
+  /* Ecran connexion/accueil (reference-vvd.md §2.3, pattern "artwork en
+     fond") : --bg-image reste vide tant qu'aucun artwork de monde n'est
+     branche - repli degrade NAVY -> NAVY2 + lueur MINT tres discrete
+     (8% alpha), volontairement excentree en bas-a-gauche pour ne jamais
+     passer derriere le panneau (coin oppose, cf. layout du parcours demo) et
+     ne pas fausser le contraste verifie du panneau translucide. */
+  --auth-bg-fallback:
+    radial-gradient(ellipse 70% 60% at 15% 85%, oklch(0.78 0.13 170 / 8%), transparent 60%),
+    linear-gradient(165deg, #122a3a 0%, #15394a 100%);
 }
 
 @layer base {

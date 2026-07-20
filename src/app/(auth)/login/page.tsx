@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getServerSession } from "@/lib/auth";
+import { AuthCard } from "../auth-card";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
@@ -15,15 +15,12 @@ export default async function LoginPage() {
   }
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50">Connexion</h1>
+    <AuthCard active="login">
+      <div>
+        <h1 className="font-heading text-2xl font-medium text-foreground">Connexion</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Content de vous revoir.</p>
+      </div>
       <LoginForm />
-      <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
-        Pas encore de compte ?{" "}
-        <Link href="/register" className="font-medium underline underline-offset-2">
-          Creer un compte
-        </Link>
-      </p>
-    </>
+    </AuthCard>
   );
 }
