@@ -5,7 +5,7 @@ import { AuthCard } from "../auth-card";
 import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
-  title: "Inscription — Story Tide",
+  title: "Inscription",
 };
 
 export default async function RegisterPage() {

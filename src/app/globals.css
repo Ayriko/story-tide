@@ -101,13 +101,15 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: #1fb39a;
 
-  /* Ecran connexion/accueil (reference-vvd.md §2.3, pattern "artwork en
+  /* Fond plein ecran partage (reference-vvd.md §2.3, pattern "artwork en
      fond") : --bg-image reste vide tant qu'aucun artwork de monde n'est
      branche - repli degrade NAVY -> NAVY2 + lueur MINT tres discrete
      (8% alpha), volontairement excentree en bas-a-gauche pour ne jamais
-     passer derriere le panneau (coin oppose, cf. layout du parcours demo) et
-     ne pas fausser le contraste verifie du panneau translucide. */
-  --auth-bg-fallback:
+     passer derriere un panneau translucide pose au premier plan (coin
+     oppose) et ne pas fausser son contraste verifie. Utilise par
+     (auth)/layout.tsx ET (app)/layout.tsx (KAN-36 P1 : "generaliser le fond
+     du login au layout authentifie entier") - un seul degrade, deux ecrans. */
+  --shell-bg-fallback:
     radial-gradient(ellipse 70% 60% at 15% 85%, oklch(0.78 0.13 170 / 8%), transparent 60%),
     linear-gradient(165deg, #122a3a 0%, #15394a 100%);
 }

@@ -5,7 +5,7 @@ import { AuthCard } from "../auth-card";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
-  title: "Connexion — Story Tide",
+  title: "Connexion",
 };
 
 export default async function LoginPage() {

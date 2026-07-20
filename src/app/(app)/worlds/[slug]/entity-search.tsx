@@ -2,14 +2,48 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  BookOpen,
+  Leaf,
+  MapPin,
+  Package,
+  Search,
+  Shield,
+  StickyNote,
+  User,
+  Wand2,
+  type LucideIcon,
+} from "lucide-react";
 import { searchEntitiesAction } from "@/actions/entity";
-import { entityTypeLabel } from "@/lib/entity-schemas";
-import { Input } from "@/components/ui/input";
+import { entityTypeGroup, entityTypeLabel, type EntityTypeGroup } from "@/lib/entity-schemas";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import type { EntitySearchResult } from "@/services/entity-service";
 
 const SEARCH_DEBOUNCE_MS = 300;
+
+// Icone PAR GROUPE (8 familles), pas par type individuel - meme rationale que
+// la couleur des noeuds du graphe (26 icones distinctes n'apporterait rien de
+// plus lisible, cf. entity-schemas.ts). Le libelle textuel du type reste
+// affiche a cote (jamais l'icone seule - RGAA, l'info n'est pas dans la
+// couleur/forme seule).
+const GROUP_ICON: Record<EntityTypeGroup, LucideIcon> = {
+  Personnages: User,
+  Écologie: Leaf,
+  Lieux: MapPin,
+  Organisation: Shield,
+  Magie: Wand2,
+  Lore: BookOpen,
+  Objets: Package,
+  Divers: StickyNote,
+};
+
+function EntityTypeIcon({ type }: { type: string }) {
+  const group = entityTypeGroup(type);
+  const Icon = group ? GROUP_ICON[group] : StickyNote;
+  return <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />;
+}
 
 // Meme patron de debounce que l'auto-save de l'editeur (entity-editor.tsx,
 // scheduleSave) : useRef+setTimeout, pas de dependance externe. Requete vide
@@ -65,18 +99,25 @@ export function EntitySearch({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <Label htmlFor="entity-search">Rechercher une fiche</Label>
-        <Input
-          type="search"
-          id="entity-search"
-          name="entity-search"
-          placeholder="Nom ou alias…"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            scheduleSearch(event.target.value);
-          }}
-        />
+        <Label htmlFor="entity-search" className="sr-only">
+          Rechercher une fiche
+        </Label>
+        <InputGroup>
+          <InputGroupAddon>
+            <Search aria-hidden="true" className="size-4" />
+          </InputGroupAddon>
+          <InputGroupInput
+            type="search"
+            id="entity-search"
+            name="entity-search"
+            placeholder="Rechercher une fiche…"
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              scheduleSearch(event.target.value);
+            }}
+          />
+        </InputGroup>
       </div>
 
       {errorMessage ? (
@@ -104,8 +145,13 @@ export function EntitySearch({
                 className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <Card className="flex-row items-center justify-between px-4 py-3 transition-colors hover:bg-accent">
-                  <span className="text-sm font-medium text-foreground">{entity.name}</span>
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <EntityTypeIcon type={entity.type} />
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {entity.name}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-normal text-muted-foreground">
                     {entityTypeLabel(entity.type)}
                   </span>
                 </Card>

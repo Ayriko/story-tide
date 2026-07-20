@@ -48,12 +48,15 @@ export function CreateWorldForm() {
           ) : null}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Nom du monde</Label>
+            <Label htmlFor="name" className="sr-only">
+              Nom du monde
+            </Label>
             <Input
               id="name"
               name="name"
               type="text"
               required
+              placeholder="Nom du monde"
               defaultValue={state.values?.name ?? ""}
               aria-invalid={state.errors?.name ? true : undefined}
               aria-describedby={state.errors?.name ? "name-error" : undefined}

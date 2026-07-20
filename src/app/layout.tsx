@@ -16,7 +16,10 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Story Tide",
+  // Template applique a tout `metadata.title` de page enfant (ex. "Connexion"
+  // -> "Connexion — Story Tide") ; `default` sert aux pages qui n'en definissent
+  // pas (KAN-36 P1f).
+  title: { template: "%s — Story Tide", default: "Story Tide" },
   description: "Plateforme de worldbuilding avec liaison automatique des entités.",
 };
 

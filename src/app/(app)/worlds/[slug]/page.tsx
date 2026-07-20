@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
-import { listEntities } from "@/services/entity-service";
 import { RenameWorldForm } from "./rename-world-form";
 import { DeleteWorldForm } from "./delete-world-form";
 import { CreateEntityForm } from "./create-entity-form";
-import { EntitySearch } from "./entity-search";
 
+// Nom du monde + fil d'ariane : desormais dans worlds/[slug]/world-shell.tsx
+// (TopBar). Recherche/liste des fiches : desormais dans la sidebar
+// (sidebar.tsx, reutilise EntitySearch) - plus de duplication ici. Reste sur
+// cette page : creation d'une fiche (cible du lien "+ Nouvelle fiche" de la
+// sidebar, temporaire jusqu'a P2a) et parametres du monde.
 export default async function WorldPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const session = await requireSessionOrRedirect();
@@ -22,35 +25,31 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
     throw error;
   }
 
-  const entities = await listEntities(session.user.id, world.id);
-
   return (
     <div className="flex flex-col gap-10">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-heading text-2xl font-medium text-foreground">{world.name}</h1>
-        <Link
-          href={`/worlds/${world.slug}/graph`}
-          className="rounded-md text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          Graphe
-        </Link>
-      </div>
+      {/* Visuellement invisible : le nom du monde est deja affiche bien en
+          vue dans la barre haute (worlds/[slug]/layout.tsx, chrome persistant
+          hors du controle de cette page). Un <h1> reste necessaire pour la
+          semantique de page (un heading de niveau 1 par page). */}
+      <h1 className="sr-only">{world.name}</h1>
 
-      <section
-        aria-labelledby="entities-heading"
-        className="flex flex-col gap-6 border-t border-border pt-6"
+      {/* Lien temporaire/jetable (KAN-36 P1-ter) : la nav pilule (qui menait
+          au graphe) a ete retiree en attendant le dashboard du monde (P5) -
+          le graphe deviendra un agrandissement depuis un panneau du
+          dashboard, pas un onglet. En attendant, seul acces restant au
+          graphe - a retirer des que le dashboard existe. */}
+      <Link
+        href={`/worlds/${world.slug}/graph`}
+        className="self-start text-sm text-muted-foreground hover:text-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
+        Voir le graphe →
+      </Link>
+
+      <section aria-labelledby="entities-heading" className="flex flex-col gap-6">
         <h2 id="entities-heading" className="font-heading text-lg font-medium text-foreground">
           Entités
         </h2>
-
         <CreateEntityForm worldId={world.id} worldSlug={world.slug} />
-
-        <EntitySearch
-          worldId={world.id}
-          worldSlug={world.slug}
-          initialEntities={entities.map(({ id, name, type }) => ({ id, name, type }))}
-        />
       </section>
 
       <section
