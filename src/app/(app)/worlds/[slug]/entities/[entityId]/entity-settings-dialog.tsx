@@ -12,9 +12,9 @@ import {
 import { DeleteEntityForm } from "./delete-entity-form";
 import { EditEntityForm } from "./edit-entity-form";
 
-// Dialog non controle (KAN-36 P2), declenche par une icone engrenage sur la
-// page de la fiche - position provisoire, le vrai emplacement (cardHeader)
-// arrive en P4. Regroupe modifier + zone de danger - avant P2 ces deux
+// Dialog non controle (KAN-36 P2), declenche par une icone engrenage integree
+// au cardHeader dense de la page d'entree (KAN-36 P4, worlds/[slug]/entities/
+// [entityId]/page.tsx). Regroupe modifier + zone de danger - avant P2 ces deux
 // formulaires vivaient empiles inline sur la page.
 export function EntitySettingsDialog({
   worldId,

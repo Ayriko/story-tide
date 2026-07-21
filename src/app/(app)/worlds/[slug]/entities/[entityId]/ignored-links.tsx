@@ -74,10 +74,10 @@ export function IgnoredLinks({
   }
 
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col gap-1.5">
       {targets.map((target) => (
         <li key={target.id}>
-          <Card className="flex-row items-center justify-between px-4 py-3">
+          <Card className="flex-row items-center justify-between px-3 py-2">
             <span className="text-sm font-medium text-foreground">{target.name}</span>
             <UnignoreLinkForm
               worldId={worldId}

@@ -90,14 +90,14 @@ export function LinkedEntities({
 
   return (
     <nav aria-label={label}>
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-1.5">
         {links.map((link) => (
           <li key={link.id} className="flex items-center gap-2">
             <Link
               href={`/worlds/${worldSlug}/entities/${link.id}`}
               className="block flex-1 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <Card className="px-4 py-3 transition-colors hover:bg-accent">
+              <Card className="px-3 py-2 transition-colors hover:bg-accent">
                 <span className="text-sm font-medium text-foreground">{link.name}</span>
               </Card>
             </Link>
