@@ -22,6 +22,7 @@ test("mention manuelle @ : popup, insertion, relation MANUAL bidirectionnelle", 
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Mention ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -29,8 +30,9 @@ test("mention manuelle @ : popup, insertion, relation MANUAL bidirectionnelle", 
 
   // 2. Creer l'entite CIBLE (celle qui sera mentionnee via @).
   const targetName = `Aldric ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(targetName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
   const targetMatch = /\/entities\/([^/]+)$/.exec(page.url());
   // Le groupe captant existe forcement des lors que le regex matche (une
@@ -44,8 +46,9 @@ test("mention manuelle @ : popup, insertion, relation MANUAL bidirectionnelle", 
   // 3. Creer la fiche SOURCE (celle qui va mentionner la cible via @).
   await page.goto(worldUrl);
   const sourceName = `Chronique ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(sourceName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
   const sourceUrl = page.url();
 
@@ -84,12 +87,12 @@ test("mention manuelle @ : popup, insertion, relation MANUAL bidirectionnelle", 
   // comme pour l'AUTO).
   await page.goto(sourceUrl);
   await page.reload();
-  const linkedEntitiesNav = page.getByRole("navigation", { name: "Entités liées" });
+  const linkedEntitiesNav = page.getByRole("navigation", { name: "Renvois" });
   await expect(linkedEntitiesNav.getByRole("link", { name: targetName })).toBeVisible();
 
   // 9. Cote fiche cible : "Mentionne par" reflete la meme relation, vue
   // depuis l'autre sens (backlinks, KAN-24).
   await page.goto(`${worldUrl}/entities/${targetId}`);
-  const mentionedByNav = page.getByRole("navigation", { name: "Mentionné par" });
+  const mentionedByNav = page.getByRole("navigation", { name: "Échos" });
   await expect(mentionedByNav.getByRole("link", { name: sourceName })).toBeVisible();
 });

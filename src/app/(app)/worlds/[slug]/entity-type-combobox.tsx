@@ -1,25 +1,71 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useState, type KeyboardEvent } from "react";
+import { Command as CommandPrimitive } from "cmdk";
+import { ChevronsUpDown } from "lucide-react";
 import {
   ENTITY_TYPE_REFERENCE,
   entityTypeLabel,
   groupedEntityTypes,
   type EntityType,
 } from "@/lib/entity-schemas";
-import { inputClassName, labelClassName } from "@/app/(app)/form-styles";
+import { Label } from "@/components/ui/label";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 
-// Combobox interne (KAN-18, cadrage 19/07) : shadcn/cmdk absent du stack
-// aujourd'hui et KAN-36 (passe visuelle shadcn) arrive juste apres ce sprint
-// - decision actee de reprendre le patron deja etabli par mention-list.tsx
-// (role="listbox"/"option", nav clavier fleches+Entree+Echap, aria-activedescendant
-// sur l'ancre plutot que deplacer le focus) plutot que d'introduire une
-// dependance qui serait remplacee des KAN-36 (voir ADR-0016).
+// Combobox base sur le Command de shadcn/cmdk (KAN-36, solde ADR-0016) -
+// remplace l'implementation interne posee par KAN-18 en attendant ce
+// chantier. `shouldFilter={false}` + query/selected controles ici (au lieu du
+// filtre flou integre de cmdk) : reprend exactement l'architecture et le
+// filtrage substring de l'ancien composant, cmdk n'apporte que le rendu ARIA
+// (combobox/listbox/option) et la navigation clavier (fleches/Entree/Home/
+// End), deja audites plutot que reimplementes a la main.
+//
+// Panneau d'options en <div absolute> simple (PAS Popover/PopoverContent -
+// deux tentatives essayees puis abandonnees, cf. historique) :
+// 1) v1 (KAN-36) : le panneau vivait dans un `Card` (`overflow-hidden` dans
+//    sa classe de base) - tout ce qui depassait du bord de la carte etait
+//    rogne a l'affichage, ni la molette ni le clavier ne pouvaient
+//    "recuperer" un contenu paint-clippe. Fixe en passant par
+//    Popover/PopoverContent (Portal Radix, jamais soumis a l'overflow d'un
+//    ancetre).
+// 2) Ce fix a lui-meme introduit deux regressions (constatees par Aymeric) :
+//    `PopoverAnchor` n'est pas exempte par Radix de sa detection "interaction
+//    en dehors" (contrairement a `PopoverTrigger`) -> fermeture instantanee
+//    au focus ; et une fois ouvert, le SCROLL A LA MOLETTE ne fonctionnait
+//    plus du tout (seul le clavier, qui appelle scrollIntoView() en JS,
+//    fonctionnait) - cause tres probable : le Popover se portage en dehors
+//    du DOM du Dialog (portails Radix independants, freres sous <body>, pas
+//    imbriques), et le verrou de defilement du Dialog MODAL (qui bloque le
+//    scroll de tout ce qui n'est pas reconnu comme faisant partie de son
+//    propre sous-arbre) bloque la molette sur ce contenu porte ailleurs -
+//    un scrollIntoView() JS n'est pas un evenement wheel, il n'est jamais
+//    intercepte par ce verrou, d'ou la difference exacte de symptome.
+// 3) Depuis KAN-36 P2, ce composant ne vit plus JAMAIS dans un `Card` - il ne
+//    vit plus que dans un `DialogContent` (creation ou reglages), qui n'a
+//    PAS `overflow-hidden` dans sa classe de base (dialog.tsx) - le probleme
+//    d'origine (1) ne peut donc plus se produire. Retour a un simple
+//    <div absolute> (comme avant KAN-36), sans aucun Portal ni mecanisme de
+//    Radix a neutraliser - plus simple, et les deux classes de bug
+//    disparaissent par construction plutot que d'etre contournees.
+//
+// Icone : CommandInput de shadcn (command.tsx) embarque en dur une loupe
+// (InputGroupAddon + SearchIcon) - adaptee a une vraie recherche (sidebar),
+// pas a ce selecteur de TYPE. Utilise ici le primitif brut Command.Input du
+// paquet cmdk (celui que CommandInput enveloppe de toute facon) avec une
+// icone chevron (plus juste pour un combobox/select), meme mecanique cmdk.
+//
+// L'accessible name du champ (role="combobox") vient du `label` interne de
+// cmdk (associe via un <label> invisible que cmdk genere lui-meme, id auto) -
+// pas de <Label htmlFor> possible ici (cmdk regenere son propre id sur
+// l'input, ecrasant tout id fourni). Le <Label> shadcn ci-dessous reste donc
+// purement visuel (pas de htmlFor), coherent avec les autres champs du
+// formulaire, sans dupliquer le nom accessible.
 //
 // Champ de FORMULAIRE (pas une popup d'editeur) : un <input type="hidden">
-// porte la vraie valeur soumise (name), le champ texte visible ne sert qu'a
-// filtrer/afficher le libelle - le <form action> existant (useActionState)
-// n'a besoin d'aucun changement pour lire "type" depuis le FormData.
+// porte la vraie valeur soumise (name), le <form action> existant
+// (useActionState) n'a besoin d'aucun changement pour lire "type" depuis le
+// FormData.
 export function EntityTypeCombobox({
   id,
   name,
@@ -38,8 +84,6 @@ export function EntityTypeCombobox({
   const [selected, setSelected] = useState(defaultValue);
   const [query, setQuery] = useState(entityTypeLabel(defaultValue));
   const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // useActionState re-rend le MEME composant (pas de remontage) apres un
   // echec de soumission avec des valeurs reaffichees differentes - re-sync
@@ -52,7 +96,6 @@ export function EntityTypeCombobox({
     setQuery(entityTypeLabel(defaultValue));
   }
 
-  const listboxId = `${id}-listbox`;
   // Tant que l'utilisateur n'a rien tape de different du libelle deja
   // selectionne (ouverture au focus/clic, navigation clavier immediate), la
   // liste complete reste visible - le filtrage ne s'active qu'une fois le
@@ -66,11 +109,7 @@ export function EntityTypeCombobox({
       ),
     }))
     .filter(({ types }) => types.length > 0);
-  const flatOptions: EntityType[] = filteredGroups.flatMap(({ types }) => types);
-
-  function optionId(type: string): string {
-    return `${id}-option-${type}`;
-  }
+  const hasOptions = filteredGroups.length > 0;
 
   function commit(type: EntityType) {
     setSelected(type);
@@ -79,117 +118,69 @@ export function EntityTypeCombobox({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setOpen(true);
-      setActiveIndex((index) => Math.min(index + 1, flatOptions.length - 1));
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setOpen(true);
-      setActiveIndex((index) => Math.max(index - 1, 0));
-    } else if (event.key === "Enter") {
-      const type = flatOptions[activeIndex];
-      if (open && type) {
-        event.preventDefault();
-        commit(type);
-      }
-    } else if (event.key === "Escape") {
+    if (event.key === "Escape") {
       setOpen(false);
     }
   }
 
-  const activeType = flatOptions[activeIndex];
-
   return (
-    <div className="relative flex flex-col gap-1.5">
-      <label htmlFor={id} className={labelClassName}>
-        {label}
-      </label>
+    <div id={id} className="relative flex flex-col gap-1.5">
+      <Label>{label}</Label>
       <input type="hidden" name={name} value={selected} />
-      <input
-        ref={inputRef}
-        id={id}
-        type="text"
-        role="combobox"
-        aria-expanded={open}
-        aria-controls={listboxId}
-        aria-activedescendant={open && activeType ? optionId(activeType) : undefined}
-        aria-invalid={invalid ? true : undefined}
-        aria-describedby={describedBy}
-        autoComplete="off"
-        className={inputClassName}
-        value={query}
-        onFocus={() => {
-          setOpen(true);
-          // Met en surbrillance le type deja selectionne (pas toujours le
-          // premier de la liste) quand la liste complete s'ouvre au focus.
-          const currentIndex = flatOptions.indexOf(selected as EntityType);
-          setActiveIndex(currentIndex === -1 ? 0 : currentIndex);
-        }}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          setOpen(true);
-          setActiveIndex(0);
-        }}
-        onKeyDown={onKeyDown}
-        onBlur={() => {
-          // Le texte tape peut ne correspondre a aucun type (recherche en
-          // cours abandonnee) - revenir au libelle du dernier type valide
-          // selectionne, jamais a une valeur flottante invalide.
-          setQuery(entityTypeLabel(selected));
-          setOpen(false);
-        }}
-      />
-      {open ? (
-        <div
-          role="listbox"
-          id={listboxId}
-          aria-label={label}
-          className="absolute top-full z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-zinc-200 bg-white py-1 shadow-md dark:border-zinc-800 dark:bg-zinc-900"
-        >
-          {flatOptions.length === 0 ? (
-            <p className="px-3 py-1.5 text-sm text-zinc-600 dark:text-zinc-400">
-              Aucun type trouvé.
-            </p>
-          ) : (
-            filteredGroups.map(({ group, types }) => (
-              <div key={group} role="group" aria-labelledby={`${id}-group-${group}`}>
-                <p
-                  id={`${id}-group-${group}`}
-                  role="presentation"
-                  className="px-3 pt-1.5 pb-0.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400"
-                >
-                  {group}
-                </p>
-                {types.map((type) => {
-                  const index = flatOptions.indexOf(type);
-                  return (
-                    <div
-                      key={type}
-                      id={optionId(type)}
-                      role="option"
-                      aria-selected={index === activeIndex}
-                      onMouseDown={(event) => {
-                        // preventDefault : evite que le blur du champ texte
-                        // ne ferme la liste avant que le clic ne s'applique.
-                        event.preventDefault();
-                        commit(type);
-                      }}
-                      className={`cursor-pointer px-3 py-1.5 text-sm ${
-                        index === activeIndex
-                          ? "bg-zinc-100 text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50"
-                          : "text-zinc-900 dark:text-zinc-100"
-                      }`}
-                    >
-                      {ENTITY_TYPE_REFERENCE[type].label}
-                    </div>
-                  );
-                })}
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
+      <Command shouldFilter={false} label={label} className="overflow-visible bg-transparent p-0">
+        <InputGroup>
+          <CommandPrimitive.Input
+            value={query}
+            onValueChange={(value: string) => {
+              setQuery(value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
+            onBlur={() => {
+              // Le texte tape peut ne correspondre a aucun type (recherche en
+              // cours abandonnee) - revenir au libelle du dernier type valide
+              // selectionne, jamais a une valeur flottante invalide.
+              setQuery(entityTypeLabel(selected));
+              setOpen(false);
+            }}
+            aria-invalid={invalid ? true : undefined}
+            aria-describedby={describedBy}
+            className="flex-1 rounded-none border-0 bg-transparent px-3 text-base outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+          />
+          <InputGroupAddon align="inline-end">
+            <ChevronsUpDown aria-hidden="true" className="size-4 opacity-50" />
+          </InputGroupAddon>
+        </InputGroup>
+        {open ? (
+          <div className="absolute top-full z-10 mt-1 w-full rounded-md border border-border bg-popover shadow-md">
+            <CommandList label={label} className="max-h-72">
+              {!hasOptions ? (
+                <p className="px-3 py-1.5 text-sm text-muted-foreground">Aucun type trouvé.</p>
+              ) : (
+                filteredGroups.map(({ group, types }) => (
+                  <CommandGroup key={group} heading={group}>
+                    {types.map((type) => (
+                      <CommandItem
+                        key={type}
+                        value={type}
+                        onMouseDown={(event) => {
+                          // preventDefault : evite que le blur du champ texte
+                          // ne ferme la liste avant que le clic ne s'applique.
+                          event.preventDefault();
+                        }}
+                        onSelect={() => commit(type)}
+                      >
+                        {ENTITY_TYPE_REFERENCE[type].label}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ))
+              )}
+            </CommandList>
+          </div>
+        ) : null}
+      </Command>
     </div>
   );
 }

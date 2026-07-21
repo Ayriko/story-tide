@@ -31,19 +31,23 @@ test("login -> monde -> fiche -> editeur -> reload", async ({ page }) => {
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 
-  // 2. Creer un monde.
+  // 2. Creer un monde (KAN-36 P2 : le formulaire vit dans un Dialog, ouvert
+  // par le bouton "+ Nouveau monde").
   const worldName = `Monde Smoke ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(worldName);
 
-  // 3. Creer une fiche (type par defaut : Personnage).
+  // 3. Creer une entree (type par defaut : Personnage) - Dialog ouvert par
+  // le bouton "+ Nouvelle entree" (data-testid create-entity-trigger, bas de la sidebar).
   const entityName = `Aeliana ${Date.now()}`;
-  // exact: true - la page de monde a aussi un formulaire "Renommer" (contient
-  // "nom" comme sous-chaine) et son propre champ "Nom du monde".
+  await page.getByTestId("create-entity-trigger").click();
+  // exact: true - "Nom" est un libelle court reutilise ailleurs sur la page
+  // (getByLabel matche par defaut en sous-chaine, pas en nom accessible exact).
   await page.getByLabel("Nom", { exact: true }).fill(entityName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // 4. Editeur : ecrire, selectionner, mettre en gras - verifie la synchro

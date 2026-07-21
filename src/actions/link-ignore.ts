@@ -38,7 +38,7 @@ export async function ignoreLinkAction(
     await ignoreLink(session.user.id, worldId, entityId, targetId);
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
-      return { formError: "Fiche introuvable." };
+      return { formError: "Entrée introuvable." };
     }
     console.error("[link-ignore] Ignorer le lien a échoué :", error);
     return { formError: "Action impossible pour le moment. Réessayez." };
@@ -68,7 +68,7 @@ export async function unignoreLinkAction(
     await unignoreLink(session.user.id, worldId, entityId, targetId);
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
-      return { formError: "Fiche introuvable." };
+      return { formError: "Entrée introuvable." };
     }
     console.error("[link-ignore] Ne plus ignorer le lien a échoué :", error);
     return { formError: "Action impossible pour le moment. Réessayez." };

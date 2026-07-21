@@ -32,7 +32,7 @@ describe("CreateEntityForm", () => {
     render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
     await user.type(screen.getByLabelText("Nom"), "Aeliana");
-    await user.click(screen.getByRole("button", { name: /créer la fiche/i }));
+    await user.click(screen.getByTestId("create-entity-submit"));
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Création impossible pour le moment. Réessayez.");
@@ -46,7 +46,7 @@ describe("CreateEntityForm", () => {
     const user = userEvent.setup();
     render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
-    await user.click(screen.getByRole("button", { name: /créer la fiche/i }));
+    await user.click(screen.getByTestId("create-entity-submit"));
 
     await screen.findByText("Le nom est requis.");
     expect(screen.getByLabelText("Nom")).toHaveValue("   ");
@@ -60,7 +60,7 @@ describe("CreateEntityForm", () => {
     const user = userEvent.setup();
     render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
-    await user.click(screen.getByRole("button", { name: /créer la fiche/i }));
+    await user.click(screen.getByTestId("create-entity-submit"));
 
     const nameInput = await screen.findByLabelText("Nom");
     expect(nameInput).toHaveAttribute("aria-invalid", "true");

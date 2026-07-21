@@ -1,6 +1,7 @@
 import { generateText, getSchema, type JSONContent } from "@tiptap/core";
 import { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { createEditorExtensions } from "./tiptap-extensions";
+import { isSafeHttpUrl } from "./url-safety";
 
 // Cote serveur, pas de cycle de vie d'Editor (pas de montage/demontage React) -
 // construire les extensions et le schema une seule fois au chargement du
@@ -24,29 +25,9 @@ export class InvalidContentError extends Error {
 // produit l'editeur Tiptap reel quand on l'initialise sans contenu.
 export const EMPTY_CONTENT: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
 
-const MAX_URL_LENGTH = 2048;
-
-// Node.fromJSON + check() valident la STRUCTURE (types de nodes/marks connus,
-// nesting conforme au schema) mais jamais les VALEURS d'attributs : un doc
-// structurellement valide peut quand meme porter un `image.src` ou un
-// `link.href` en `javascript:`/`data:` (XSS) - le schema ne le sait pas, seul
-// `protocols: ["http","https"]` cote config client l'empeche, ce qui ne
-// protege pas un appel serveur direct (OWASP A03).
-function isSafeHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string" || value.length === 0 || value.length > MAX_URL_LENGTH) {
-    return false;
-  }
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
 // Parcourt le doc deja valide structurellement et rejette la premiere valeur
-// d'attribut dangereuse rencontree : image.src/alt, puis link.href sur les
-// marks, puis mention.id. `alt` est deja exige cote UI (RGAA) - sans ce
+// d'attribut dangereuse rencontree : image.src/alt/width, puis link.href sur
+// les marks, puis mention.id. `alt` est deja exige cote UI (RGAA) - sans ce
 // controle serveur, la regle est contournable par un appel direct a l'action
 // de sauvegarde.
 function assertSafeAttributes(doc: ProseMirrorNode): void {
@@ -57,11 +38,22 @@ function assertSafeAttributes(doc: ProseMirrorNode): void {
       return false;
     }
     if (node.type.name === "image") {
-      const { src, alt } = node.attrs as { src: unknown; alt: unknown };
+      const { src, alt, width } = node.attrs as { src: unknown; alt: unknown; width: unknown };
       if (!isSafeHttpUrl(src)) {
         violation = `image.src invalide : ${JSON.stringify(src)}`;
       } else if (typeof alt !== "string" || alt.trim() === "") {
         violation = "image.alt manquant";
+      } else if (
+        typeof width !== "number" ||
+        !Number.isFinite(width) ||
+        width < 10 ||
+        width > 100
+      ) {
+        // width (KAN-39 volet 5) : pourcentage de la largeur du contenu,
+        // jamais persiste hors [10..100] - une image sans cet attribut du
+        // tout (contenu persiste avant ce volet) obtient 100 via le defaut
+        // du schema (Node.fromJSON), jamais "absent" a ce stade.
+        violation = `image.width invalide : ${JSON.stringify(width)}`;
       }
     }
     if (node.type.name === "mention") {

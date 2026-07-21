@@ -134,7 +134,7 @@ export async function updateEntityAction(
     await updateEntity(session.user.id, worldId, entityId, parsed.data);
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
-      return { formError: "Fiche introuvable.", values };
+      return { formError: "Entrée introuvable.", values };
     }
     console.error("[entity] Mise à jour de fiche échouée :", error);
     return { formError: "Mise à jour impossible pour le moment. Réessayez.", values };
@@ -164,7 +164,7 @@ export async function deleteEntityAction(
     await deleteEntity(session.user.id, worldId, entityId);
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
-      return { formError: "Fiche introuvable." };
+      return { formError: "Entrée introuvable." };
     }
     console.error("[entity] Suppression de fiche échouée :", error);
     return { formError: "Suppression impossible pour le moment. Réessayez." };

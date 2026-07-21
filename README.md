@@ -21,6 +21,18 @@ npm run db:migrate
 npm run dev
 ```
 
+Dans un **second terminal**, lancer aussi le worker (queue pg-boss) :
+
+```bash
+npm run worker
+```
+
+Sans ce second process, la détection automatique d'entités (Aho-Corasick) enfile
+bien les jobs de liaison (`entity-linking`) mais aucune `Relation` AUTO n'est
+jamais créée — le job reste en attente en base tant qu'aucun worker n'est démarré
+pour le consommer. La liaison MANUELLE (mention `@`) n'est pas concernée
+(réconciliation synchrone, ADR-0011).
+
 Ouvrir [http://localhost:3000](http://localhost:3000). `npm install` régénère aussi
 le client Prisma (`postinstall`) ; `npm run db:migrate` applique les migrations sur
 la base PostgreSQL du compose dev. Le bucket MinIO est créé automatiquement par le
@@ -31,6 +43,7 @@ service `minio-setup` de `docker-compose.dev.yml`, rien à faire à la main.
 | Script | Rôle |
 |---|---|
 | `npm run dev` | Serveur de dev Next.js |
+| `npm run worker` | Worker pg-boss (traite les jobs de liaison AUTO — à lancer en parallèle de `dev`) |
 | `npm run build` / `npm run start` | Build de prod / lancement |
 | `npm run lint` | ESLint, 0 warning toléré |
 | `npm run typecheck` | `tsc --noEmit` (TS strict) |

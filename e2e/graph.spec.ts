@@ -19,6 +19,7 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Graphe ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -26,20 +27,22 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
 
   // 2. Creer l'entite CIBLE (type "Lieu", pour exercer un type different).
   const targetName = `Valombre ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(targetName);
   const typeCombobox = page.getByRole("combobox", { name: "Type" });
   await typeCombobox.click();
   await typeCombobox.fill("Lieu");
   await page.getByRole("option", { name: "Lieu" }).click();
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // 3. Creer la fiche SOURCE (type par defaut "Personnage") et la lier a la
   // cible via une mention manuelle @ (synchrone, pas d'attente de worker).
   await page.goto(worldUrl);
   const sourceName = `Aldric ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(sourceName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   await page.locator(".ProseMirror").click();
@@ -57,15 +60,26 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   const graphCanvas = page.getByTestId("graph-canvas");
   await expect(graphCanvas.locator("canvas").first()).toBeVisible();
 
-  // 6. Filtres par type : un checkbox par type, coche par defaut.
-  const placeFilter = page.getByRole("checkbox", { name: "Lieu" });
-  await expect(placeFilter).toBeChecked();
+  // 6. Filtres par type : chips a etat (KAN-36 P5b), pressees par defaut
+  // (= type visible). Panneau FERME par defaut (retour Aymeric) - ouverture
+  // explicite requise avant d'atteindre les chips.
+  await page.getByRole("button", { name: "Filtres" }).click();
+  // exact:true necessaire - "Lieu" matcherait sinon aussi le bouton de repli
+  // du groupe "Lieux" de la sidebar (nom accessible different mais englobant).
+  const placeFilter = page.getByRole("button", { name: "Lieu", exact: true, pressed: true });
   await placeFilter.click();
-  await expect(placeFilter).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Lieu", exact: true, pressed: false }),
+  ).toBeVisible();
 
   // 7. Liste accessible (chemin clavier/lecteur d'ecran) : reflete la
-  // relation MANUAL cree a l'etape 3, navigation reelle verifiee.
-  const accessibleList = page.getByRole("navigation", { name: "Graphe (liste accessible)" });
+  // relation MANUAL cree a l'etape 3, navigation reelle verifiee. Masquee
+  // derriere un disclosure FERME par defaut (retour Aymeric) - ouverture
+  // explicite requise.
+  await page.getByRole("button", { name: "Observer les fils" }).click();
+  const accessibleList = page.getByRole("navigation", {
+    name: "Liste des liens de la constellation",
+  });
   const targetLink = accessibleList.getByRole("link", { name: `→ ${targetName}` });
   await expect(targetLink).toBeVisible();
   await targetLink.click();

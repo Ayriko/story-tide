@@ -19,6 +19,7 @@ test("la recherche filtre les fiches par nom et par alias, insensible a la casse
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Recherche ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -26,22 +27,32 @@ test("la recherche filtre les fiches par nom et par alias, insensible a la casse
 
   // 2. Fiche A : trouvable par son nom.
   const nameA = `Aeliana ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(nameA);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // 3. Fiche B : nom distinct, trouvable seulement par son alias.
   await page.goto(worldUrl);
   const nameB = `Bram ${Date.now()}`;
   const aliasB = `LeTyran${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(nameB);
   await page.getByLabel("Alias (un par ligne)").fill(aliasB);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   await page.goto(worldUrl);
-  const search = page.getByLabel("Rechercher une fiche");
-  const resultsList = page.getByRole("list");
+  const search = page.getByLabel("Rechercher une entrée");
+  // Scope au nav de la sidebar (aria-label "Entrées du monde", sidebar.tsx),
+  // SANS passer par getByRole("list") intermediaire : depuis KAN-36 P3, le
+  // dashboard affiche AUSSI une liste "Dernières entrées" sur cette meme page
+  // (worldUrl) ; depuis le point 5 (groupes pliables), la sidebar elle-meme
+  // contient plusieurs <ul> (un par groupe non vide) - getByRole("list") non
+  // scope ou meme scope au nav redeviendrait ambigu dans les deux cas
+  // (violation "strict mode"). Le nav lui-meme suffit a scoper le lien
+  // recherche, c'est la seule chose que ce test verifie reellement.
+  const resultsList = page.getByRole("navigation", { name: "Entrées du monde" });
 
   // 4. Recherche par nom (casse differente) : ne trouve que la fiche A.
   await search.fill(nameA.toUpperCase());

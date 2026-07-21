@@ -4,14 +4,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createEntityAction, type EntityFormState } from "@/actions/entity";
 import { ENTITY_TYPES } from "@/lib/entity-schemas";
-import {
-  fieldErrorClassName,
-  formErrorClassName,
-  inputClassName,
-  labelClassName,
-  submitButtonClassName,
-  textareaClassName,
-} from "../../form-styles";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { EntityTypeCombobox } from "./entity-type-combobox";
 
 const initialState: EntityFormState = {};
@@ -19,43 +15,35 @@ const initialState: EntityFormState = {};
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} aria-busy={pending} className={submitButtonClassName}>
-      {pending ? "Création..." : "Créer la fiche"}
-    </button>
+    <Button type="submit" disabled={pending} aria-busy={pending} data-testid="create-entity-submit">
+      {pending ? "Création..." : "Créer l'entrée"}
+    </Button>
   );
 }
 
+// Formulaire nu (KAN-36 P2) : le "chrome" (titre, cadre) vient desormais du
+// Dialog qui l'enveloppe (create-entity-dialog.tsx) - DialogTitle porte deja
+// le nom accessible de la boite de dialogue. Succes = createEntityAction
+// redirige (actions/entity.ts) : la page entiere (donc ce Dialog) est
+// demontee, aucune fermeture explicite requise. Echec = l'etat re-affiche
+// l'erreur, le Dialog reste simplement ouvert.
 export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worldSlug: string }) {
   const [state, formAction] = useActionState(createEntityAction, initialState);
 
   return (
-    <form
-      action={formAction}
-      noValidate
-      aria-labelledby="create-entity-heading"
-      className="flex flex-col gap-3 rounded-md border border-zinc-200 p-4 dark:border-zinc-800"
-    >
-      <h3
-        id="create-entity-heading"
-        className="text-sm font-semibold text-zinc-950 dark:text-zinc-50"
-      >
-        Nouvelle fiche
-      </h3>
-
+    <form action={formAction} noValidate className="flex flex-col gap-3">
       <input type="hidden" name="worldId" value={worldId} />
       <input type="hidden" name="worldSlug" value={worldSlug} />
 
       {state.formError ? (
-        <p role="alert" className={formErrorClassName}>
+        <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {state.formError}
         </p>
       ) : null}
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="entity-name" className={labelClassName}>
-          Nom
-        </label>
-        <input
+        <Label htmlFor="entity-name">Nom</Label>
+        <Input
           id="entity-name"
           name="name"
           type="text"
@@ -63,10 +51,9 @@ export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worl
           defaultValue={state.values?.name ?? ""}
           aria-invalid={state.errors?.name ? true : undefined}
           aria-describedby={state.errors?.name ? "entity-name-error" : undefined}
-          className={inputClassName}
         />
         {state.errors?.name ? (
-          <p id="entity-name-error" className={fieldErrorClassName}>
+          <p id="entity-name-error" className="text-sm text-destructive">
             {state.errors.name}
           </p>
         ) : null}
@@ -81,26 +68,23 @@ export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worl
         describedBy={state.errors?.type ? "entity-type-error" : undefined}
       />
       {state.errors?.type ? (
-        <p id="entity-type-error" className={fieldErrorClassName}>
+        <p id="entity-type-error" className="text-sm text-destructive">
           {state.errors.type}
         </p>
       ) : null}
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="entity-aliases" className={labelClassName}>
-          Alias (un par ligne)
-        </label>
-        <textarea
+        <Label htmlFor="entity-aliases">Alias (un par ligne)</Label>
+        <Textarea
           id="entity-aliases"
           name="aliases"
           rows={3}
           defaultValue={state.values?.aliases ?? ""}
           aria-invalid={state.errors?.aliases ? true : undefined}
           aria-describedby={state.errors?.aliases ? "entity-aliases-error" : undefined}
-          className={textareaClassName}
         />
         {state.errors?.aliases ? (
-          <p id="entity-aliases-error" className={fieldErrorClassName}>
+          <p id="entity-aliases-error" className="text-sm text-destructive">
             {state.errors.aliases}
           </p>
         ) : null}

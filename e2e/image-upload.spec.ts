@@ -43,20 +43,22 @@ test("upload d'image : insertion, sauvegarde, et persistance apres rechargement"
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Image ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
 
   const entityName = `Portrait ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(entityName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
-  // Ouvre la popover "Image", choisit le fichier de fixture, renseigne l'alt,
-  // insere.
+  // Ouvre le dialog "Image" (KAN-39 volet 4 : Dialog shadcn, plus un popover
+  // maison), choisit le fichier de fixture, renseigne l'alt, insere.
   await page.getByRole("button", { name: "Image" }).click();
-  await page.getByLabel("Téléverser une image").setInputFiles(FIXTURE_PATH);
-  await page.getByLabel("Texte alternatif").fill("Portrait de test");
+  await page.getByLabel("Importer une image").setInputFiles(FIXTURE_PATH);
+  await page.getByLabel("Légende").fill("Portrait de test");
   await page.getByRole("button", { name: "Insérer" }).click();
 
   // L'image inseree est presente dans l'editeur (vrai <img>, pas juste le

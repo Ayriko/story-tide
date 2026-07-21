@@ -1,26 +1,153 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@plugin "@tailwindcss/typography";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Pas de @custom-variant dark ici : on ne bascule jamais de theme (dark mode
+   par defaut, sans toggle - CLAUDE.md). Passer en variant class-based
+   (`.dark`) desactiverait silencieusement tous les `dark:` deja ecrits sur
+   les ecrans hors parcours demo (mode media-query par defaut de Tailwind
+   v4). Un seul theme vit dans :root ci-dessous - c'est la palette Bloc 1. */
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-fraunces);
+  --font-heading: var(--font-serif);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Palette Bloc 1 (docs/design/reference-vvd.md §2.1) - contrastes verifies
+   (WCAG 2.1, formule relative luminance) avant fixation des valeurs :
+   foreground/NAVY|INK|NAVY2 >= 10.5:1 ; muted-foreground/NAVY|INK >= 4.69:1 ;
+   NAVY-sur-MINT (primary-foreground) = 5.62:1 ; foreground/accent (35% TEAL
+   sur INK) = 7.8:1. #EDF2F2 (foreground) et #8FA6AF (muted-foreground) ne
+   font pas partie des 6 tokens actes : neutres necessaires, absents de la
+   palette source qui ne definit que fond/surface/accent. --destructive :
+   d'abord repris du rouge de form-styles.ts (#B91C1C, "red-700") en pensant
+   coherence avec l'existant - mais ce rouge est concu pour texte-sur-clair,
+   contraste mesure de seulement 1.86:1 en texte direct sur INK. Remplace par
+   l'equivalent "red-300" (#FCA5A5, le grain que le code existant reservait
+   deja a `dark:text-red-400` sans jamais l'appliquer par defaut) : 6.30:1 sur
+   INK, 5.23:1 meme tinte a 10% - AMBER reste reserve aux alertes uniquement,
+   pas au destructive. */
+:root {
+  --background: #122a3a; /* NAVY */
+  --foreground: #edf2f2;
+  --card: #1c3a4b; /* INK */
+  --card-foreground: #edf2f2;
+  --popover: #1c3a4b; /* INK */
+  --popover-foreground: #edf2f2;
+  --primary: #1fb39a; /* MINT */
+  --primary-foreground: #122a3a; /* NAVY, contraste 5.62:1 */
+  --secondary: #15394a; /* NAVY2 - "Surface 2" */
+  --secondary-foreground: #edf2f2;
+  --muted: #15394a; /* NAVY2 */
+  --muted-foreground: #8fa6af;
+  --accent: #175160; /* 35% TEAL sur INK, cf. commentaire ci-dessus */
+  --accent-foreground: #edf2f2;
+  --destructive: #fca5a5;
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: #1fb39a; /* MINT - focus */
+  --chart-1: #1fb39a;
+  --chart-2: #0e7c86;
+  --chart-3: #15394a;
+  --chart-4: #1c3a4b;
+  --chart-5: #8fa6af;
+  --radius: 0.625rem;
+  --sidebar: #1c3a4b; /* INK */
+  --sidebar-foreground: #edf2f2;
+  --sidebar-primary: #1fb39a; /* MINT */
+  --sidebar-primary-foreground: #122a3a;
+  --sidebar-accent: #15394a; /* NAVY2 */
+  --sidebar-accent-foreground: #edf2f2;
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #1fb39a;
+
+  /* Fond plein ecran partage (reference-vvd.md §2.3, pattern "artwork en
+     fond") : --bg-image reste vide tant qu'aucun artwork de monde n'est
+     branche - repli degrade NAVY -> NAVY2 + lueur MINT tres discrete
+     (8% alpha), volontairement excentree en bas-a-gauche pour ne jamais
+     passer derriere un panneau translucide pose au premier plan (coin
+     oppose) et ne pas fausser son contraste verifie. Utilise par
+     (auth)/layout.tsx ET (app)/layout.tsx (KAN-36 P1 : "generaliser le fond
+     du login au layout authentifie entier") - un seul degrade, deux ecrans. */
+  --shell-bg-fallback:
+    radial-gradient(ellipse 70% 60% at 15% 85%, oklch(0.78 0.13 170 / 8%), transparent 60%),
+    linear-gradient(165deg, #122a3a 0%, #15394a 100%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Fond du canvas de la Constellation (KAN-36 P5, graph-view.tsx) : plus
+   sombre que --background, grille discrete legerement floutee. Un
+   `filter:blur` direct sur le conteneur de montage Cytoscape flouterait
+   aussi les noeuds/labels reels qu'il rend - le fond passe donc par un
+   ::before plutot qu'un calque frere positionne en absolu (essaye d'abord,
+   a casse le rendu du canvas - le ::before est plus sur : toujours peint en
+   PREMIER dans l'element, le <canvas> insere par Cytoscape (enfant reel,
+   ajoute apres coup par JS) peint naturellement par-dessus, sans z-index a
+   gerer). */
+.graph-canvas-backdrop {
+  position: relative;
+  overflow: hidden;
+}
+.graph-canvas-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: #0d1d29;
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  filter: blur(1px);
+  pointer-events: none;
 }

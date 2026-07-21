@@ -21,6 +21,7 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   await page.waitForURL("**/worlds");
 
   const worldName = `Monde Ignore ${Date.now()}`;
+  await page.getByRole("button", { name: "+ Nouveau monde" }).click();
   await page.getByLabel("Nom du monde").fill(worldName);
   await page.getByRole("button", { name: "Créer le monde" }).click();
   await page.waitForURL(/\/worlds\/[^/]+$/);
@@ -28,8 +29,9 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
 
   // 2. Creer l'entite CIBLE.
   const targetName = `Aldric ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(targetName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
   const targetMatch = /\/entities\/([^/]+)$/.exec(page.url());
   if (!targetMatch || targetMatch[1] === undefined) {
@@ -40,8 +42,9 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   // 3. Creer la fiche SOURCE et la faire mentionner la cible (liaison AUTO).
   await page.goto(worldUrl);
   const sourceName = `Chronique ${Date.now()}`;
+  await page.getByTestId("create-entity-trigger").click();
   await page.getByLabel("Nom", { exact: true }).fill(sourceName);
-  await page.getByRole("button", { name: "Créer la fiche" }).click();
+  await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   await page.locator(".ProseMirror").click();
@@ -49,7 +52,7 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   await expect(page.getByText("Enregistré.")).toBeVisible({ timeout: 10_000 });
 
   // 4. Attendre que le worker ait ecrit la Relation AUTO (poll par rechargements).
-  const linkedEntitiesNav = page.getByRole("navigation", { name: "Entités liées" });
+  const linkedEntitiesNav = page.getByRole("navigation", { name: "Renvois" });
   await expect(async () => {
     await page.reload();
     await expect(linkedEntitiesNav.getByRole("link", { name: targetName })).toBeVisible();

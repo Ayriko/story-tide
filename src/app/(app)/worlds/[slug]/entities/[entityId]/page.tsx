@@ -12,9 +12,9 @@ import {
 } from "@/services/relation-service";
 import { entityTypeLabel } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
-import { EditEntityForm } from "./edit-entity-form";
-import { DeleteEntityForm } from "./delete-entity-form";
+import { EntityTypeIcon } from "../../entity-type-icon";
 import { EntityEditor } from "./entity-editor";
+import { EntitySettingsDialog } from "./entity-settings-dialog";
 import { IgnoredLinks } from "./ignored-links";
 import { LinkedEntities } from "./linked-entities";
 
@@ -83,54 +83,75 @@ export default async function EntityPage({
   }));
 
   return (
-    <div className="flex flex-col gap-10">
-      <div>
-        <Link
-          href={`/worlds/${world.slug}`}
-          className="text-sm text-zinc-600 hover:underline dark:text-zinc-400"
-        >
-          ← {world.name}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-zinc-950 dark:text-zinc-50">
-          {entity.name}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {entityTypeLabel(entity.type)}
-        </p>
+    <div className="flex flex-col gap-8">
+      <Link
+        href={`/worlds/${world.slug}`}
+        className="w-fit text-sm text-muted-foreground hover:text-foreground hover:underline"
+      >
+        ← {world.name}
+      </Link>
+
+      {/* cardHeader dense (KAN-36 P4, reference-vvd.md §3) : remplace le
+          header minimal de P2 (titre + sous-titre texte + gear a part). */}
+      <div className="relative flex flex-col gap-3 rounded-lg border border-border bg-card p-6">
+        {/* Coin haut-droit reel de la carte (positionnement absolu, pas un
+            simple flex-col a cote du texte) - independant de l'emplacement de
+            couverture, qui reste sous ce bouton. */}
+        <div className="absolute right-4 top-4">
+          <EntitySettingsDialog
+            worldId={world.id}
+            worldSlug={world.slug}
+            entityId={entity.id}
+            name={entity.name}
+            type={entity.type}
+            aliases={entity.aliases}
+          />
+        </div>
+        <div className="flex min-w-0 flex-col gap-3 pr-12">
+          <h1 className="font-heading text-3xl font-medium text-foreground">{entity.name}</h1>
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
+            <EntityTypeIcon type={entity.type} className="size-3.5 text-primary-foreground" />
+            {entityTypeLabel(entity.type)}
+          </span>
+          {entity.aliases.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {entity.aliases.map((alias) => (
+                <span
+                  key={alias}
+                  className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                >
+                  {alias}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <section
-        aria-labelledby="content-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
-      >
-        <h2 id="content-heading" className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-          Contenu
-        </h2>
-        <EntityEditor
-          worldId={world.id}
-          worldSlug={world.slug}
-          entityId={entity.id}
-          initialContent={initialContent}
-          dictionary={dictionary}
-          ignoredTargetIds={ignoredTargetIds}
-          entities={mentionSuggestionEntities}
-        />
-      </section>
+      <EntityEditor
+        worldId={world.id}
+        worldSlug={world.slug}
+        entityId={entity.id}
+        initialContent={initialContent}
+        dictionary={dictionary}
+        ignoredTargetIds={ignoredTargetIds}
+        entities={mentionSuggestionEntities}
+      />
 
       <section
         aria-labelledby="linked-entities-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-4"
       >
         <h2
           id="linked-entities-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
+          className="font-heading text-sm font-medium text-foreground"
         >
-          Entités liées
+          Renvois
         </h2>
         <LinkedEntities
           worldSlug={world.slug}
           links={linkedEntities}
-          label="Entités liées"
+          label="Renvois"
           emptyLabel="Aucune entité liée pour l'instant."
           ignoreContext={{ worldId: world.id, worldSlug: world.slug, entityId: entity.id }}
         />
@@ -138,30 +159,24 @@ export default async function EntityPage({
 
       <section
         aria-labelledby="backlinks-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-4"
       >
-        <h2
-          id="backlinks-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
-        >
-          Mentionné par
+        <h2 id="backlinks-heading" className="font-heading text-sm font-medium text-foreground">
+          Échos
         </h2>
         <LinkedEntities
           worldSlug={world.slug}
           links={backlinks}
-          label="Mentionné par"
-          emptyLabel="Aucune fiche ne mentionne cette entité pour l'instant."
+          label="Échos"
+          emptyLabel="Aucune entrée ne mentionne cette entité pour l'instant."
         />
       </section>
 
       <section
         aria-labelledby="ignored-links-heading"
-        className="flex flex-col gap-2 border-t border-zinc-200 pt-6 dark:border-zinc-800"
+        className="flex flex-col gap-2 border-t border-border pt-4"
       >
-        <h2
-          id="ignored-links-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
-        >
+        <h2 id="ignored-links-heading" className="font-heading text-sm font-medium text-foreground">
           Liens ignorés
         </h2>
         <IgnoredLinks
@@ -170,27 +185,6 @@ export default async function EntityPage({
           entityId={entity.id}
           targets={ignoredTargets}
         />
-      </section>
-
-      <section
-        aria-labelledby="edit-entity-section-heading"
-        className="flex flex-col gap-6 border-t border-zinc-200 pt-6 dark:border-zinc-800"
-      >
-        <h2
-          id="edit-entity-section-heading"
-          className="text-lg font-semibold text-zinc-950 dark:text-zinc-50"
-        >
-          Paramètres
-        </h2>
-        <EditEntityForm
-          worldId={world.id}
-          worldSlug={world.slug}
-          entityId={entity.id}
-          name={entity.name}
-          type={entity.type}
-          aliases={entity.aliases}
-        />
-        <DeleteEntityForm worldId={world.id} worldSlug={world.slug} entityId={entity.id} />
       </section>
     </div>
   );

@@ -1,11 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getServerSession } from "@/lib/auth";
+import { AuthCard } from "../auth-card";
 import { RegisterForm } from "./register-form";
 
 export const metadata: Metadata = {
-  title: "Inscription — Story Tide",
+  title: "Inscription",
 };
 
 export default async function RegisterPage() {
@@ -15,15 +15,14 @@ export default async function RegisterPage() {
   }
 
   return (
-    <>
-      <h1 className="text-2xl font-semibold text-zinc-950 dark:text-zinc-50">Creer un compte</h1>
+    <AuthCard active="register">
+      <div>
+        <h1 className="font-heading text-2xl font-medium text-foreground">Créer un compte</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Quelques secondes pour commencer à écrire.
+        </p>
+      </div>
       <RegisterForm />
-      <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
-        Deja un compte ?{" "}
-        <Link href="/login" className="font-medium underline underline-offset-2">
-          Se connecter
-        </Link>
-      </p>
-    </>
+    </AuthCard>
   );
 }

@@ -72,7 +72,7 @@ export async function saveEntityContentAction(
     await updateEntityContent(session.user.id, worldId, entityId, content, plainText);
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
-      return { ok: false, error: "Fiche introuvable." };
+      return { ok: false, error: "Entrée introuvable." };
     }
     console.error("[entity-content] Enregistrement du contenu échoué :", error);
     return { ok: false, error: "Enregistrement impossible pour le moment." };
