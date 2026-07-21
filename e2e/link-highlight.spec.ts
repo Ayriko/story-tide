@@ -73,18 +73,24 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
   expect(page.url()).toContain(`/entities/${targetId}`);
 
-  // 8. Retour sur la fiche source : la liste "Entites liees" (chemin
+  // 8-9. Retour sur la fiche source : la liste "Entites liees" (chemin
   // clavier/lecteur d'ecran, RGAA) doit refleter la Relation origin=AUTO
   // ecrite par le worker - poll par rechargements successifs, le rendu etant
-  // cote serveur (RSC), pas reactif a un evenement client.
+  // cote serveur (RSC), pas reactif a un evenement client. Le clic sur le
+  // lien (etape 9) reste DANS le meme bloc de retry que le reload (etape 8) -
+  // juste apres un reload, la page peut ne pas encore etre pleinement
+  // interactive (hydratation), un clic peut alors ne rien declencher de
+  // fiable (flake constate en CI, jamais reproduit en local : lien visible
+  // mais clic sans effet, page restee sur la fiche source). Si le clic ou la
+  // navigation echouent, le retry refait un reload() et retente le cycle
+  // complet plutot que d'echouer immediatement sur un lien juste visible.
   await page.goto(sourceUrl);
   const linkedEntitiesNav = page.getByRole("navigation", { name: "Renvois" });
   await expect(async () => {
     await page.reload();
-    await expect(linkedEntitiesNav.getByRole("link", { name: targetName })).toBeVisible();
+    const link = linkedEntitiesNav.getByRole("link", { name: targetName });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
   }).toPass({ timeout: 20_000 });
-
-  // 9. Suivre ce lien (chemin accessible) navigue bien vers la fiche cible.
-  await linkedEntitiesNav.getByRole("link", { name: targetName }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
 });
