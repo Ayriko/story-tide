@@ -209,7 +209,7 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
               worldSlug={world.slug}
               elements={elements}
               showFilters={false}
-              canvasClassName={`${PANEL_HEIGHT} w-full rounded-md border border-border bg-background`}
+              canvasClassName={`${PANEL_HEIGHT} w-full rounded-md border border-border`}
             />
             <Button asChild variant="ghost" size="icon" className="absolute right-2 top-2 z-10">
               <Link href={`/worlds/${world.slug}/graph`} aria-label="Explorer la constellation">

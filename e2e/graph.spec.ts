@@ -60,14 +60,23 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   const graphCanvas = page.getByTestId("graph-canvas");
   await expect(graphCanvas.locator("canvas").first()).toBeVisible();
 
-  // 6. Filtres par type : un checkbox par type, coche par defaut.
-  const placeFilter = page.getByRole("checkbox", { name: "Lieu" });
-  await expect(placeFilter).toBeChecked();
+  // 6. Filtres par type : chips a etat (KAN-36 P5b), pressees par defaut
+  // (= type visible). Panneau FERME par defaut (retour Aymeric) - ouverture
+  // explicite requise avant d'atteindre les chips.
+  await page.getByRole("button", { name: "Filtres" }).click();
+  // exact:true necessaire - "Lieu" matcherait sinon aussi le bouton de repli
+  // du groupe "Lieux" de la sidebar (nom accessible different mais englobant).
+  const placeFilter = page.getByRole("button", { name: "Lieu", exact: true, pressed: true });
   await placeFilter.click();
-  await expect(placeFilter).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Lieu", exact: true, pressed: false }),
+  ).toBeVisible();
 
   // 7. Liste accessible (chemin clavier/lecteur d'ecran) : reflete la
-  // relation MANUAL cree a l'etape 3, navigation reelle verifiee.
+  // relation MANUAL cree a l'etape 3, navigation reelle verifiee. Masquee
+  // derriere un disclosure FERME par defaut (retour Aymeric) - ouverture
+  // explicite requise.
+  await page.getByRole("button", { name: "Observer les fils" }).click();
   const accessibleList = page.getByRole("navigation", {
     name: "Liste des liens de la constellation",
   });

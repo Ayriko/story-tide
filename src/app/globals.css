@@ -125,3 +125,29 @@
     @apply font-sans;
   }
 }
+
+/* Fond du canvas de la Constellation (KAN-36 P5, graph-view.tsx) : plus
+   sombre que --background, grille discrete legerement floutee. Un
+   `filter:blur` direct sur le conteneur de montage Cytoscape flouterait
+   aussi les noeuds/labels reels qu'il rend - le fond passe donc par un
+   ::before plutot qu'un calque frere positionne en absolu (essaye d'abord,
+   a casse le rendu du canvas - le ::before est plus sur : toujours peint en
+   PREMIER dans l'element, le <canvas> insere par Cytoscape (enfant reel,
+   ajoute apres coup par JS) peint naturellement par-dessus, sans z-index a
+   gerer). */
+.graph-canvas-backdrop {
+  position: relative;
+  overflow: hidden;
+}
+.graph-canvas-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: #0d1d29;
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 24px 24px;
+  filter: blur(1px);
+  pointer-events: none;
+}

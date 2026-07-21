@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { listWorldRelations } from "@/services/relation-service";
 import { buildAccessibleGraphEntries, buildGraphElements } from "@/lib/graph-elements";
-import { GraphAccessibleList } from "./graph-accessible-list";
+import { Button } from "@/components/ui/button";
+import { GraphAccessibleDisclosure } from "./graph-accessible-disclosure";
 import { GraphView } from "./graph-view";
 
 export default async function GraphPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -37,30 +39,27 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Link
-          href={`/worlds/${world.slug}`}
-          className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-        >
-          ← {world.name}
-        </Link>
-        <h1 className="mt-2 font-heading text-2xl font-medium text-foreground">Constellation</h1>
+      <div className="flex items-center gap-3">
+        {/* Vue "agrandissement plein cadre" (KAN-36 P5a) - bouton retour
+            visible plutot que le lien discret des autres headers (page.tsx de
+            la fiche, KAN-36 P4) : cette vue se comporte comme un mode
+            immersif dedie, pas un document parmi d'autres. */}
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/worlds/${world.slug}`}>
+            <ArrowLeft aria-hidden="true" className="size-4" />
+            {world.name}
+          </Link>
+        </Button>
+        <h1 className="font-heading text-2xl font-medium text-foreground">Constellation</h1>
       </div>
 
-      <GraphView worldSlug={world.slug} elements={elements} />
+      <GraphView
+        worldSlug={world.slug}
+        elements={elements}
+        canvasClassName="h-[calc(100vh-20rem)] min-h-[28rem] w-full rounded-lg border border-border"
+      />
 
-      <section
-        aria-labelledby="graph-accessible-heading"
-        className="flex flex-col gap-2 border-t border-border pt-6"
-      >
-        <h2
-          id="graph-accessible-heading"
-          className="font-heading text-lg font-medium text-foreground"
-        >
-          Liste accessible
-        </h2>
-        <GraphAccessibleList worldSlug={world.slug} entries={accessibleEntries} />
-      </section>
+      <GraphAccessibleDisclosure worldSlug={world.slug} entries={accessibleEntries} />
     </div>
   );
 }

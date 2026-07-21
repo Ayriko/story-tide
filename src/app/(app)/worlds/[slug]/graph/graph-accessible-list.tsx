@@ -34,7 +34,10 @@ export function GraphAccessibleList({
                     href={`/worlds/${worldSlug}/entities/${target.id}`}
                     className="text-sm text-muted-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
-                    → {target.name}
+                    {/* mutual : les deux entites se mentionnent l'une l'autre
+                        - un seul lien pour la paire (graph-elements.ts),
+                        fleche double pour le signaler visuellement. */}
+                    {target.mutual ? "↔" : "→"} {target.name}
                   </Link>
                 </li>
               ))}
