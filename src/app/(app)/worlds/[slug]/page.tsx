@@ -161,7 +161,7 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
           {recent.length === 0 ? (
             <p className="text-sm text-muted-foreground">Vos entrées apparaîtront ici.</p>
           ) : (
-            <div className={`${PANEL_HEIGHT} overflow-y-auto`}>
+            <div className={`${PANEL_HEIGHT} overflow-y-auto themed-scrollbar`}>
               <ul className="flex flex-col gap-2 p-2">
                 {recent.map((entity) => (
                   <li key={entity.id}>

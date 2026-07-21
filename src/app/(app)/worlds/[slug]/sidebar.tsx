@@ -30,7 +30,10 @@ export function Sidebar({
 }) {
   return (
     <Card className="flex h-full w-72 flex-col gap-4 border-none bg-card/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
-      <nav aria-label="Entrées du monde" className="min-h-0 flex-1 overflow-y-auto">
+      <nav
+        aria-label="Entrées du monde"
+        className="min-h-0 flex-1 overflow-y-auto themed-scrollbar"
+      >
         <EntitySearch worldId={worldId} worldSlug={worldSlug} initialEntities={entities} />
       </nav>
 

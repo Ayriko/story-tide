@@ -151,3 +151,29 @@
   filter: blur(1px);
   pointer-events: none;
 }
+
+/* Scrollbar thematisee (retour Aymeric) : la Sidebar et le panneau "Dernieres
+   entrees" du dashboard sont en overflow-y-auto - scrollbar blanc/gris par
+   defaut du navigateur sinon, hors theme navy/mint. N'apparait que si le
+   contenu deborde (comportement natif de overflow-y-auto, aucune logique JS).
+   Les deux syntaxes (standard + webkit) sont necessaires en parallele : pas
+   de recouvrement, chaque navigateur ne lit que celle qu'il supporte. */
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) transparent;
+}
+.themed-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--muted-foreground);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.themed-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary);
+}
