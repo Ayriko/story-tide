@@ -167,7 +167,13 @@ export function WorldShell({
         />
 
         <main id="main-content" className="min-h-0 flex-1 overflow-y-auto px-4 pb-10 lg:px-6">
-          <Card className="mx-auto max-w-[1150px] border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
+          {/* overflow-visible (KAN-39 volet 3) : le style de base de Card
+              porte overflow-hidden (components/ui/card.tsx) - un ancetre
+              overflow!=visible entre un element sticky et son vrai conteneur
+              defilant (ce <main>) neutralise position:sticky (constate sur la
+              toolbar de l'editeur). Override cible sur cet usage precis
+              uniquement - les autres Card de l'app gardent leur clipping. */}
+          <Card className="mx-auto max-w-[1150px] overflow-visible border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
             <div className="px-6 py-8 sm:px-8 sm:py-10">{children}</div>
           </Card>
         </main>
