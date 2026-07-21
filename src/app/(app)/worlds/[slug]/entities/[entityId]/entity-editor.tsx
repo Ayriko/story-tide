@@ -2,17 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
+import { EditorContent, ReactNodeViewRenderer, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import { createEditorExtensions, type MentionSuggestionItem } from "@/lib/tiptap-extensions";
 import { createLinkHighlightExtension, MENTION_TARGET_ATTR } from "@/lib/tiptap-link-highlight";
+import { splitParagraphsOnBreaks } from "@/lib/tiptap-paste";
 import type { Pattern } from "@/lib/linker/aho-corasick";
 import { saveEntityContentAction } from "@/actions/entity-content";
 import { uploadImageAction } from "@/actions/image";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createMentionSuggestion } from "./mention-suggestion";
+import { ResizableImageView } from "./resizable-image-view";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
@@ -40,10 +50,17 @@ const INACTIVE_STATE: ActiveState = {
   link: false,
 };
 
+// Boutons ghost (KAN-36 P4) : plus de pill bordee claire, sur INK la bordure
+// alourdissait chaque bouton - inactif = transparent + hover discret, actif =
+// fond MINT plein + texte primary-foreground (meme paire que Button variant
+// "default", contraste 5.62:1 deja documente dans globals.css) plutot qu'un
+// simple text-primary/tinte : verifie qu'un text-primary sur un fond MINT a
+// 15% d'opacite tombe a ~3.6:1 sur INK, sous le seuil RGAA 4,5:1. Aucune
+// modif des commandes/handlers, seul le style change.
 const toolbarButtonBase =
-  "rounded-md border px-2 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50";
-const toolbarButtonActive = "border-primary bg-primary text-primary-foreground";
-const toolbarButtonInactive = "border-input text-foreground hover:bg-accent";
+  "rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50";
+const toolbarButtonActive = "bg-primary text-primary-foreground";
+const toolbarButtonInactive = "text-muted-foreground hover:bg-accent hover:text-foreground";
 
 function ToolbarButton({
   label,
@@ -66,6 +83,11 @@ function ToolbarButton({
   );
 }
 
+// Dialog shadcn (KAN-39 volet 4) : remplace le popover maison (div absolute
+// sans Escape/clic exterieur/focus trap/role dialog - rien ne le fermait sauf
+// re-cliquer le bouton). Radix fournit tout ca gratuitement, meme patron deja
+// en place pour CreateEntityDialog/EntitySettingsDialog. `open` reste un
+// useState local, pilote par Dialog en mode controle (open/onOpenChange).
 function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
@@ -81,27 +103,31 @@ function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
   }
 
   return (
-    <div className="relative">
-      <ToolbarButton label="Lien" active={active} onClick={() => setOpen((value) => !value)} />
-      {open ? (
-        <div className="absolute left-0 top-full z-10 mt-1 flex gap-2 rounded-md border border-border bg-popover p-2">
-          <Label className="sr-only" htmlFor="link-url">
-            URL du lien
-          </Label>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <ToolbarButton label="Lien" active={active} onClick={() => setOpen(true)} />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Lien</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="link-url">URL du lien</Label>
           <Input
             id="link-url"
             type="url"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             placeholder="https://…"
-            className="h-9 w-48"
           />
-          <Button type="button" variant="secondary" size="sm" onClick={apply}>
+        </div>
+        <DialogFooter>
+          <Button type="button" onClick={apply}>
             Appliquer
           </Button>
-        </div>
-      ) : null}
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -116,6 +142,7 @@ function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const canInsert = (file !== null || url.trim() !== "") && alt.trim() !== "" && !uploading;
 
@@ -151,60 +178,97 @@ function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) 
   }
 
   return (
-    <div className="relative">
-      <ToolbarButton label="Image" onClick={() => setOpen((value) => !value)} />
-      {open ? (
-        <div className="absolute left-0 top-full z-10 mt-1 flex flex-col gap-2 rounded-md border border-border bg-popover p-2">
-          {error ? (
-            <p role="alert" className="text-xs text-destructive">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="image-file">Téléverser une image</Label>
-            <input
-              id="image-file"
-              type="file"
-              accept="image/png,image/jpeg,image/gif,image/webp"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              className="w-56 text-xs text-muted-foreground"
-            />
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <ToolbarButton label="Image" onClick={() => setOpen(true)} />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Insérer une image</DialogTitle>
+        </DialogHeader>
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="image-file">Importer une image</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Choisir un fichier
+            </Button>
           </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="image-url">…ou URL de l&apos;image</Label>
-            <Input
-              id="image-url"
-              type="url"
-              value={url}
-              disabled={file !== null}
-              onChange={(event) => setUrl(event.target.value)}
-              placeholder="https://…"
-              className="h-9 w-56"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="image-alt">Texte alternatif</Label>
-            <Input
-              id="image-alt"
-              type="text"
-              value={alt}
-              onChange={(event) => setAlt(event.target.value)}
-              className="h-9 w-56"
-            />
-          </div>
+          {/* Input natif cache (KAN-39, retour Aymeric) - sr-only le garde
+              accessible/focusable au clavier (associe au bouton ci-dessus via
+              la ref, pas via htmlFor - deux libelles pour un meme champ
+              preterait a confusion pour les lecteurs d'ecran). Le nom du
+              fichier choisi s'affiche separement en dessous, pas dans le
+              rendu natif du champ (bouton + texte accoles, impossible a
+              disposer independamment). */}
+          <input
+            ref={fileInputRef}
+            id="image-file"
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            className="sr-only"
+          />
+          <p className="text-xs text-muted-foreground">
+            {file ? file.name : "Aucun fichier choisi"}
+          </p>
+        </div>
+        {/* URL manuelle (KAN-39, retour Aymeric) : rendue visuellement
+            secondaire - libelle et champ plus petits - par rapport a
+            l'import de fichier, l'option principale. */}
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="image-url" className="text-xs font-normal text-muted-foreground">
+            …ou URL de l&apos;image
+          </Label>
+          <Input
+            id="image-url"
+            type="url"
+            value={url}
+            disabled={file !== null}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder="https://…"
+            className="h-7 text-xs"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="image-alt">Légende</Label>
+          <Input
+            id="image-alt"
+            type="text"
+            value={alt}
+            onChange={(event) => setAlt(event.target.value)}
+          />
+        </div>
+        <DialogFooter>
+          {/* Ligne d'aide (KAN-39 volet 4) : le bouton reste desactive tant
+              que l'alt est vide - sans explication, ce n'est pas evident
+              pourquoi "Inserer" ne repond pas. aria-describedby relie
+              explicitement le bouton a cette explication (pas seulement une
+              proximite visuelle). */}
+          <p id="image-insert-hint" className="text-xs text-muted-foreground sm:mr-auto">
+            « Insérer » s&apos;active une fois la légende renseignée.
+          </p>
           <Button
             type="button"
-            variant="secondary"
-            size="sm"
             onClick={() => void apply()}
             disabled={!canInsert}
             aria-busy={uploading}
+            aria-describedby="image-insert-hint"
           >
             {uploading ? "Envoi…" : "Insérer"}
           </Button>
-        </div>
-      ) : null}
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -218,7 +282,21 @@ function Toolbar({
   worldId: string;
 }) {
   return (
-    <div role="toolbar" aria-label="Mise en forme" className="flex flex-wrap gap-1.5">
+    // sticky top-0 (KAN-39 volet 3) : reste visible pendant le defilement
+    // d'une longue entree. Fond discret (bg-card/85 + flou, pas plein - retour
+    // Aymeric : sans fond les boutons se distinguaient mal du texte qui
+    // defile dessous, mais un fond plein etait trop lourd) - w-fit + arrondi
+    // pour une pastille flottante plutot qu'une barre pleine largeur ; z-10,
+    // sous les Dialog/AlertDialog (z-50, dialog.tsx/alert-dialog.tsx), meme
+    // repere que le bouton "Explorer" du dashboard. Necessite
+    // overflow-visible sur la Card ancetre (world-shell.tsx) - un
+    // overflow-hidden entre la toolbar et son vrai conteneur defilant
+    // (<main>) neutraliserait sinon le sticky.
+    <div
+      role="toolbar"
+      aria-label="Mise en forme"
+      className="sticky top-0 z-10 flex w-fit flex-wrap gap-1.5 rounded-lg bg-card/85 px-2 py-1.5 backdrop-blur-sm"
+    >
       <ToolbarButton
         label="Titre"
         active={active.heading2}
@@ -316,11 +394,25 @@ export function EntityEditor({
   // montage - voir son commentaire dans tiptap-link-highlight.ts).
   const editor = useEditor({
     extensions: [
-      ...createEditorExtensions(createMentionSuggestion(mentionableEntities)),
+      // imageNodeView (KAN-39 volet 5) : ReactNodeViewRenderer(...) appele
+      // ICI, a chaque montage - fraiche a chaque fois, meme invariant
+      // StrictMode que le reste des extensions de ce tableau.
+      ...createEditorExtensions(createMentionSuggestion(mentionableEntities), {
+        imageNodeView: ReactNodeViewRenderer(ResizableImageView),
+      }),
       createLinkHighlightExtension({ dictionary, selfEntityId: entityId, ignoredTargetIds }),
     ],
     content: initialContent,
     immediatelyRender: false,
+    // transformPastedHTML (KAN-39 volet 2) : normalise le HTML colle AVANT le
+    // parsing schema-aware de ProseMirror (donc avant meme SafeLink) - un
+    // <p> avec des <br> (retour "souple" produit par Obsidian/Notion/Word)
+    // devient plusieurs <p> distincts, sinon un "Sous-titre" pose sur sa
+    // propre ligne dans l'outil source se retrouve fondu dans le paragraphe
+    // suivant des le collage.
+    editorProps: {
+      transformPastedHTML: splitParagraphsOnBreaks,
+    },
     onUpdate: ({ editor: updatedEditor }) => {
       scheduleSave(updatedEditor.getJSON());
     },
@@ -402,7 +494,12 @@ export function EntityEditor({
         // pointille discret, jamais du texte plein (ne doit pas se confondre
         // avec un vrai lien "http" du node Link). Ctrl/Cmd+clic navigue
         // (handleMentionClick) ; sans modificateur, clic simple = edition.
-        className="min-h-[200px] rounded-md border border-input px-3 py-2 text-sm text-foreground focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-lg [&_h3]:font-medium [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-muted-foreground [&_.entity-mention]:underline-offset-2"
+        // Placeholder (KAN-36 P4) : l'extension pose une decoration
+        // .is-editor-empty + data-placeholder sur le premier noeud vide -
+        // recette CSS standard Tiptap (float-left/h-0/pointer-events-none)
+        // traduite en variantes Tailwind arbitraires, meme patron que le reste
+        // de cette classe (skill headless-editor-tailwind-preflight).
+        className="min-h-[200px] rounded-md border border-input px-3 py-2 text-sm text-foreground focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-lg [&_h3]:font-medium [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-muted-foreground [&_.entity-mention]:underline-offset-2 [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-left [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]"
       />
       <p aria-live="polite" className="text-xs text-muted-foreground">
         {status === "saving" ? "Enregistrement…" : null}

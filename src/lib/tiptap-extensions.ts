@@ -1,10 +1,113 @@
-import type { Extensions } from "@tiptap/core";
+import type { Extensions, NodeViewRenderer } from "@tiptap/core";
 import { Mention } from "@tiptap/extension-mention";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
+import { Link } from "@tiptap/extension-link";
+import Image, { type ImageOptions } from "@tiptap/extension-image";
+import Placeholder from "@tiptap/extension-placeholder";
 import { normalizeForMatch } from "./linker/normalize";
 import { MENTION_CLASS_NAME, MENTION_TARGET_ATTR } from "./tiptap-mention-attrs";
+import { isSafeHttpUrl } from "./url-safety";
+
+// SafeLink (KAN-36 bugfix P1, 2026-07-21) : assainit les liens des le parsing
+// (frappe/collage) plutot que de laisser une mark invalide atteindre le
+// serveur, qui rejetterait alors TOUT le document (isSafeHttpUrl,
+// url-safety.ts). Reproduit avec un lien Obsidian colle (wikilink converti en
+// <a href="Cultistes des souterrains" ...> - href relatif avec espaces) :
+// Tiptap parsait la mark, le JSON partait avec cet attribut, et
+// assertSafeAttributes() (tiptap-content.ts) rejetait le document entier avec
+// "Contenu invalide." alors que retaper le meme texte au clavier fonctionnait.
+// La validation serveur ne change pas (garde-fou non contournable, OWASP
+// A03) - on evite juste de lui presenter un contenu qu'elle rejettera de
+// toute facon : rejeter UN ATTRIBUT qu'on peut jeter (le lien) est
+// disproportionne face a rejeter tout le document, donc on retire le lien et
+// on garde le texte.
+//
+// getAttrs => false (ProseMirror pur, independant de la version de Tiptap) :
+// la regle "a[href]" ne matche pas, aucune mark n'est creee, le texte de
+// l'ancre reste. Le parseHTML natif de @tiptap/extension-link delegue deja a
+// isAllowedUri (verifie dans node_modules 3.27.4) mais rien ne garantit que
+// ce reste vrai a une prochaine montee de version - cet override est une
+// seconde barriere volontairement redondante, pas une simplification a
+// supprimer.
+//
+// Blueprint au niveau module (comme Image/Mention importes), jamais configure
+// ICI : SafeLink.configure(...) est appele DANS createEditorExtensions(),
+// meme regle que le reste de ce fichier (StrictMode - un Link deja configure
+// et partage entre plusieurs montages d'Editor corrompt les commandes liees
+// au schema, "link" etant explicitement l'une des marks qui n'y survivait
+// pas).
+const SafeLink = Link.extend({
+  parseHTML() {
+    return [
+      {
+        tag: "a[href]",
+        getAttrs: (element) => {
+          const href = (element as HTMLElement).getAttribute("href");
+          return href && isSafeHttpUrl(href) ? null : false;
+        },
+      },
+    ];
+  },
+});
+
+// ResizableImage (KAN-39 volet 5) : ajoute l'attribut `width` - POURCENTAGE de
+// la largeur du contenu (jamais des pixels, la mise en page reste fluide),
+// borne [10..100], defaut 100. Retrocompat : une image persistee avant ce
+// volet n'a pas cet attribut du tout - Node.fromJSON (ProseMirror) applique
+// le defaut du schema pour tout attribut absent, `width` devient 100 au
+// chargement sans migration.
+//
+// Le NodeView React (poignee de drag) n'est PAS defini ici : ce fichier est
+// importe a la fois cote serveur (tiptap-content.ts, validation - jamais de
+// vue montee) et cote client (entity-editor.tsx, editeur reel) - tirer
+// @tiptap/react/JSX ici entrainerait ce paquet dans le bundle serveur pour
+// rien. addNodeView() retourne `this.options.nodeViewRenderer`, fourni
+// UNIQUEMENT par l'appelant client via createEditorExtensions(...,
+// {imageNodeView}) ci-dessous ; `null` cote serveur (comportement par defaut
+// Tiptap, jamais invoque de toute facon la ou aucun Editor n'est monte).
+//
+// Blueprint au niveau module (comme SafeLink/Image importes), jamais
+// configure ICI - ResizableImage.configure(...) est appele DANS
+// createEditorExtensions(), meme invariant StrictMode que le reste de ce
+// fichier.
+const ResizableImage = Image.extend<ImageOptions & { nodeViewRenderer?: NodeViewRenderer }>({
+  addOptions() {
+    // Repli explicite (jamais reellement utilise a l'execution - this.parent
+    // est toujours defini pour un .extend(), mais typé "possiblement
+    // undefined" par Tiptap) : reprend les defauts documentes de Image
+    // (node_modules/@tiptap/extension-image/dist/index.js) plutot qu'un cast
+    // `as ImageOptions` de complaisance.
+    const parentOptions = this.parent?.() ?? {
+      inline: false,
+      allowBase64: false,
+      HTMLAttributes: {},
+      resize: false as const,
+    };
+    return {
+      ...parentOptions,
+      nodeViewRenderer: undefined,
+    };
+  },
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: 100,
+        parseHTML: (element) => {
+          const match = /^(\d+(?:\.\d+)?)%$/.exec((element as HTMLElement).style.width);
+          return match ? Number(match[1]) : 100;
+        },
+        renderHTML: (attributes: { width?: unknown }) => ({
+          style: `width: ${typeof attributes.width === "number" ? attributes.width : 100}%`,
+        }),
+      },
+    };
+  },
+  addNodeView() {
+    return this.options.nodeViewRenderer ?? null;
+  },
+});
 
 // Forme volontairement alignee sur MentionNodeAttrs (id/label) : c'est aussi
 // l'objet que la commande d'insertion (ci-dessous) recoit tel quel a
@@ -57,7 +160,13 @@ export type MentionSuggestionConfig = Pick<
 // survivaient, titres/listes/citation/lien/image non). Utilisee a la fois
 // cote client (editeur reel) et cote serveur (validation + extraction
 // plainText) : meme configuration des deux cotes, jamais de derive.
-export function createEditorExtensions(mentionSuggestion?: MentionSuggestionConfig): Extensions {
+export function createEditorExtensions(
+  mentionSuggestion?: MentionSuggestionConfig,
+  // imageNodeView (KAN-39 volet 5) : fourni uniquement cote client
+  // (entity-editor.tsx, via ReactNodeViewRenderer) - voir le commentaire de
+  // ResizableImage ci-dessus pour la raison du layering.
+  options?: { imageNodeView?: NodeViewRenderer },
+): Extensions {
   return [
     StarterKit.configure({
       heading: { levels: [2, 3] }, // pas de H1 : reserve au titre de page (nom de la fiche)
@@ -66,16 +175,39 @@ export function createEditorExtensions(mentionSuggestion?: MentionSuggestionConf
       horizontalRule: false,
       strike: false,
       underline: false,
-      link: {
-        openOnClick: false,
-        autolink: true,
-        linkOnPaste: true,
-        protocols: ["http", "https"], // jamais javascript:/data: (OWASP A03)
-      },
+      // link: false (KAN-36 bugfix P1) : SafeLink (ci-dessus) remplace le
+      // Link embarque par StarterKit - le laisser actif enregistrerait DEUX
+      // marks "link" concurrentes (StarterKit importe et pousse sa propre
+      // instance de @tiptap/extension-link des que `link !== false`, verifie
+      // dans node_modules/@tiptap/starter-kit/dist/index.js), la premiere
+      // l'emportant au parsing et rendant SafeLink sans effet.
+      link: false,
+    }),
+    // SafeLink (KAN-36 bugfix P1) : options reprises telles quelles de
+    // l'ancienne config StarterKit.link ci-dessus, + isAllowedUri qui
+    // gouverne l'autolink/setLink/toggleLink ET (verifie dans le parseHTML
+    // par defaut de @tiptap/extension-link) le paste-parsing natif - ceinture
+    // et bretelles avec l'override parseHTML de SafeLink.
+    SafeLink.configure({
+      openOnClick: false,
+      autolink: true,
+      linkOnPaste: true,
+      protocols: ["http", "https"], // jamais javascript:/data: (OWASP A03)
+      isAllowedUri: (url, ctx) => ctx.defaultValidate(url) && isSafeHttpUrl(url),
     }),
     // loading="lazy" (KAN-16, demande du brief) : les images ne se chargent
     // qu'a l'approche du viewport, pas au montage complet du document.
-    Image.configure({ HTMLAttributes: { loading: "lazy" } }),
+    // nodeViewRenderer : cf. commentaire de ResizableImage plus haut.
+    ResizableImage.configure({
+      HTMLAttributes: { loading: "lazy" },
+      nodeViewRenderer: options?.imageNodeView,
+    }),
+    // Placeholder (KAN-36 P4) : purement presentationnel - ajoute une
+    // decoration ProseMirror sur le premier noeud vide (attribut
+    // data-placeholder + classe is-editor-empty, stylees en CSS cote
+    // entity-editor.tsx), n'introduit aucun node/mark et ne touche donc pas
+    // au schema valide cote serveur (getSchema(), tiptap-content.ts).
+    Placeholder.configure({ placeholder: "Commencez à écrire…" }),
     // Mentions manuelles @ (KAN-22) : node atome, jamais du texte editable -
     // memes classe/attribut DOM que le surlignage live (tiptap-mention-attrs.ts)
     // pour reutiliser le meme gestionnaire Ctrl/Cmd+clic (entity-editor.tsx)

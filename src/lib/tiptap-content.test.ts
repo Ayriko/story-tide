@@ -225,6 +225,80 @@ describe("parseContent", () => {
 
     expect(() => parseContent(content)).not.toThrow();
   });
+
+  it("accepte une image avec un width valide (KAN-39 volet 5)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc", width: 50 } },
+      ],
+    };
+
+    expect(() => parseContent(content)).not.toThrow();
+  });
+
+  it("accepte une image sans width du tout (retrocompat, defaut 100 applique par le schema)", () => {
+    const content = {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "https://example.com/x.png", alt: "desc" } }],
+    };
+
+    expect(() => parseContent(content)).not.toThrow();
+  });
+
+  it("rejette une image avec un width sous la borne basse (< 10)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc", width: 5 } },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une image avec un width au-dela de la borne haute (> 100)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc", width: 150 } },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une image avec un width d'un mauvais type (chaine)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc", width: "50" } },
+      ],
+    };
+
+    expect(() => parseContent(content)).toThrow(InvalidContentError);
+  });
+
+  it("rejette une image avec un width non fini (NaN/Infinity)", () => {
+    const contentWithNaN = {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc", width: NaN } },
+      ],
+    };
+    const contentWithInfinity = {
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: { src: "https://example.com/x.png", alt: "desc", width: Infinity },
+        },
+      ],
+    };
+
+    expect(() => parseContent(contentWithNaN)).toThrow(InvalidContentError);
+    expect(() => parseContent(contentWithInfinity)).toThrow(InvalidContentError);
+  });
 });
 
 describe("extractPlainText", () => {
