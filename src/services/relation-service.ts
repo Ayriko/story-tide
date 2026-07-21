@@ -123,6 +123,14 @@ export async function listWorldRelations(
   return prisma.relation.findMany({
     where: { worldId },
     select: { sourceId: true, targetId: true, origin: true },
+    // orderBy stable (KAN-36 P5, retour Aymeric) : sans lui, Postgres ne
+    // garantit AUCUN ordre de lignes - le layout "cose" du graphe (cote
+    // client) traite les aretes dans l'ordre recu, donc un ordre instable
+    // faisait converger la simulation vers une disposition differente a
+    // chaque rechargement de la MEME page. createdAt seul peut etre a
+    // egalite (plusieurs relations AUTO creees dans le meme lot par le
+    // worker) - id (cuid, unique) en second critere leve toute ambiguite.
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
 }
 

@@ -311,6 +311,7 @@ describe("listWorldRelations", () => {
     expect(relationFindMany).toHaveBeenCalledWith({
       where: { worldId: WORLD_ID },
       select: { sourceId: true, targetId: true, origin: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
   });
 
