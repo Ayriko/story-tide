@@ -59,16 +59,31 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   texte. Une fois insérée, la mention suit la même règle que le surlignage
   (Ctrl/Cmd+clic = affordance souris, liste « Entités liées »/« Mentionné par »
   = chemin accessible).
-- **Graphe de relations** (2026-07-17, ADR-0012, `/worlds/[slug]/graph`) : le
-  canvas Cytoscape (`graph-view.tsx`) ne peut exposer aucun élément individuel
-  au clavier/lecteur d'écran (un seul `<canvas>`, `aria-hidden="true"`) — même
-  parti pris que le surlignage. Les filtres par type restent de vrais
-  `<input type="checkbox">`/`<label>` natifs, atteignables au clavier même si
-  leur effet (masquer des nœuds sur le canvas) n'est perceptible qu'à l'écran.
-  Le chemin **accessible** est `GraphAccessibleList` (`graph-accessible-list.tsx`) :
-  `<nav aria-label="Graphe (liste accessible)">` + `<ul>` imbriquées de vrais
-  `<Link>`, reflétant les mêmes relations que le canvas, navigable au Tab et
-  annoncée normalement par un lecteur d'écran.
+- **Constellation (graphe de relations)** (2026-07-17, ADR-0012, mis à jour
+  2026-07-21 KAN-36 P5, `/worlds/[slug]/graph`) : le canvas Cytoscape
+  (`graph-view.tsx`) ne peut exposer aucun élément individuel au clavier/lecteur
+  d'écran (un seul `<canvas>`, `aria-hidden="true"`) — même parti pris que le
+  surlignage. Les filtres par type sont des chips à état (KAN-36 P5b) — de vrais
+  `<button type="button" aria-pressed>`, groupés par catégorie, chacun
+  atteignable au Tab et activable au clavier (Entrée/Espace, comportement natif
+  du bouton), avec anneau de focus MINT visible
+  (`focus-visible:outline`/`outline-ring`) ; le bouton de repli du panneau porte
+  `aria-expanded`/`aria-controls`. Même limite que les checkboxes qu'ils
+  remplacent : leur effet (masquer des nœuds sur le canvas) n'est perceptible
+  qu'à l'écran. Le chemin **accessible** est `GraphAccessibleList`
+  (`graph-accessible-list.tsx`) : `<nav aria-label="Liste des liens de la
+  constellation">` + `<ul>` imbriquées de vrais `<Link>`, reflétant les mêmes
+  relations que le canvas, navigable au Tab et annoncée normalement par un
+  lecteur d'écran. Retour Aymeric (2026-07-21) : la liste encombrait la vue en
+  permanence — masquée derrière un disclosure « Observer les fils »
+  (`graph-accessible-disclosure.tsx`, `<button aria-expanded>`, FERMÉ par
+  défaut) plutôt que retirée : un vrai bouton natif, la liste reste
+  intégralement présente dans le DOM une fois ouverte (aucune perte
+  d'équivalent clavier), même patron que le disclosure des filtres. Une paire
+  d'entités qui se mentionnent mutuellement (relation dans les deux sens)
+  n'apparaît qu'une fois dans la liste (lien « ↔ » plutôt que deux lignes
+  distinctes) — `buildAccessibleGraphEntries` (`graph-elements.ts`) dédoublonne
+  aussi une même cible reliée par AUTO **et** MANUEL dans le même sens.
 - **Passe visuelle shadcn/ui sur Radix (2026-07-20, KAN-36, ADR-0018)** — thème
   navy/mint (Bloc 1) posé sur le parcours démo entier (connexion → mondes →
   fiche → éditeur → backlinks → graphe), composants vendored dans
@@ -136,8 +151,8 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
     redirection serveur en cas de succès démonte tout le Dialog, l'échec le
     laisse ouvert avec l'erreur visible.
   - **Dashboard de monde (KAN-36 P3)** : `<h1>` unique (nom du monde, plus de
-    doublon avec le fil d'ariane), sections `Fiches récentes`/`Graphe` en
-    `<h2>`. Panneau graphe miniature en aperçu **non interactif au clavier**
+    doublon avec le fil d'ariane), sections `Dernières entrées`/`Constellation`
+    en `<h2>`. Panneau graphe miniature en aperçu **non interactif au clavier**
     (même canvas Cytoscape `aria-hidden`, cf. ADR-0010/0012 ci-dessus) —
     aucun fieldset de filtres dupliqué ici : l'équivalent accessible complet
     (filtres + liste, `GraphAccessibleList`) reste entièrement sur `/graph`,
@@ -203,11 +218,13 @@ d'assertion a11y dédiée, voir ci-dessous).
   ...)`/`getByRole("link", ...)` (nom accessible réel, pas un sélecteur CSS) —
   preuve que le chemin clavier/lecteur d'écran fonctionne, sans remplacer un audit
   axe-core pleine page (toujours <!-- TODO, pas encore fait -->).
-- **Graphe de relations** (`e2e/graph.spec.ts`, 2026-07-17) : même méthode que
-  ci-dessus, appliquée à `GraphAccessibleList` (`getByRole("navigation", { name:
-  "Graphe (liste accessible)" })`) — preuve que le chemin clavier fonctionne
+- **Constellation (graphe de relations)** (`e2e/graph.spec.ts`, 2026-07-17, mis
+  à jour 2026-07-21 KAN-36 P5) : même méthode que ci-dessus, appliquée à
+  `GraphAccessibleList` (`getByRole("navigation", { name: "Liste des liens de
+  la constellation" })`) — preuve que le chemin clavier fonctionne
   indépendamment du canvas Cytoscape, toujours pas un remplacement d'un audit
-  axe-core pleine page.
+  axe-core pleine page. Depuis P5b, le e2e exerce aussi les chips de filtre en
+  boutons à état (`getByRole("button", { name, exact: true, pressed })`).
 - **Passe visuelle KAN-36 (2026-07-20)** : l'extension Chrome de pilotage a de
   nouveau timeout dès la première page (voir dev-log, même incident récurrent
   que le 2026-07-14/15) — pas de parcours clavier Tab-par-Tab observé

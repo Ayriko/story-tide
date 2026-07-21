@@ -324,6 +324,30 @@ stade (`[Unreleased]`).
   exigé, rejet sinon. Rétrocompatible : une image déjà persistée sans
   `width` obtient 100 au chargement (défaut du schéma ProseMirror), aucune
   migration. `TST-ENT-012` au cahier de recettes.
+- Constellation (graphe de relations) en plein cadre (KAN-36 P5) : la vue
+  `/worlds/[slug]/graph` remplit la carte flottante (fini le canvas fixe
+  600 px du MVP KAN-25), bouton retour vers le monde visible. Filtres par
+  type : chips à état (`<button aria-pressed>`, focus MINT) groupées par
+  famille avec bascule « Tout »/« Rien », dans un panneau flottant repliable
+  en overlay (FERMÉ par défaut, retour Aymeric) — remplace les cases à cocher
+  empilées au-dessus du canvas. Stylesheet Cytoscape alignée aux tokens
+  navy/mint : libellés Inter avec halo (lisibilité sur fond variable), survol
+  de nœud en MINT (`cy.on` `mouseover`/`mouseout`, pas de pseudo-classe
+  `:hover` sur canvas), fond du canvas assombri avec grille discrète légèrement
+  floutée (couche CSS séparée derrière le canvas transparent, jamais un
+  `filter:blur` sur le canvas lui-même — flouterait aussi les nœuds), zoom
+  initial réduit (marge de layout Cytoscape augmentée). Même composant
+  `GraphView` que le panneau du dashboard : ces changements de style s'y
+  appliquent aussi. La liste accessible (RGAA, ADR-0012) est désormais masquée
+  derrière un disclosure « Observer les fils » (`graph-accessible-disclosure.tsx`,
+  FERMÉ par défaut) plutôt que retirée — reste intégralement présente dans le
+  DOM une fois ouverte. `buildAccessibleGraphEntries` (`graph-elements.ts`)
+  dédoublonne désormais une paire d'entités qui se mentionnent mutuellement
+  (relation dans les deux sens — un seul lien « ↔ », jamais deux lignes) ainsi
+  qu'une même cible reliée par AUTO et MANUEL dans le même sens ;
+  `buildGraphElements`/le rendu Cytoscape lui-même restent inchangés
+  (ADR-0012). `TST-GRF-002`/`TST-GRF-003`/`TST-GRF-004` mis à jour au cahier de
+  recettes.
 
 ### Corrigé
 
@@ -350,3 +374,20 @@ stade (`[Unreleased]`).
   focus trap) migrés vers le `Dialog` shadcn déjà en place, toolbar rendue
   `sticky` pendant le défilement d'une longue entrée. Voir
   `docs/plan-correction-bogues.md` (BUG-002), `TST-ENT-011`, `TST-SEC-014`.
+- `npm run worker` en local échouait systématiquement (`Variables
+  d'environnement invalides`) : contrairement à `next dev`, qui charge `.env`
+  automatiquement, `tsx src/worker/index.ts` est un process Node nu, sans
+  aucun chargement d'environnement. Le script `worker` utilise désormais le
+  flag natif Node `--env-file=.env` (Node 24, zéro nouvelle dépendance) ;
+  l'image Docker du worker (`Dockerfile`, cible `worker`) n'est pas concernée
+  — ses variables viennent de l'environnement réel du conteneur (compose),
+  jamais d'un fichier `.env`. `README.md` documente désormais explicitement
+  qu'un second terminal (`npm run worker`) est requis en local pour que la
+  liaison AUTO fonctionne (aucune trace de ce prérequis auparavant).
+- La disposition des nœuds de la Constellation changeait d'un rechargement à
+  l'autre de la même page : `listWorldRelations` n'avait aucun `orderBy`
+  (ordre de lignes non garanti par Postgres), et le layout `cose` de
+  Cytoscape traite les arêtes dans l'ordre reçu — un ordre instable fait
+  converger la simulation physique vers une disposition différente à chaque
+  appel. `orderBy: [{ createdAt: "asc" }, { id: "asc" }]` stabilise l'ordre.
+  Voir `docs/plan-correction-bogues.md` (BUG-003).

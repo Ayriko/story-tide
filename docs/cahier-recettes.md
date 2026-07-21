@@ -422,7 +422,7 @@
 - **Étapes** : 1) Cliquer l'image pour la sélectionner (cadre + poignée visibles). 2) Glisser la poignée horizontalement. 3) Attendre l'indicateur « Enregistré. », recharger la page — la taille doit être conservée. 4) Re-sélectionner l'image (souris, ou clavier via la sélection native de nœud de l'éditeur), puis utiliser les flèches gauche/droite pour ajuster la largeur par pas de 5 %.
 - **Résultat attendu** : le drag ajuste la largeur en direct sans à-coups, dans les bornes [10, 100] ; le clavier seul (sans souris) permet le même réglage, chaque pas annoncé via `aria-valuenow` (poignée `role="slider"`) ; la largeur choisie est identique avant/après rechargement.
 - **Critères d'acceptation** : `tiptap-content.test.ts` (`assertSafeAttributes` : accepte width valide et l'absence de `width` — défaut 100, rétrocompat — rejette hors bornes/mauvais type/non fini) ; `tiptap-extensions.test.ts` (round-trip HTML du style `width:%` via `generateJSON`) ; `resizable-image-view.test.tsx` (poignée présente uniquement si l'image est sélectionnée, commit clavier ±5 % borné aux limites) — pas de simulation de drag en unitaire, vérifiée manuellement.
-- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ✅ (gates automatisés : lint, `tsc`, 335/335 tests unitaires, build, 9/9 e2e) — vérification manuelle Aymeric en attente.
+- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ✅ (gates automatisés : lint, `tsc`, 335/335 tests unitaires, build, 9/9 e2e ; validé manuellement par Aymeric).
 
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
@@ -504,35 +504,35 @@
 - **Critères d'acceptation** : `graph-elements.test.ts` (`buildGraphElements` : nœuds/arêtes corrects, arêtes AUTO/MANUAL distinguées par id, arête omise silencieusement si une extrémité a disparu), `relation-service.test.ts` (`listWorldRelations`) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée).
 - **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`graph-elements.test.ts`, `relation-service.test.ts`, `e2e/graph.spec.ts`)
 
-## TST-GRF-002 — Constellation : filtrage par type
+## TST-GRF-002 — Constellation : filtrage par type (chips repliables, KAN-36 P5b)
 
-- **Description** : au-dessus de la Constellation, un jeu de cases à cocher (une par type d'entité) permet de masquer/afficher les nœuds d'un type donné, sans recréer le graphe (zoom/pan conservés).
-- **Objectif** : vérifier que chaque type d'entité a bien un filtre dédié, coché par défaut (tout visible), et que le décocher ne casse pas la page.
+- **Description** : un panneau flottant en overlay, à droite du canvas de la Constellation, replié/déplié via un bouton d'en-tête (`aria-expanded`), regroupe des chips à état (`<button aria-pressed>`, un par type d'entité) permettant de masquer/afficher les nœuds d'un type donné, sans recréer le graphe (zoom/pan conservés). Remplace les cases à cocher du MVP KAN-25.
+- **Objectif** : vérifier que chaque type d'entité a bien une chip dédiée, pressée par défaut (tout visible), que la basculer ne casse pas la page, et que le panneau reste entièrement clavier (chips = vrais boutons, focus MINT visible).
 - **Préconditions** : un monde contient au moins une entité de chaque type visé par le test.
-- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'un filtre existe pour chaque type présent, coché. 3) Décocher un filtre.
-- **Résultat attendu** : chaque filtre est coché par défaut ; le décocher passe son état à décoché sans erreur ni rechargement de page.
-- **Critères d'acceptation** : vérifié en conditions réelles (`e2e/graph.spec.ts` : filtre « Lieu » présent, coché, décochable).
-- **Type** : fonctionnel · **Statut** : ✅ (`e2e/graph.spec.ts`)
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'une chip existe pour chaque type présent, pressée. 3) Cliquer une chip.
+- **Résultat attendu** : chaque chip est pressée (`aria-pressed="true"`) par défaut ; cliquer la fait passer à `aria-pressed="false"` sans erreur ni rechargement de page.
+- **Critères d'acceptation** : vérifié en conditions réelles (`e2e/graph.spec.ts` : chip « Lieu » présente, pressée, puis dépressée après clic — `getByRole("button", { name, exact: true, pressed })`).
+- **Type** : fonctionnel + accessibilité (boutons natifs, focus visible) · **Statut** : ✅ (`e2e/graph.spec.ts`)
 
-## TST-GRF-003 — Constellation : liste accessible (clavier/lecteur d'écran)
+## TST-GRF-003 — Constellation : liste accessible derrière « Observer les fils » (clavier/lecteur d'écran)
 
-- **Description** : sous la Constellation, une liste accessible (`<nav>` + vrais `<Link>`) énumère chaque entité ayant au moins une relation sortante et ses cibles — chemin de navigation clavier/lecteur d'écran équivalent au canvas (affordance souris uniquement, cf. ADR-0012).
-- **Objectif** : vérifier que la liste reflète fidèlement les relations réelles du monde et permet une navigation clavier complète vers les entrées liées.
+- **Description** : sous la Constellation, un disclosure « Observer les fils » (`<button aria-expanded>`, FERMÉ par défaut, KAN-36 P5, retour Aymeric) révèle une liste accessible (`<nav>` + vrais `<Link>`) énumérant chaque entité ayant au moins une relation sortante et ses cibles — chemin de navigation clavier/lecteur d'écran équivalent au canvas (affordance souris uniquement, cf. ADR-0012). Une paire d'entités qui se mentionnent **mutuellement** (relation dans les deux sens) n'apparaît qu'**une seule fois** (lien « ↔ », jamais deux lignes distinctes pour la même paire) ; de même une cible reliée à la fois par AUTO et MANUEL (même sens) n'apparaît qu'une fois.
+- **Objectif** : vérifier que le disclosure masque la liste par défaut sans la retirer du DOM une fois ouvert, que la liste reflète fidèlement les relations réelles du monde sans jamais dupliquer une paire, et permet une navigation clavier complète vers les entrées liées.
 - **Préconditions** : un monde contient au moins une entité avec une relation sortante.
-- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Localiser la région « Liste des liens de la constellation ». 3) Suivre un lien vers une entité cible.
-- **Résultat attendu** : la liste affiche l'entité source et un lien vers chaque cible ; suivre le lien navigue vers la bonne entrée (`<h1>` de l'entrée cible).
-- **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement par source, tri, entité sans relation sortante absente de la liste mais atteignable comme cible, extrémité disparue omise silencieusement) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, navigation clavier/lecteur d'écran).
-- **Type** : accessibilité (élim.) · **Statut** : ✅ (`graph-elements.test.ts`, `e2e/graph.spec.ts`)
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Cliquer « Observer les fils ». 3) Localiser la région « Liste des liens de la constellation ». 4) Suivre un lien vers une entité cible.
+- **Résultat attendu** : la liste est absente du DOM tant que le disclosure n'est pas ouvert ; une fois ouverte, elle affiche l'entité source et un lien vers chaque cible (une seule fois par paire, même en cas de mention mutuelle ou de double origine AUTO+MANUEL) ; suivre le lien navigue vers la bonne entrée (`<h1>` de l'entrée cible).
+- **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement par source, tri, entité sans relation sortante absente de la liste mais atteignable comme cible, extrémité disparue omise silencieusement, dédoublonnage AUTO+MANUEL même sens, dédoublonnage d'une paire mutuelle rangée sous l'entité canonique, départage déterministe par id si noms identiques) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, ouverture du disclosure puis navigation clavier/lecteur d'écran).
+- **Type** : accessibilité (élim.) · **Statut** : ✅ gates automatisés (`graph-elements.test.ts`, `e2e/graph.spec.ts`) — vérif manuelle Aymeric en attente (disclosure, rendu « ↔ » d'une paire mutuelle réelle)
 
-## TST-GRF-004 — Constellation : couleur et filtre par famille de types (KAN-18)
+## TST-GRF-004 — Constellation : couleur et filtre par famille de types (KAN-18, chips KAN-36 P5b)
 
-- **Description** : avec 26 types d'entités désormais regroupés en 8 familles, les nœuds de la Constellation sont colorés par famille (pas par type individuel, illisible à 26 teintes) et les filtres sont regroupés par famille (`<fieldset>` imbriqué par groupe) plutôt qu'en 26 cases à plat.
-- **Objectif** : vérifier que le filtre par type reste fonctionnel pendant la coexistence des 26 types, que chaque famille a bien sa propre teinte, et que la couleur n'est jamais le seul moyen de distinguer un type (libellés textuels toujours présents).
+- **Description** : avec 26 types d'entités désormais regroupés en 8 familles, les nœuds de la Constellation sont colorés par famille (pas par type individuel, illisible à 26 teintes) et les chips de filtre sont regroupées par famille (`<fieldset>` imbriqué par groupe, en-tête « Tout »/« Rien » par famille) plutôt qu'en 26 chips à plat.
+- **Objectif** : vérifier que le filtre par type reste fonctionnel pendant la coexistence des 26 types, que chaque famille a bien sa propre teinte, que « Tout »/« Rien » bascule bien tous les types d'une famille d'un coup, et que la couleur n'est jamais le seul moyen de distinguer un type (libellés textuels toujours présents).
 - **Préconditions** : un monde contient des entités d'au moins deux types de familles différentes.
-- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'un filtre existe pour chaque type, regroupé sous l'en-tête de sa famille. 3) Décocher un filtre.
-- **Résultat attendu** : chaque famille a son propre en-tête (`<legend>`) regroupant ses types ; décocher un filtre masque bien les nœuds de ce type précis (pas toute la famille) ; le libellé texte du type reste visible au clic/survol d'un nœud (couleur = famille, jamais l'unique moyen d'identifier le type précis).
-- **Critères d'acceptation** : palette à 8 teintes validée par le skill `dataviz` du projet (`node scripts/validate_palette.js`, bande de luminosité/chroma/CVD/contraste, toutes passantes en mode sombre) ; vérifié en conditions réelles (`e2e/graph.spec.ts` : filtre « Lieu » présent, coché, décochable, entrée créée via le combobox de type KAN-18).
-- **Type** : fonctionnel + accessibilité (couleur jamais seule, C2.2.3) · **Statut** : ✅ (`e2e/graph.spec.ts`)
+- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'une chip existe pour chaque type, regroupée sous l'en-tête de sa famille. 3) Cliquer une chip, puis « Rien » sur une famille.
+- **Résultat attendu** : chaque famille a son propre en-tête (`<legend>`) regroupant ses chips et ses boutons « Tout »/« Rien » ; cliquer une chip masque bien les nœuds de ce type précis (pas toute la famille) ; « Rien » dépresse toutes les chips de la famille d'un coup ; le libellé texte du type reste visible au clic/survol d'un nœud (couleur = famille, hover MINT, jamais l'unique moyen d'identifier le type précis).
+- **Critères d'acceptation** : palette à 8 teintes validée par le skill `dataviz` du projet (`node scripts/validate_palette.js`, bande de luminosité/chroma/CVD/contraste, toutes passantes en mode sombre) ; vérifié en conditions réelles (`e2e/graph.spec.ts` : chip « Lieu » présente, pressée, dépressée après clic, entrée créée via le combobox de type KAN-18) ; vérification manuelle Aymeric du « Tout »/« Rien » par famille et du hover MINT (non couvert par e2e).
+- **Type** : fonctionnel + accessibilité (couleur jamais seule, C2.2.3) · **Statut** : ✅ gates automatisés — vérif manuelle Aymeric en attente (Tout/Rien, hover MINT, plein cadre)
 
 ## TST-QOT-001 — Quota de mondes : blocage au-delà de 3 mondes gratuits
 
