@@ -32,9 +32,12 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   aria-label="Mise en forme"`, boutons natifs avec `aria-pressed` reflétant l'état
   actif (gras/italique/titre/liste/citation), panneaux lien/image révélés par un
   bouton (pas de `<div>` cliquable), texte alternatif **requis** pour insérer une
-  image (bouton désactivé tant que l'alt est vide). État de sauvegarde annoncé via
-  `aria-live="polite"` (« Enregistrement… » / « Enregistré. » / erreur), pas de
-  changement visuel silencieux pour les lecteurs d'écran.
+  image (bouton désactivé tant que l'alt est vide) — libellé UI « Légende »
+  (KAN-39, retour Aymeric, terme plus parlant pour l'utilisateur), reste
+  techniquement l'attribut `alt` lu par les lecteurs d'écran, aucun changement de
+  mécanisme. État de sauvegarde annoncé via `aria-live="polite"`
+  (« Enregistrement… » / « Enregistré. » / erreur), pas de changement visuel
+  silencieux pour les lecteurs d'écran.
 - **Surlignage des liaisons** (2026-07-16, ADR-0010) : le surlignage des mentions
   détectées dans l'éditeur (décoration visuelle + Ctrl/Cmd+clic) est une
   **affordance souris uniquement** — un `contenteditable` ne peut pas exposer
@@ -218,3 +221,33 @@ d'assertion a11y dédiée, voir ci-dessous).
   fait dans un vrai navigateur cette session — à faire manuellement par
   Aymeric ou lors d'une prochaine session avec l'extension fonctionnelle,
   avant la recette sur staging (spec §6).
+- **Éditeur — bugfix P1 + KAN-39 (2026-07-21)** : les popovers maison « Lien »/
+  « Image » de la toolbar (`entity-editor.tsx`) — un simple `<div>` absolu, sans
+  Échap, sans clic extérieur, sans focus trap, sans rôle ARIA de dialog —
+  migrés vers le `Dialog` shadcn/Radix déjà vendored (même patron que
+  `CreateEntityDialog`/`EntitySettingsDialog`) : Échap, clic extérieur, focus
+  trap et `role="dialog"`/`aria-modal` deviennent gratuits là où rien n'existait
+  avant, sans code supplémentaire à écrire ou maintenir. Le champ « Légende »
+  (texte alternatif RGAA, libellé UI renommé) du dialog Image reste requis
+  avant d'activer « Insérer » ; le bouton est désormais relié à son explication
+  via `aria-describedby` (pas seulement une proximité visuelle). Toolbar rendue
+  `sticky` (repositionnement CSS pur, mêmes boutons, même ordre, même focus) —
+  aucun changement de parcours clavier. Vérification manuelle Aymeric en
+  attente (les deux dialogs fermables à l'Échap et au clic extérieur, un
+  upload complet, une insertion par URL) ; couvert autrement par
+  `e2e/image-upload.spec.ts` (mis à jour, labels « Importer une image »/
+  « Légende ») et les gates complets (lint/tsc/322 tests/build/9 e2e).
+- **Redimensionnement d'image par poignée (KAN-39 volet 5)** : la poignée de
+  drag (`resizable-image-view.tsx`) n'est jamais le seul chemin — patron ARIA
+  slider standard (`role="slider"`, `aria-valuenow`/`aria-valuemin`/
+  `aria-valuemax`, `aria-orientation="horizontal"`, `tabIndex={0}`), flèches
+  gauche/droite ajustent la largeur par pas de 5 % une fois l'image
+  sélectionnée, chaque pas annoncé via `aria-valuenow`. La sélection de
+  l'image elle-même (`selected`, condition d'affichage de la poignée) suit la
+  sélection de nœud native de ProseMirror (`NodeSelection`), atteignable au
+  clavier (flèches du corps de l'éditeur) comme à la souris (clic) — **à
+  reconfirmer manuellement** que ce chemin clavier reste effectivement
+  praticable dans un vrai navigateur (item de la vérification manuelle
+  Aymeric, `TST-ENT-012`). Bornes [10, 100] valables identiquement pour le
+  drag et le clavier ; ratio hauteur/largeur toujours conservé (pas de
+  distorsion possible).

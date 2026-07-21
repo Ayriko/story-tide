@@ -314,6 +314,16 @@ stade (`[Unreleased]`).
   shadcn/`cmdk` (solde ADR-0016), comportement identique, les 7 tests
   existants passent sans adaptation. Écrans hors parcours démo non touchés
   (coexistence assumée, documentée à l'ADR).
+- Redimensionnement des images de l'éditeur par poignée de drag (KAN-39) :
+  NodeView React maison sur le node `Image` (`resizable-image-view.tsx`,
+  zéro dépendance tierce), largeur persistée en **pourcentage** de la
+  largeur du contenu (`width`, borné 10–100, défaut 100 — jamais en pixels,
+  la mise en page reste fluide). Équivalent clavier obligatoire (RGAA) :
+  poignée en `role="slider"`, flèches gauche/droite = pas de 5 %. Validation
+  serveur (`assertSafeAttributes`, OWASP A03) : nombre fini entre 10 et 100
+  exigé, rejet sinon. Rétrocompatible : une image déjà persistée sans
+  `width` obtient 100 au chargement (défaut du schéma ProseMirror), aucune
+  migration. `TST-ENT-012` au cahier de recettes.
 
 ### Corrigé
 
@@ -327,3 +337,16 @@ stade (`[Unreleased]`).
   (évitée là pour une vraie raison d'encodage Windows, non pertinente pour du
   texte UI). Corrigé avec de vrais accents ; tout le texte UI livré depuis
   (mondes, entités) en tient compte dès l'origine.
+- Coller un texte externe (ex. Obsidian) dans l'éditeur d'entité faisait échouer
+  **toute la sauvegarde** avec « Contenu invalide. » : un wikilien converti en
+  `<a href="…">` avec un `href` relatif (parfois avec espaces) faisait rejeter le
+  document entier par la validation serveur (`isSafeHttpUrl`, OWASP A03), et un
+  retour à la ligne rendu en `<br>` fondait deux lignes du texte source en un seul
+  paragraphe. L'extension `SafeLink` assainit désormais le lien dès le collage
+  (retire la mark si l'URL n'est pas absolue `http(s)`, garde le texte de
+  l'ancre — validation serveur inchangée, non contournable) ; `splitParagraphsOnBreaks`
+  scinde les paragraphes contenant des `<br>` au collage. À l'occasion : les
+  popovers maison « Lien »/« Image » de la toolbar (sans Échap/clic extérieur/
+  focus trap) migrés vers le `Dialog` shadcn déjà en place, toolbar rendue
+  `sticky` pendant le défilement d'une longue entrée. Voir
+  `docs/plan-correction-bogues.md` (BUG-002), `TST-ENT-011`, `TST-SEC-014`.
