@@ -98,6 +98,19 @@ export async function createEntityAction(
   }
 
   revalidatePath(`/worlds/${worldSlug}`);
+  // "layout" en plus de la revalidation "page" ci-dessus (BUG-004) :
+  // (app)/worlds/[slug]/layout.tsx (Sidebar, listEntities) n'est jamais
+  // retouche par une revalidation de type "page" - si ce layout est deja
+  // monte cote client (on a cree l'entree DEPUIS le dashboard, meme segment
+  // de monde), sa liste d'entites reste perimee tant qu'on ne revient pas
+  // dessus, meme apres redirect(). Le type "layout" exige le PATRON DE ROUTE
+  // COMPLET (avec le [slug] ET le groupe de routes (app), pas le slug resolu
+  // ni un chemin sans le groupe - doc Next.js revalidatePath, exemple "avec
+  // groupes de routes" - une premiere version sans "(app)" ne revalidait
+  // rien, bug constate en test manuel par Aymeric malgre le correctif) -
+  // revalide le layout pour tous les mondes, cout negligeable (peu de mondes
+  // par compte).
+  revalidatePath("/(app)/worlds/[slug]", "layout");
   redirect(`/worlds/${worldSlug}/entities/${entityId}`);
 }
 
@@ -142,6 +155,9 @@ export async function updateEntityAction(
 
   revalidatePath(`/worlds/${worldSlug}`);
   revalidatePath(`/worlds/${worldSlug}/entities/${entityId}`);
+  // "layout" (BUG-004, cf. createEntityAction) : un renommage/changement de
+  // type doit aussi rafraichir la ligne correspondante dans la Sidebar.
+  revalidatePath("/(app)/worlds/[slug]", "layout");
   redirect(`/worlds/${worldSlug}/entities/${entityId}`);
 }
 
@@ -171,6 +187,9 @@ export async function deleteEntityAction(
   }
 
   revalidatePath(`/worlds/${worldSlug}`);
+  // "layout" (BUG-004, cf. createEntityAction) : la Sidebar doit perdre la
+  // ligne de l'entree supprimee des le retour au dashboard.
+  revalidatePath("/(app)/worlds/[slug]", "layout");
   redirect(`/worlds/${worldSlug}`);
 }
 

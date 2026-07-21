@@ -174,6 +174,16 @@
 - **Critères d'acceptation** : pas d'exception serveur ni client sur un tableau d'entités vide (`buildGraphElements([], [])`, déjà couvert par `graph-elements.test.ts`) ; vérification manuelle Aymeric.
 - **Type** : fonctionnel (cas limite) · **Statut** : ✅ (couvert par construction : mêmes fonctions que TST-MND-006 sur un tableau vide, `graph-elements.test.ts`) — vérification manuelle Aymeric en attente.
 
+## TST-MND-008 — Sidebar à jour après une création d'entrée depuis le dashboard (BUG-004)
+
+- **Description** : créer une entrée via le bouton « Nouvelle entrée » **du dashboard** (`/worlds/[slug]`), puis revenir au dashboard depuis la fiche créée — la Sidebar doit refléter la nouvelle entrée sans rechargement manuel, au même titre qu'une création lancée depuis la Sidebar elle-même.
+- **Objectif** : vérifier que la Sidebar (`entity-search.tsx`, portée par `(app)/worlds/[slug]/layout.tsx`) affiche toujours la liste à jour quel que soit le déclencheur du Dialog de création, sans copie d'état qui pourrait figer ; vérifier aussi que l'état plié/déplié des groupes et la recherche active ne régressent pas.
+- **Préconditions** : un monde existe, avec ou sans entrées.
+- **Étapes** : 1) Ouvrir `/worlds/[slug]`. 2) Créer une entrée via « Nouvelle entrée » du dashboard, revenir au dashboard (clic sur le nom du monde). 3) Créer une seconde entrée via le bouton de la Sidebar, revenir au dashboard. 4) Replier un groupe de la Sidebar, créer une troisième entrée, revenir au dashboard. 5) Lancer une recherche puis l'effacer.
+- **Résultat attendu** : les trois entrées apparaissent dans la Sidebar dès le retour au dashboard, sans rechargement de page (`F5`) ; le groupe replié à l'étape 4 reste replié après la création ; la recherche filtre correctement puis, une fois effacée, réaffiche la liste complète à jour.
+- **Critères d'acceptation** : cause réelle prouvée par log (pas par hypothèse) — `entity-search.tsx:36` copiait `initialEntities` dans un `useState` au premier montage, jamais resynchronisé ; corrigé par dérivation directe des props hors recherche active (`const results = isSearching ? (searchResults ?? []) : initialEntities`). Vérifié en conditions réelles bout en bout (`e2e/dashboard-create-entity.spec.ts` : création dashboard **et** sidebar, repli de groupe conservé, recherche active puis effacée) ; `e2e/entity-search.spec.ts` existant (champ vide réaffiche la liste initiale) inchangé et toujours vert ; vérification manuelle Aymeric sur staging (bug initialement détecté là ; deux tentatives serveur précédentes s'étaient révélées sans effet au retest, cf. `docs/plan-correction-bogues.md` BUG-004).
+- **Type** : fonctionnel · **Statut** : ✅ gates automatisés (lint, `tsc`, 341/341 tests, coverage, 10/10 e2e, build) — vérification manuelle Aymeric en attente (retest sur staging après déploiement du correctif v3).
+
 ## TST-SEC-002 — Accès à un monde d'autrui via URL directe
 
 - **Description** : un utilisateur connecté saisit directement l'URL `/worlds/<slug>` d'un monde qui ne lui appartient pas.

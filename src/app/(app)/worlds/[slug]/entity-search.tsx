@@ -33,7 +33,16 @@ export function EntitySearch({
   initialEntities: EntitySearchResult[];
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<EntitySearchResult[]>(initialEntities);
+  // Resultats d'une recherche SERVEUR active (KAN-17, searchEntitiesAction) -
+  // null = aucune recherche en cours, la liste affichee derive alors
+  // directement de `initialEntities` (props) a CHAQUE rendu (cf. `results`
+  // plus bas), plus jamais une copie figee. BUG-004 : un `useState(initialEntities)`
+  // ici n'utilisait l'argument qu'au tout premier montage - ce composant vit
+  // dans worlds/[slug]/layout.tsx, qui persiste a travers toutes les
+  // navigations internes au monde, donc les props plus recentes (nouvelle
+  // entree creee) etaient silencieusement ignorees. Prouve par log (prop
+  // fraiche recue, etat affiche fige) - cf. plan-correction-bogues.md.
+  const [searchResults, setSearchResults] = useState<EntitySearchResult[] | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,21 +63,21 @@ export function EntitySearch({
       const trimmed = rawQuery.trim();
       if (trimmed.length === 0) {
         setErrorMessage(null);
-        setResults(initialEntities);
+        setSearchResults(null);
         return;
       }
       timeoutRef.current = setTimeout(() => {
         void searchEntitiesAction(worldId, trimmed).then((result) => {
           if (result.ok) {
             setErrorMessage(null);
-            setResults(result.entities);
+            setSearchResults(result.entities);
           } else {
             setErrorMessage(result.error);
           }
         });
       }, SEARCH_DEBOUNCE_MS);
     },
-    [worldId, initialEntities],
+    [worldId],
   );
 
   useEffect(() => {
@@ -108,6 +117,9 @@ export function EntitySearch({
   // "Divers", meme repli que EntityTypeIcon. Un groupe sans entite
   // correspondante ne s'affiche pas du tout.
   const isSearching = query.trim().length > 0;
+  // Derivation pure (BUG-004) : sans recherche active, toujours `initialEntities`
+  // (la prop la plus recente), jamais une copie qui pourrait figer.
+  const results = isSearching ? (searchResults ?? []) : initialEntities;
   const groupedResults = groupedEntityTypes()
     .map(({ group }) => ({
       group,

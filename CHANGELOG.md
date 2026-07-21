@@ -391,3 +391,16 @@ stade (`[Unreleased]`).
   converger la simulation physique vers une disposition différente à chaque
   appel. `orderBy: [{ createdAt: "asc" }, { id: "asc" }]` stabilise l'ordre.
   Voir `docs/plan-correction-bogues.md` (BUG-003).
+- Créer une entrée via le bouton « Nouvelle entrée » du **dashboard** ne
+  rafraîchissait jamais la Sidebar une fois revenu dessus (visible sur
+  staging). Deux tentatives `revalidatePath` côté serveur (avec puis sans le
+  groupe de routes `(app)`) n'ont rien changé — cause réelle **côté client**,
+  prouvée par log : `entity-search.tsx` copiait la prop `initialEntities` dans
+  un `useState` au premier montage ; ce composant vivant dans un layout
+  persistant à travers toute navigation interne au monde, les props plus
+  récentes (nouvelle entrée créée) étaient silencieusement ignorées. La liste
+  par défaut (sans recherche active) dérive désormais directement de la prop
+  à chaque rendu, plus jamais une copie figée ; une recherche active (KAN-17)
+  reste en state, ses résultats venant du serveur. Voir
+  `docs/plan-correction-bogues.md` (BUG-004, historique complet des 3
+  tentatives), `TST-MND-008`.
