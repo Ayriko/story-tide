@@ -134,3 +134,66 @@
 - **Vérification visuelle manuelle par Aymeric requise avant de considérer P3 terminé** (jamais faite par Claude in Chrome, conformément à la consigne de session).
 - **État git à trancher par Aymeric** : P1-ter, P2 (Dialogs) et P3 (dashboard) sont tous les trois encore non committés dans le même arbre de travail — aucune des commandes de commit « un écran = un commit » proposées phase par phase n'a été exécutée entre-temps. Décision à prendre : un commit unique couvrant les trois phases, ou un découpage manuel (`git add -p`) par Aymeric.
 - P4 (fiche entité, pattern cardHeader), P5 (graphe plein écran depuis le panneau du dashboard), P5b (palette Ctrl+K, panneau raccourcis) restent à faire si le temps le permet avant le gel du 24/07.
+
+---
+
+### Session — 2026-07-20 (suite 3) — KAN-36 : restructuration dashboard, sidebar groupée, lexique produit
+
+**Thèmes abordés :**
+- **P3-bis** : restructuration du dashboard après revue visuelle d'Aymeric (hiérarchie typographique, actions sur la ligne d'en-tête, astuce déplacée, deux colonnes alignées 1/3-2/3, pied de carte en une ligne de compteurs) — pas un bug, un réagencement.
+- Ajustements mineurs post-revue : bordure du cadre « Fiches récentes » retirée, icône de type agrandie, grille passée de 1/2-1/2 à 1/3-2/3.
+- **P3 point 5** : sidebar groupée par catégorie de type (mêmes 8 groupes que le combobox), groupes pliables.
+- **Lexique produit** (avant P4) : « fiche » → « entrée », « Graphe » → « Constellation », « Entités liées » → « Renvois », « Mentionné par » → « Échos », registre « tissage » pour les messages de liaison automatique.
+- Commit unique (42 fichiers) + push sur `feat/kan-36-passe-visuelle`, confirmés par Aymeric et vérifiés (`git log`/`git status`).
+
+**Décisions prises :**
+- Hauteur des deux colonnes du dashboard : valeur fixe partagée (`h-[26rem]`) plutôt qu'un stretch CSS Grid — plus simple et déterministe, aucune dépendance à un `h-full` en cascade dans `GraphView`.
+- État plié/déplié des groupes de la sidebar : `useState` local à `EntitySearch`, **pas** de `localStorage`/événement DOM comme pour le repli de la sidebar entière — le layout du monde (`worlds/[slug]/layout.tsx`) persiste déjà à travers toutes les navigations internes (App Router, segment partagé), donc un simple state survit "pendant la navigation" comme demandé, sans plomberie supplémentaire. Pas de persistance inter-rechargement (non demandée).
+- Recherche × groupe replié : tranché avec Aymeric (`AskUserQuestion`) — pendant qu'une requête est active, l'état replié est ignoré à l'affichage (tout groupe non vide se déplie), et reprend son état mémorisé une fois le champ vidé. Alternative écartée : ne jamais outrepasser le repli explicite (aurait pu cacher un résultat de recherche sans indice visuel).
+- Migration `data-testid` scopée à seulement 2 boutons (déclencheur + soumission de création d'entrée) plutôt qu'à tous les sélecteurs texte — ce sont les deux qui avaient déjà cassé deux fois cette session sur un simple changement de libellé ; les sélecteurs `getByRole("navigation", {name})`/`getByLabel` restent intentionnellement des sélecteurs par rôle/label (ils vérifient un vrai nom accessible RGAA, pas un artefact fragile).
+- Aucune string « Modifier l'entrée » n'existant dans l'app (exemple donné par Aymeric), le motif de renommage a été appliqué au texte réel le plus proche (« Paramètres de la fiche » → « Paramètres de l'entrée ») plutôt que d'inventer un nouveau libellé — signalé explicitement à Aymeric pour confirmation plutôt que décidé en silence.
+
+**Éléments notables / appris (gotchas) :**
+- **Un `npm run dev` parasite, apparu deux fois de plus cette session** (en plus des occurrences précédentes) — jamais lancé par Aymeric (confirmé les deux fois via `AskUserQuestion`), toujours arrêté avant les gates e2e. La récurrence (3+ fois sur la journée) suggère quelque chose qui démarre un serveur dev automatiquement côté machine d'Aymeric (IDE, tâche planifiée, watcher) — signalé mais non investigué plus loin, à surveiller si ça continue.
+- **L'inventaire par agents Explore a raté un cas.** 3 agents parallèles ont fait l'inventaire exhaustif de « fiche »/« Graphe »/« Entités liées »/« Mentionné par » dans `src/**` et `e2e/**`, mais aucun n'a couvert les **tests de composants** (`*.test.tsx` hors e2e) — `create-entity-form.test.tsx` (`getByRole("button",{name:/créer la fiche/i})`, 3 occurrences) est passé au travers, retrouvé seulement via un grep manuel large (`\bfiches?\b`, tout `src/`) fait par prudence avant de lancer les gates. Leçon : après un inventaire par agents scopés, toujours faire un grep final non filtré sur tout le repo avant de déclarer un renommage complet — les scopes donnés aux agents peuvent avoir des angles morts que le prompt n'anticipait pas.
+- **Dette découverte, pas traitée** : `docs/cahier-recettes.md` contient une centaine d'occurrences de « fiche »/« Graphe » dans la prose des scénarios existants (TST-ENT-*, TST-LNK-*, TST-GRF-*, etc.) — le lexique produit n'a été appliqué qu'à l'UI et aux nouvelles entrées (`TST-MND-006/007`), pas rétroactivement aux scénarios déjà écrits. Un testeur suivant ces scénarios sur staging lira "cliquer sur Graphe" alors que le bouton dit désormais "Constellation" — à corriger, hors périmètre de cette session (le lexique était explicitement cadré "UI uniquement").
+
+**Commandes utiles de la session :**
+- `grep -n '\bfiches?\b' -i <path>` (mot entier, insensible à la casse) — évite les faux positifs style "affiche"/"affichage" qui polluent un grep naïf sur `fiche`.
+- `git show --stat <sha>` + `git log -1 --format="%B" <sha>` — vérifie ce qu'un commit contient réellement avant d'écrire dessus dans le dev-log, plutôt que de faire confiance à une affirmation non vérifiée ("c'est commit et push").
+
+**Livrables produits :**
+- P3-bis : `worlds/[slug]/page.tsx` restructuré (en-tête, astuce, colonnes 1/3-2/3, pied de carte).
+- P3 pt.5 : `entity-search.tsx` (regroupement par catégorie, repli/dépli, `aria-expanded`), `e2e/entity-search.spec.ts` re-scopé (sidebar contient désormais plusieurs `<ul>`).
+- Lexique produit : ~20 fichiers UI + 4 fichiers service/action (messages d'erreur) + 3 tests unitaires + 8 specs e2e + `entity-type-icon.tsx`/`create-entity-dialog.tsx` (props `triggerVariant`/`triggerTestId`).
+- 1 commit (`eaf38f4`, 42 fichiers, 1346+/468-) poussé sur `feat/kan-36-passe-visuelle`, confirmé via `git log`/`git status` (arbre propre, rien en attente côté upstream).
+- Gates : lint ✅ 0 warning · typecheck ✅ · tests ✅ 310/310, couverture **98,74 %** · build ✅ · e2e ✅ 9/9 (`--workers=2`, relancé après chaque changement).
+
+**Avancement certification :**
+- **C2.2.1** : aucun service/action/schéma modifié dans sa structure pour cette session (le lexique ne touche que des littéraux de texte, y compris dans les fichiers de service) — vérifié explicitement par inventaire avant exécution.
+- **C2.2.2** : couverture maintenue à 98,74 %, toutes les assertions de texte (composants + e2e) mises à jour dans le même commit que le code qu'elles vérifient.
+- **C2.2.3** : groupes de la sidebar au patron disclosure standard (`aria-expanded`, navigation clavier) ; migration `data-testid` n'a retiré aucune vérification de rôle/nom accessible existante.
+- **C2.3.1** : dette identifiée sur `cahier-recettes.md` (voir gotchas) — pas encore traitée.
+
+**À faire / suite :**
+- Mettre à jour la prose des scénarios existants du cahier de recettes avec le nouveau lexique (« fiche » → « entrée », « Graphe » → « Constellation »).
+- P4 (fiche entité, pattern cardHeader), P5 (graphe plein écran depuis le panneau du dashboard), P5b (palette Ctrl+K, panneau raccourcis) restent la suite logique, sauf nouveau changement de priorité d'Aymeric.
+- Reporter cette entrée (et celle de "suite 2") dans `dev-log.md` (hors repo) + redéposer dans le projet Claude.
+- Mettre à jour le board Jira (KAN-36 → colonne appropriée selon l'avancement réel des sous-tâches P1-P3).
+
+---
+
+**Décisions techniques**
+
+| Date | Décision | Alternatives | Justification |
+|---|---|---|---|
+| 2026-07-20 | Hauteur fixe partagée (`h-[26rem]`) pour les deux colonnes du dashboard | Stretch CSS Grid (`items-stretch` + `h-full` en cascade) | Déterministe, aucune dépendance à faire remonter `h-full` à travers `GraphView` |
+| 2026-07-20 | Repli des groupes sidebar en `useState` local, pas `localStorage` | Même patron que le repli de sidebar entière (persistance localStorage + événement DOM) | Le layout du monde persiste déjà across navigation (App Router) — la demande ("pendant la navigation") n'exigeait pas de survivre à un rechargement complet |
+| 2026-07-20 | `data-testid` scopé à 2 boutons seulement | Migrer tous les sélecteurs texte fragiles | Seuls ces deux boutons avaient réellement cassé (deux fois) ; les sélecteurs par rôle/label restent la meilleure preuve RGAA, pas un artefact à remplacer |
+
+**Erreurs rencontrées & Solutions**
+
+| Date | Symptôme (message exact) | Cause | Solution |
+|---|---|---|---|
+| 2026-07-20 | 8 specs e2e cassées d'un coup : `strict mode violation: getByRole('button', { name: '+ Nouvelle fiche' }) resolved to 2 elements` | Chip "Nouvelle fiche" du dashboard réutilisant `CreateEntityDialog` avec le même texte que le bouton de la sidebar, montés simultanément | Prop `triggerLabel` distincte par appelant (déjà en place avant cette session, réutilisée) |
+| 2026-07-20 | Run e2e en arrière-plan resté à zéro sortie pendant 9+ minutes, aucun `next dev`/écouteur sur le port 3100 | Le webServer Playwright n'a jamais démarré ; le run est resté bloqué avant même d'écrire quoi que ce soit dans le pipe `\| tail -150` | `Get-NetTCPConnection`/`curl` pour confirmer l'absence réelle de serveur (pas juste un pipe bloqué), `TaskStop`, nettoyage des orphelins, relance sans `\| tail` |
