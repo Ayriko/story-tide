@@ -7,6 +7,7 @@ import {
   InvalidContentError,
   extractMentionedEntityIds,
   extractPlainText,
+  normalizeContentText,
   parseContent,
 } from "@/lib/tiptap-content";
 import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
@@ -66,6 +67,10 @@ export async function saveEntityContentAction(
     throw error;
   }
 
+  // NFC sur les nœuds texte (diagnostic normalisation Unicode, ADR-0020) :
+  // body persiste et plainText derivent tous les deux de ce MEME contenu deja
+  // normalise, jamais l'un normalise et l'autre non.
+  content = normalizeContentText(content);
   const plainText = extractPlainText(content);
 
   try {

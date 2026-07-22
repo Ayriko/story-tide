@@ -41,6 +41,17 @@ export class EntityQuotaExceededError extends Error {
 // Quota saute entierement (aucune requete count) si le monde n'est pas USER
 // (INTRO/DEMO, KAN-18) - getWorld a deja renvoye l'objet complet, aucune
 // requete supplementaire necessaire pour lire ce champ.
+//
+// .normalize("NFC") sur name/aliases (diagnostic session normalisation
+// Unicode, ADR-0020) : garantit qu'aucune donnee stockee n'arrive en forme
+// decomposee (NFD - accent = caractere combinant separe, possible via
+// copier-coller depuis macOS/export tiers). Corrige a LA FRONTIERE
+// (persistance), jamais dans normalizeForMatch/aho-corasick.ts : un
+// .normalize("NFC") ajoute DANS le pipeline de matching changerait la
+// longueur de la chaine scannee par rapport au texte original deja stocke,
+// cassant l'alignement des index de surlignage - le meme mecanisme que le
+// bug diagnostique, juste deplace. Normaliser a l'ecriture garantit que la
+// donnee elle-meme n'a plus jamais besoin d'etre raccourcie plus tard.
 export async function createEntity(
   ownerId: string,
   worldId: string,
@@ -56,10 +67,13 @@ export async function createEntity(
   const entity = await prisma.entity.create({
     data: {
       worldId,
-      name: input.name,
+      name: input.name.normalize("NFC"),
       type: input.type,
       aliases: {
-        create: input.aliases.map((value) => ({ value, normalized: normalizeForMatch(value) })),
+        create: input.aliases.map((value) => {
+          const nfc = value.normalize("NFC");
+          return { value: nfc, normalized: normalizeForMatch(nfc) };
+        }),
       },
       content: EMPTY_CONTENT,
       plainText: extractPlainText(EMPTY_CONTENT),
@@ -141,11 +155,14 @@ export async function updateEntity(
   const updated = await prisma.entity.update({
     where: { id: entity.id },
     data: {
-      name: input.name,
+      name: input.name.normalize("NFC"),
       type: input.type,
       aliases: {
         deleteMany: {},
-        create: input.aliases.map((value) => ({ value, normalized: normalizeForMatch(value) })),
+        create: input.aliases.map((value) => {
+          const nfc = value.normalize("NFC");
+          return { value: nfc, normalized: normalizeForMatch(nfc) };
+        }),
       },
     },
     include: { aliases: true },

@@ -25,3 +25,7 @@
 | 0015 | `Alias` comme table dédiée (remplace `Entity.aliases String[]`) | accepté | 2026-07-19 |
 | 0016 | Combobox de type interne, en attendant shadcn (KAN-36) | accepté | 2026-07-19 |
 | 0017 | Upload d'images : référence stable + sniffing maison, pas de librairie tierce | accepté | 2026-07-19 |
+| 0018 | shadcn/ui pour la passe visuelle du parcours démo (KAN-36) | accepté | 2026-07-20 |
+| 0019 | Supervision v1 : sonde externe plutôt qu'auto-hébergée | accepté | 2026-07-22 |
+| 0020 | Normalisation Unicode NFC du moteur de liaison : à la frontière, pas dans le moteur | accepté | 2026-07-22 |
+| 0021 | Rendu du graphe de relations : proposition initiale (react-flow), remplacée par ADR-0012 | remplacé par ADR-0012 | 2026-07-17 |

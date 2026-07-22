@@ -173,6 +173,35 @@ describe("createEntity", () => {
     expect(entityCount).not.toHaveBeenCalled();
     expect(entityCreate).toHaveBeenCalled();
   });
+
+  // Diagnostic normalisation Unicode (ADR-0020) : name/aliases persistes en
+  // NFC meme si saisis en NFD (accent = caractere combinant separe, possible
+  // via copier-coller depuis macOS/export tiers) - sans cela, le moteur de
+  // liaison peut perdre silencieusement des matches (aho-corasick.test.ts).
+  it("normalise le nom et les alias en NFC avant persistance, meme saisis en forme NFD", async () => {
+    const nfc = "Éléa";
+    const nfd = nfc.normalize("NFD");
+    expect(nfd).not.toBe(nfc); // premisse : bien deux formes distinctes en entree
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityCount.mockResolvedValueOnce(0);
+    entityCreate.mockResolvedValueOnce(
+      makeEntity({ name: nfc, aliases: [makeAlias({ value: nfc })] }),
+    );
+
+    await createEntity(OWNER_ID, WORLD_ID, { name: nfd, type: "character", aliases: [nfd] });
+
+    expect(entityCreate).toHaveBeenCalledWith({
+      data: {
+        worldId: WORLD_ID,
+        name: nfc,
+        type: "character",
+        aliases: { create: [{ value: nfc, normalized: normalizeForMatch(nfc) }] },
+        content: EMPTY_CONTENT,
+        plainText: "",
+      },
+      include: { aliases: true },
+    });
+  });
 });
 
 describe("listEntities", () => {
@@ -350,6 +379,34 @@ describe("updateEntity", () => {
       updateEntity(OWNER_ID, WORLD_ID, "e1", { name: "X", type: "character", aliases: [] }),
     ).rejects.toThrow(EntityNotFoundError);
     expect(entityUpdate).not.toHaveBeenCalled();
+  });
+
+  // Diagnostic normalisation Unicode (ADR-0020) : meme garantie qu'a la
+  // creation - name/aliases toujours persistes en NFC, y compris sur une
+  // mise a jour saisie en forme NFD.
+  it("normalise le nom et les alias en NFC avant persistance, meme saisis en forme NFD", async () => {
+    const nfc = "Éléa";
+    const nfd = nfc.normalize("NFD");
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity());
+    entityUpdate.mockResolvedValueOnce(
+      makeEntity({ name: nfc, aliases: [makeAlias({ value: nfc })] }),
+    );
+
+    await updateEntity(OWNER_ID, WORLD_ID, "e1", { name: nfd, type: "character", aliases: [nfd] });
+
+    expect(entityUpdate).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: {
+        name: nfc,
+        type: "character",
+        aliases: {
+          deleteMany: {},
+          create: [{ value: nfc, normalized: normalizeForMatch(nfc) }],
+        },
+      },
+      include: { aliases: true },
+    });
   });
 });
 

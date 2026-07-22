@@ -61,6 +61,38 @@ describe("saveEntityContentAction", () => {
     expect(mockedUpdateEntityContent).toHaveBeenCalledWith("owner-1", "w1", "e1", content, "Salut");
   });
 
+  // Diagnostic normalisation Unicode (ADR-0020) : un noeud texte colle en
+  // forme NFD (accent = caractere combinant separe) est normalise en NFC
+  // avant persistance - le contenu (body) persiste ET le plainText qui en
+  // est extrait doivent tous les deux refleter cette meme forme normalisee
+  // (jamais l'un normalise et l'autre non).
+  it("normalise les noeuds texte du contenu en NFC avant extraction du plainText, body et plainText restent alignes", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    const nfc = "Éléa";
+    const nfd = nfc.normalize("NFD");
+    const rawContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: `Ici vit ${nfd}.` }] }],
+    };
+    // @ts-expect-error - seul le retour importe au test, pas la forme Entity complete
+    mockedUpdateEntityContent.mockResolvedValueOnce({ id: "e1" });
+
+    const result = await saveEntityContentAction("w1", "e1", JSON.stringify(rawContent));
+
+    expect(result).toEqual({ ok: true });
+    const expectedContent = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: `Ici vit ${nfc}.` }] }],
+    };
+    expect(mockedUpdateEntityContent).toHaveBeenCalledWith(
+      "owner-1",
+      "w1",
+      "e1",
+      expectedContent,
+      `Ici vit ${nfc}.`,
+    );
+  });
+
   it("rejette une chaine JSON trop volumineuse sans meme tenter de la parser", async () => {
     mockedRequireSession.mockResolvedValueOnce(SESSION);
     const oversized = JSON.stringify({

@@ -111,6 +111,28 @@ export function parseContent(content: unknown): JSONContent {
   return content as JSONContent;
 }
 
+// Normalise en NFC tous les nœuds texte du contenu (diagnostic session
+// normalisation Unicode, ADR-0020) : garantit que le corps persiste
+// (`content`) et le `plainText` qui en est extrait restent alignes sur la
+// MEME forme Unicode - appelee au meme endroit que extractPlainText, juste
+// avant elle (saveEntityContentAction), pour que les deux derivent du meme
+// contenu deja normalise, jamais l'un normalise et l'autre non. Corrige a LA
+// FRONTIERE (ici, a la sauvegarde), jamais dans normalizeForMatch/
+// aho-corasick.ts - un .normalize("NFC") ajoute dans le pipeline de matching
+// casserait l'alignement des index de surlignage (meme mecanisme que le bug
+// diagnostique). Fonction pure : reconstruit l'arbre, ne mute jamais le
+// contenu recu.
+export function normalizeContentText(content: JSONContent): JSONContent {
+  const normalized: JSONContent = { ...content };
+  if (typeof normalized.text === "string") {
+    normalized.text = normalized.text.normalize("NFC");
+  }
+  if (normalized.content) {
+    normalized.content = normalized.content.map(normalizeContentText);
+  }
+  return normalized;
+}
+
 // Extraction du texte brut (pour le futur scan de liaison + la recherche) -
 // fonction pure, ne necessite pas de DOM/navigateur reel.
 export function extractPlainText(content: JSONContent): string {

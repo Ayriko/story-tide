@@ -4,6 +4,7 @@ import {
   InvalidContentError,
   extractMentionedEntityIds,
   extractPlainText,
+  normalizeContentText,
   parseContent,
 } from "./tiptap-content";
 
@@ -334,6 +335,96 @@ describe("extractPlainText", () => {
     };
 
     expect(extractPlainText(content)).toBe("Rencontre avec  hier.");
+  });
+});
+
+// Diagnostic normalisation Unicode (ADR-0020) : un texte colle depuis une
+// source NFD (accent = caractere combinant separe) ne doit plus jamais
+// atteindre le moteur de liaison tel quel - voir aho-corasick.test.ts pour le
+// bug que cette normalisation neutralise (match perdu en cascade).
+describe("normalizeContentText", () => {
+  it("normalise un noeud texte simple en NFC", () => {
+    const nfc = "Éléa";
+    const nfd = nfc.normalize("NFD");
+    const content = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: nfd }] }],
+    };
+
+    const result = normalizeContentText(content);
+
+    expect(result.content?.[0]?.content?.[0]?.text).toBe(nfc);
+  });
+
+  it("normalise plusieurs noeuds texte a des profondeurs d'imbrication differentes", () => {
+    const nfc = "Éléa";
+    const nfd = nfc.normalize("NFD");
+    const content = {
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: nfd }] },
+        {
+          type: "blockquote",
+          content: [{ type: "paragraph", content: [{ type: "text", text: `Ici vit ${nfd}.` }] }],
+        },
+      ],
+    };
+
+    const result = normalizeContentText(content);
+
+    expect(result.content?.[0]?.content?.[0]?.text).toBe(nfc);
+    expect(result.content?.[1]?.content?.[0]?.content?.[0]?.text).toBe(`Ici vit ${nfc}.`);
+  });
+
+  it("preserve les marks, attrs et le type de chaque noeud (seul .text change)", () => {
+    const nfd = "Éléa".normalize("NFD");
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", marks: [{ type: "bold" }], text: nfd }],
+        },
+      ],
+    };
+
+    const result = normalizeContentText(content);
+
+    expect(result.content?.[0]?.content?.[0]?.marks).toEqual([{ type: "bold" }]);
+    expect(result.content?.[0]?.type).toBe("paragraph");
+  });
+
+  it("laisse intact un contenu deja en NFC (idempotent)", () => {
+    expect(normalizeContentText(EMPTY_CONTENT)).toEqual(EMPTY_CONTENT);
+  });
+
+  it("ne mute pas l'objet recu en entree (fonction pure)", () => {
+    const nfd = "Éléa".normalize("NFD");
+    const content = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: nfd }] }],
+    };
+    const original = JSON.parse(JSON.stringify(content));
+
+    normalizeContentText(content);
+
+    expect(content).toEqual(original);
+  });
+
+  it("normalise les noeuds mention/image sans texte sans planter (aucun champ .text)", () => {
+    const content = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "mention", attrs: { id: "entity-1", label: "Aeliana" } }],
+        },
+        { type: "image", attrs: { src: "https://example.com/x.png", alt: "desc" } },
+      ],
+    };
+
+    expect(() => normalizeContentText(content)).not.toThrow();
+    expect(normalizeContentText(content)).toEqual(content);
   });
 });
 

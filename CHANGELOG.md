@@ -415,3 +415,14 @@ stade (`[Unreleased]`).
   reste en state, ses résultats venant du serveur. Voir
   `docs/plan-correction-bogues.md` (BUG-004, historique complet des 3
   tentatives), `TST-MND-008`.
+- Un texte collé en forme Unicode **décomposée** (NFD — accent = caractère
+  combinant séparé, ex. copier-coller depuis macOS/export tiers) pouvait
+  faire disparaître silencieusement le lien automatique d'une **autre**
+  entité mentionnée plus loin dans le même texte (décalage d'index faussant
+  la vérification de frontière de mot dans `AhoCorasick.search()`).
+  Diagnostiqué par test Vitest avant tout correctif (protocole imposé),
+  corrigé à **la frontière applicative** (normalisation NFC du nom/alias à
+  l'enregistrement, `entity-service.ts` ; du corps Tiptap à la sauvegarde,
+  `tiptap-content.ts`) — le moteur de liaison (`aho-corasick.ts`,
+  `normalize.ts`) reste intouché. Voir ADR-0020,
+  `docs/plan-correction-bogues.md` (BUG-005), `TST-LNK-008`.
