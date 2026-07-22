@@ -5,7 +5,7 @@ import { EMPTY_CONTENT, extractPlainText } from "@/lib/tiptap-content";
 import { normalizeForMatch } from "@/lib/linker/normalize";
 import { FREE_ENTITY_LIMIT_PER_WORLD } from "@/lib/quotas";
 import type { Alias, Entity } from "@/generated/prisma/client";
-import { WorldOrigin } from "@/generated/prisma/client";
+import { AliasSource, WorldOrigin } from "@/generated/prisma/client";
 import { getWorld } from "./world-service";
 
 export type EntitySearchResult = { id: string; name: string; type: string };
@@ -77,6 +77,58 @@ export async function createEntity(
       },
       content: EMPTY_CONTENT,
       plainText: extractPlainText(EMPTY_CONTENT),
+    },
+    include: { aliases: true },
+  });
+  return toEntityRecord(entity);
+}
+
+// Entite issue d'un script de seed (KAN-35) - fonction DEDIEE, separee de
+// createEntity : pas de nouveaux parametres optionnels sur une fonction deja
+// testee/appelee par le chemin utilisateur normal (creation depuis l'UI).
+// Memes garanties que createEntity : NFC sur name/aliases (ADR-0020), mais
+// `source: SEED` sur les alias (au lieu du defaut MANUAL) et upsert par
+// `seedRef` (jamais le slug - stable a travers les rejeux du seed,
+// @@unique([worldId, seedRef])). `content`/`plainText` sont fournis par
+// l'appelant (deja produits par normalizeContentText/extractPlainText en
+// amont, jamais recalcules ici) - contrairement a createEntity qui initialise
+// toujours un contenu vide, ce chemin persiste un corps deja redige.
+// Idempotente : un second appel avec le meme (worldId, seedRef) met a jour
+// l'entite existante plutot que d'en creer une seconde.
+export async function createSeedEntity(
+  worldId: string,
+  input: {
+    seedRef: string;
+    name: string;
+    type: string;
+    aliases: string[];
+    content: JSONContent;
+    plainText: string;
+  },
+): Promise<EntityRecord> {
+  const nfcName = input.name.normalize("NFC");
+  const aliasRows = input.aliases.map((value) => {
+    const nfc = value.normalize("NFC");
+    return { value: nfc, normalized: normalizeForMatch(nfc), source: AliasSource.SEED };
+  });
+
+  const entity = await prisma.entity.upsert({
+    where: { worldId_seedRef: { worldId, seedRef: input.seedRef } },
+    create: {
+      worldId,
+      seedRef: input.seedRef,
+      name: nfcName,
+      type: input.type,
+      content: input.content,
+      plainText: input.plainText,
+      aliases: { create: aliasRows },
+    },
+    update: {
+      name: nfcName,
+      type: input.type,
+      content: input.content,
+      plainText: input.plainText,
+      aliases: { deleteMany: {}, create: aliasRows },
     },
     include: { aliases: true },
   });

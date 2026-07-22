@@ -6,6 +6,7 @@ import { WorldOrigin } from "@/generated/prisma/client";
 import {
   WorldNotFoundError,
   WorldQuotaExceededError,
+  createIntroWorld,
   createWorld,
   deleteWorld,
   getWorld,
@@ -134,6 +135,46 @@ describe("createWorld", () => {
     );
     expect(worldFindUnique).not.toHaveBeenCalled();
     expect(worldCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("createIntroWorld", () => {
+  it("cree un monde origin=INTRO quand aucun n'existe encore pour ce proprietaire", async () => {
+    worldFindFirst.mockResolvedValueOnce(null);
+    worldFindUnique.mockResolvedValueOnce(null); // slug "atheraus" libre
+    worldCreate.mockResolvedValueOnce(
+      makeWorld({ id: "intro-1", name: "Atheraus", slug: "atheraus", origin: WorldOrigin.INTRO }),
+    );
+
+    const world = await createIntroWorld(OWNER_ID, "Atheraus");
+
+    expect(worldFindFirst).toHaveBeenCalledWith({
+      where: { ownerId: OWNER_ID, origin: WorldOrigin.INTRO },
+    });
+    expect(worldCreate).toHaveBeenCalledWith({
+      data: { ownerId: OWNER_ID, name: "Atheraus", slug: "atheraus", origin: WorldOrigin.INTRO },
+    });
+    expect(world.origin).toBe(WorldOrigin.INTRO);
+  });
+
+  it("est idempotente : retourne le monde INTRO existant sans en creer un second", async () => {
+    const existing = makeWorld({ id: "intro-1", origin: WorldOrigin.INTRO });
+    worldFindFirst.mockResolvedValueOnce(existing);
+
+    const world = await createIntroWorld(OWNER_ID, "Atheraus");
+
+    expect(world).toBe(existing);
+    expect(worldCreate).not.toHaveBeenCalled();
+  });
+
+  it("ne compte jamais parmi le quota des 3 mondes gratuits (aucune requete count)", async () => {
+    worldFindFirst.mockResolvedValueOnce(null);
+    worldFindUnique.mockResolvedValueOnce(null);
+    worldCreate.mockResolvedValueOnce(makeWorld({ origin: WorldOrigin.INTRO }));
+
+    await createIntroWorld(OWNER_ID, "Atheraus");
+
+    expect(worldCount).not.toHaveBeenCalled();
   });
 });
 

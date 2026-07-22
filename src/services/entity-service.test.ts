@@ -9,6 +9,7 @@ import {
   EntityNotFoundError,
   EntityQuotaExceededError,
   createEntity,
+  createSeedEntity,
   deleteEntity,
   getEntity,
   listEntities,
@@ -31,6 +32,7 @@ vi.mock("@/db/client", () => ({
       count: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      upsert: vi.fn(),
       delete: vi.fn(),
     },
   },
@@ -42,6 +44,7 @@ const entityFindMany = vi.mocked(prisma.entity.findMany);
 const entityCount = vi.mocked(prisma.entity.count);
 const entityCreate = vi.mocked(prisma.entity.create);
 const entityUpdate = vi.mocked(prisma.entity.update);
+const entityUpsert = vi.mocked(prisma.entity.upsert);
 const entityDelete = vi.mocked(prisma.entity.delete);
 
 const OWNER_ID = "owner-1";
@@ -201,6 +204,56 @@ describe("createEntity", () => {
       },
       include: { aliases: true },
     });
+  });
+});
+
+describe("createSeedEntity", () => {
+  it("upsert par seedRef, NFC sur name/aliases, source=SEED (KAN-35)", async () => {
+    const nfc = "Éléa";
+    const nfd = nfc.normalize("NFD");
+    entityUpsert.mockResolvedValueOnce(
+      makeEntity({
+        name: nfc,
+        seedRef: "ath-test",
+        aliases: [makeAlias({ value: nfc, source: AliasSource.SEED })],
+      }),
+    );
+
+    const entity = await createSeedEntity(WORLD_ID, {
+      seedRef: "ath-test",
+      name: nfd,
+      type: "character",
+      aliases: [nfd],
+      content: EMPTY_CONTENT,
+      plainText: "",
+    });
+
+    expect(entityUpsert).toHaveBeenCalledWith({
+      where: { worldId_seedRef: { worldId: WORLD_ID, seedRef: "ath-test" } },
+      create: {
+        worldId: WORLD_ID,
+        seedRef: "ath-test",
+        name: nfc,
+        type: "character",
+        content: EMPTY_CONTENT,
+        plainText: "",
+        aliases: {
+          create: [{ value: nfc, normalized: normalizeForMatch(nfc), source: AliasSource.SEED }],
+        },
+      },
+      update: {
+        name: nfc,
+        type: "character",
+        content: EMPTY_CONTENT,
+        plainText: "",
+        aliases: {
+          deleteMany: {},
+          create: [{ value: nfc, normalized: normalizeForMatch(nfc), source: AliasSource.SEED }],
+        },
+      },
+      include: { aliases: true },
+    });
+    expect(entity.name).toBe(nfc);
   });
 });
 

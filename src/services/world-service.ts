@@ -59,6 +59,27 @@ export async function createWorld(ownerId: string, input: CreateWorldInput): Pro
   return prisma.world.create({ data: { ownerId, name: input.name, slug } });
 }
 
+// Monde d'introduction "Atheraus" (KAN-35) : origin=INTRO, deja hors quota via
+// le filtre origin=USER de createWorld ci-dessus (jamais compte). Fonction
+// DEDIEE plutot qu'un parametre `origin` public sur createWorld : aucun
+// appelant UI (Server Action de creation de monde) ne doit jamais pouvoir
+// choisir l'origine d'un monde qu'il cree - createWorld reste inchange.
+// Idempotente : un second appel pour le meme proprietaire retrouve le monde
+// existant plutot que d'en recreer un (meme invariant que le seed d'entites,
+// cf. intro-world-service.ts).
+export async function createIntroWorld(ownerId: string, name: string): Promise<World> {
+  const existing = await prisma.world.findFirst({
+    where: { ownerId, origin: WorldOrigin.INTRO },
+  });
+  if (existing) {
+    return existing;
+  }
+  const slug = await resolveUniqueSlug(ownerId, slugify(name));
+  return prisma.world.create({
+    data: { ownerId, name, slug, origin: WorldOrigin.INTRO },
+  });
+}
+
 export async function listWorlds(ownerId: string): Promise<World[]> {
   return prisma.world.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } });
 }
