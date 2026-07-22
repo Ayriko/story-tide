@@ -97,8 +97,11 @@ export function LinkedEntities({
               href={`/worlds/${worldSlug}/entities/${link.id}`}
               className="block flex-1 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <Card className="px-3 py-2 transition-colors hover:bg-accent">
+              <Card className="flex-row items-center gap-2 px-3 py-2 transition-colors hover:bg-accent">
                 <span className="text-sm font-medium text-foreground">{link.name}</span>
+                {link.origin === "MANUAL" ? (
+                  <span className="text-xs text-muted-foreground">Liaison manuel</span>
+                ) : null}
               </Card>
             </Link>
             {ignoreContext && link.origin === "AUTO" ? (
