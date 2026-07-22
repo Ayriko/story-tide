@@ -408,6 +408,63 @@
 
 ---
 
+### Session — 2026-07-22 — Libellé « Liaison manuel » sur les relations MANUAL (Renvois)
+
+**Thèmes abordés :**
+- Correctif visuel demandé par Aymeric après la session KAN-35 : les relations
+  `origin=MANUAL` dans « Renvois » n'ont pas de bouton « Ignorer ce lien » (KAN-23
+  cible explicitement l'AUTO) sans que rien ne le signale visuellement — ajout
+  d'un petit libellé gris « Liaison manuel ».
+- Préparation des 4 commits complets de la journée (KAN-35 + ce correctif) :
+  `git add` et messages prêts à copier pour Aymeric.
+
+**Décisions prises :**
+- Libellé sur la **même ligne** que le nom, juste après, sans parenthèses — tranché
+  après 3 itérations avec retour direct d'Aymeric sur chaque rendu (inline collé au
+  nom → rejeté, sous le nom aligné → rejeté, sous le nom centré → rejeté, ligne +
+  `justify-between` → toujours en dessous et centré faute d'override de la
+  direction flex).
+
+**Éléments notables / appris (gotchas) :**
+- **Cause racine des 3 échecs de layout** : `Card` (`src/components/ui/card.tsx:15`)
+  a `flex flex-col` câblé dans ses classes de base (design system du projet). Aucune
+  tentative précédente n'ajoutait `flex-row` — `tailwind-merge` conservait donc le
+  `flex-col` de base, d'où l'empilement vertical systématique, et `items-center` en
+  contexte colonne centrait horizontalement plutôt que d'aligner verticalement.
+  Diagnostiqué en lisant le composant de base plutôt qu'en essayant une 4ᵉ variante
+  à l'aveugle. **Candidat skill** : avant tout ajustement de layout inline à
+  l'intérieur d'un `<Card>` du design system, vérifier d'abord ses classes de base
+  (`flex-col` par défaut) — un simple `justify-between`/`items-center` ajouté par
+  l'appelant ne suffit jamais à changer la direction du flex.
+
+**Livrables produits :**
+- `src/app/(app)/worlds/[slug]/entities/[entityId]/linked-entities.tsx` : libellé
+  « Liaison manuel » (`origin === "MANUAL"`) sur la même ligne que le nom,
+  `flex-row` explicite ajouté au `className` de la `Card` pour overrider sa base.
+  Aucun test dédié écrit (pur affichage, pas de logique) — signalé à Aymeric, pas
+  d'objection.
+- Gates : lint ✅, `tsc` ✅ sur le fichier modifié (pas de nouveau run e2e/unit/build
+  dédié à ce micro-correctif ; gates globaux déjà vérifiés verts en fin de session
+  KAN-35 le même jour).
+- 4 commits préparés (seed, câblage, docs KAN-35 + ce correctif) — messages et
+  `git add` fournis à Aymeric, pas encore exécutés au moment de la rédaction de
+  cette entrée.
+
+**Avancement certification :**
+- C2.2.3 (clarté UI, pas une nouvelle surface de sécurité) : distinction visuelle
+  MANUAL/AUTO désormais explicite dans « Renvois », pas seulement déductible de
+  l'absence du bouton « Ignorer ce lien ».
+
+**À faire / suite :**
+- Aymeric exécute les 4 commits préparés.
+- Décider si un test e2e dédié au libellé « Liaison manuel » est souhaité (proposé,
+  pas demandé à ce stade).
+- Reporter cette entrée (et celle de KAN-35 ci-dessus) dans `dev-log.md` (hors
+  repo) + redéposer dans le projet Claude.
+- Mettre à jour le board Jira.
+
+---
+
 **Décisions techniques**
 
 | Date | Décision | Alternatives | Justification |
@@ -420,6 +477,7 @@
 | 2026-07-22 | Monde d'introduction cloné par fonction partagée (`seedIntroWorld`), un monde `origin: INTRO` frais par compte | Monde template persisté en base + compte système, dupliqué à l'inscription | `World.ownerId` non-nullable (FK réelle) interdit tout monde partagé entre comptes ; évite un compte système à provisionner/protéger et un mécanisme de duplication générique (entités + relations AUTO/MANUAL) inexistant dans le code |
 | 2026-07-22 | Case à cocher « Ne pas créer le monde d'exemple » décochée par défaut (opt-out) | Décochée par défaut nécessitant une action explicite pour l'obtenir (opt-in) | Le monde d'intro sert de vitrine immédiate du différenciateur produit — l'opt-out maximise la découverte sans bloquer les utilisateurs qui n'en veulent pas |
 | 2026-07-22 | `playwright.config.ts` restructuré en deux projets (`chromium`/`chromium-intro-world`, `dependencies`) pour séquencer `intro-world.spec.ts` après le reste | Garder un seul projet, se fier au skip individuel des 9 autres specs | Le skip individuel n'empêche pas la contention : les 25 jobs enfilés par `intro-world.spec.ts` partagent la même file pg-boss que n'importe quel test lancé en parallèle, quel que soit qui les a déclenchés — seule la mise en séquence stricte élimine le flake, prouvé par un run complet reproduit |
+| 2026-07-22 | Libellé « Liaison manuel » sur la même ligne que le nom, `flex-row` explicite sur la `Card` | `flex-col`/`justify-between` ajoutés par-dessus la `Card` sans toucher sa direction de base | `Card` (`card.tsx:15`) a `flex flex-col` câblé dans ses classes de base — toute mise en ligne à l'intérieur doit overrider explicitement avec `flex-row`, sinon `tailwind-merge` conserve la base et empile verticalement |
 
 **Erreurs rencontrées & Solutions**
 
@@ -432,3 +490,4 @@
 | 2026-07-22 | `link-highlight.spec.ts`/`link-ignore.spec.ts` échouent (`toPass({timeout:20_000})` dépassé) lors d'un run complet `--workers=2`, alors que chacun saute désormais son propre seed d'intro | Le nouveau `intro-world.spec.ts` (non sauté, volontaire) enfile 25 jobs de liaison réels sur la même file pg-boss partagée par tous les tests e2e, en parallèle des autres — ses jobs noient le job spécifique attendu par les deux tests avant leur propre timeout | `playwright.config.ts` restructuré en deux projets, `chromium-intro-world` déclaré `dependencies: ["chromium"]` — ce fichier s'exécute toujours strictement après tout le reste, jamais en même temps |
 | 2026-07-22 | `@ts-expect-error` posé dans le `return` d'un callback `mockImplementation` produit à la fois l'erreur de type d'origine ET « Unused '@ts-expect-error' directive » | L'erreur de type surgit à l'appel de `mockImplementation(...)` lui-même (un niveau au-dessus du callback), pas dans le callback — la directive ne couvre pas la bonne ligne | Directive retirée, cast direct de la valeur retournée (`{ ... } as unknown as EntityRecord`) |
 | 2026-07-22 | Couverture `src/services` chutée de 98 %+ à 77,91 % après l'ajout de `createIntroWorld`/`createSeedEntity`/`seedIntroWorld` | Trois fonctions de service neuves livrées sans test, seuil CI bloquant (≥80 %, CLAUDE.md) presque cassé | Tests dédiés ajoutés pour les trois fonctions (`world-service.test.ts`, `entity-service.test.ts`, nouveau `intro-world-service.test.ts`) — couverture restaurée à 99,16 % |
+| 2026-07-22 | Libellé « Liaison manuel » rendu **sous** le nom et **centré** malgré `justify-between`/`flex-col` ajoutés au `className` de la `Card` (3 tentatives) | `Card` (`src/components/ui/card.tsx:15`) a `flex flex-col` dans ses classes de base ; aucune tentative n'ajoutait `flex-row`, donc `tailwind-merge` conservait la direction colonne de base | `flex-row` ajouté explicitement au `className` de l'appelant (`linked-entities.tsx`) — override réel de la classe de base, nom et libellé sur la même ligne |
