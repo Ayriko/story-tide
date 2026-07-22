@@ -84,13 +84,20 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   await page.keyboard.press("Backspace");
   await expect(page.getByText("Enregistré.")).toBeVisible({ timeout: 10_000 });
 
+  // Le clic + la navigation (verifie au passage que le lien pointe toujours
+  // vers la bonne cible) restent DANS le meme bloc de retry que le reload -
+  // meme raisonnement que link-highlight.spec.ts : juste apres un reload, la
+  // page peut ne pas encore etre pleinement interactive (hydratation), un
+  // clic peut alors ne rien declencher de fiable (flake constate en CI,
+  // jamais reproduit en local). Si le clic ou la navigation echouent, le
+  // retry refait un reload() et retente le cycle complet plutot que
+  // d'echouer immediatement sur un lien juste visible.
   await expect(async () => {
     await page.reload();
-    await expect(linkedEntitiesNav.getByRole("link", { name: targetName })).toBeVisible();
+    const link = linkedEntitiesNav.getByRole("link", { name: targetName });
+    await expect(link).toBeVisible();
+    await link.click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
   }).toPass({ timeout: 20_000 });
-
-  // Verifie au passage que le lien pointe toujours vers la bonne cible.
-  await linkedEntitiesNav.getByRole("link", { name: targetName }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
   expect(page.url()).toContain(`/entities/${targetId}`);
 });
