@@ -24,7 +24,21 @@ export function createMentionSuggestion(
 
       return {
         onStart: (props) => {
-          component = new ReactRenderer(MentionList, { editor: props.editor, props });
+          // className: "z-50" (KAN-19, bug flou/illisible - 2e tentative) :
+          // ReactRenderer cree SON PROPRE wrapper <div class="react-renderer">
+          // (component.element) et y monte MentionList via un portail React -
+          // c'est CE wrapper que props.mount() positionne (absolute) et
+          // ajoute a document.body, jamais l'element rendu par MentionList
+          // lui-meme. Un z-* pose sur la racine JSX de MentionList (1re
+          // tentative, retiree de mention-list.tsx) etait donc a la fois sur
+          // le mauvais element ET sans effet (position: static, z-index
+          // ignore). Meme convention que les autres overlays portales
+          // (Dialog/AlertDialog/DropdownMenu/Popover, tous z-50).
+          component = new ReactRenderer(MentionList, {
+            editor: props.editor,
+            props,
+            className: "z-50",
+          });
           if (!props.clientRect) {
             return;
           }

@@ -85,7 +85,14 @@ export function MentionList({
       <div
         role="listbox"
         aria-label="Entités correspondantes"
-        className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
+        // Le z-index necessaire (KAN-19, bug flou/illisible) vit sur le
+        // wrapper cree par ReactRenderer (className: "z-50", voir
+        // mention-suggestion.ts) - un z-* ici serait sur un enfant en
+        // position: static, sans aucun effet (verifie, pas suppose).
+        // Tokens de theme (bg-popover/ring-foreground, meme convention que
+        // Popover/DropdownMenu) plutot que des couleurs zinc figees - reste
+        // raccord dark/light sans dark: manuel.
+        className="rounded-md bg-popover px-3 py-2 text-sm text-muted-foreground shadow-md ring-1 ring-foreground/10"
       >
         Aucune entité trouvée.
       </div>
@@ -96,7 +103,7 @@ export function MentionList({
     <ul
       role="listbox"
       aria-label="Entités correspondantes"
-      className="flex max-h-56 flex-col overflow-y-auto rounded-md border border-zinc-200 bg-white py-1 shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+      className="flex max-h-56 flex-col overflow-y-auto rounded-md bg-popover py-1 shadow-md ring-1 ring-foreground/10"
     >
       {items.map((item, index) => (
         <li
@@ -106,9 +113,7 @@ export function MentionList({
           aria-selected={index === selectedIndex}
           onClick={() => selectItem(index)}
           className={`cursor-pointer px-3 py-1.5 text-sm ${
-            index === selectedIndex
-              ? "bg-zinc-100 text-zinc-950 dark:bg-zinc-800 dark:text-zinc-50"
-              : "text-zinc-900 dark:text-zinc-100"
+            index === selectedIndex ? "bg-accent text-accent-foreground" : "text-popover-foreground"
           }`}
         >
           {item.label}

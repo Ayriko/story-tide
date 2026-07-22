@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Lightbulb } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
@@ -17,6 +18,19 @@ import { EntityEditor } from "./entity-editor";
 import { EntitySettingsDialog } from "./entity-settings-dialog";
 import { IgnoredLinks } from "./ignored-links";
 import { LinkedEntities } from "./linked-entities";
+
+// Rotation statique (KAN-19), meme patron que worlds/[slug]/page.tsx : un
+// conseil par jour du mois, deterministe (pas de state client, zero risque
+// d'hydratation - rendu entierement cote serveur). Tableau dedie a cette page
+// (pas un import du dashboard, qui n'exporte pas le sien) - le contenu diffère
+// (angle editeur/liaison), duplication de 4 chaines jugee preferable a un
+// refactor partage pour ce volume.
+const ENTITY_TIPS = [
+  "Ctrl/Cmd+clic sur un lien surligné navigue vers la fiche liée — un clic simple reste de l'édition normale.",
+  "Tape « @ » pour mentionner une entrée existante — le lien se crée immédiatement, sans attendre.",
+  "Les liens détectés automatiquement peuvent prendre quelques secondes à apparaître dans « Renvois ».",
+  "« Ignorer ce lien », depuis « Renvois », empêche un lien automatique détecté de se retisser tout seul.",
+];
 
 export default async function EntityPage({
   params,
@@ -82,6 +96,8 @@ export default async function EntityPage({
     label: worldEntity.name,
   }));
 
+  const tip = ENTITY_TIPS[new Date().getDate() % ENTITY_TIPS.length];
+
   return (
     <div className="flex flex-col gap-8">
       <Link
@@ -127,6 +143,11 @@ export default async function EntityPage({
           ) : null}
         </div>
       </div>
+
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Lightbulb aria-hidden="true" className="size-4 shrink-0" />
+        {tip}
+      </p>
 
       <EntityEditor
         worldId={world.id}

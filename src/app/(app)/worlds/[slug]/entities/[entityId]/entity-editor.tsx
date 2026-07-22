@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { EditorContent, ReactNodeViewRenderer, useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
 import { createEditorExtensions, type MentionSuggestionItem } from "@/lib/tiptap-extensions";
@@ -25,6 +26,12 @@ import { createMentionSuggestion } from "./mention-suggestion";
 import { ResizableImageView } from "./resizable-image-view";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
+// Marge au-dessus du polling pg-boss par defaut (~2 s) + traitement du job
+// (KAN-19) : estimation temporelle, pas une preuve que le worker a fini -
+// aucun signal serveur de completion n'existe (hors perimetre). La note
+// disparait par convention, coherent avec le leger decalage deja
+// documente/accepte ailleurs (page.tsx de la fiche).
+const AUTO_PENDING_NOTE_MS = 4_000;
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -358,7 +365,12 @@ export function EntityEditor({
   const router = useRouter();
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // autoPending (KAN-19) : note transitoire "liens en cours" apres un save
+  // reussi - purement indicative (voir AUTO_PENDING_NOTE_MS), pas un etat de
+  // chargement reel du job worker.
+  const [autoPending, setAutoPending] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoPendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleSave = useCallback(
     (content: JSONContent) => {
@@ -373,10 +385,31 @@ export function EntityEditor({
         void saveEntityContentAction(worldId, entityId, JSON.stringify(content)).then((result) => {
           setStatus(result.ok ? "saved" : "error");
           setErrorMessage(result.ok ? null : result.error);
+          if (result.ok) {
+            // Re-execute la page (Server Component) pour rafraichir "Renvois"
+            // (LinkedEntities, relation-service.ts) sans navigation ni perte
+            // d'etat de l'edition en cours : useEditor ci-dessous n'a pas de
+            // tableau de dependances (figee au montage, meme regle que le
+            // dictionnaire de surlignage), donc les nouvelles props ignorees
+            // par ce hook ne recreent jamais l'editeur. Couvre les mentions
+            // MANUAL (deja ecrites en base de facon synchrone par
+            // reconcileManualMentions) immediatement ; une Relation AUTO
+            // ecrite par le worker apres ce point n'apparaitra qu'au refresh
+            // suivant (prochaine frappe) - decalage deja documente/accepte
+            // dans page.tsx, pas aggrave par cet appel.
+            router.refresh();
+            setAutoPending(true);
+            if (autoPendingTimeoutRef.current) {
+              clearTimeout(autoPendingTimeoutRef.current);
+            }
+            autoPendingTimeoutRef.current = setTimeout(() => {
+              setAutoPending(false);
+            }, AUTO_PENDING_NOTE_MS);
+          }
         });
       }, AUTOSAVE_DEBOUNCE_MS);
     },
-    [worldId, entityId],
+    [worldId, entityId, router],
   );
 
   // Exclut la fiche courante de ses propres suggestions @ - une auto-mention
@@ -449,6 +482,9 @@ export function EntityEditor({
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      if (autoPendingTimeoutRef.current) {
+        clearTimeout(autoPendingTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -501,10 +537,20 @@ export function EntityEditor({
         // de cette classe (skill headless-editor-tailwind-preflight).
         className="min-h-[200px] rounded-md border border-input px-3 py-2 text-sm text-foreground focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-lg [&_h3]:font-medium [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-muted-foreground [&_.entity-mention]:underline-offset-2 [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-left [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]"
       />
-      <p aria-live="polite" className="text-xs text-muted-foreground">
-        {status === "saving" ? "Enregistrement…" : null}
-        {status === "saved" ? "Enregistré." : null}
-        {status === "error" ? (errorMessage ?? "Erreur d'enregistrement.") : null}
+      <p aria-live="polite" className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>
+          {status === "saving" ? "Enregistrement…" : null}
+          {status === "saved" ? "Enregistré." : null}
+          {status === "error" ? (errorMessage ?? "Erreur d'enregistrement.") : null}
+        </span>
+        {/* Note transitoire (KAN-19) : purement indicative, voir
+            AUTO_PENDING_NOTE_MS - n'atteste pas que le worker a fini. */}
+        {autoPending ? (
+          <span className="flex items-center gap-1">
+            <Loader2 aria-hidden="true" className="size-3 animate-spin" />
+            Mise à jour des liens détectés…
+          </span>
+        ) : null}
       </p>
     </div>
   );
