@@ -141,7 +141,15 @@ valide cette fois.
 - En-têtes de sécurité présents (`curl -sI https://<domaine>` — voir
   `docs/securite-owasp.md` A05).
 - PostgreSQL/MinIO injoignables depuis l'extérieur
-  (`nc -zv <IP_VPS> 5432/9000/9001` doit échouer) — voir `TST-SEC-011`.
+  (`nc -zv <IP_VPS> 5432/9000/9001` doit échouer) — voir `TST-SEC-011`. En
+  production, PostgreSQL est bindé sur `127.0.0.1:5432` (boucle locale
+  uniquement, `compose.prod.yml`) : consultation des données de production
+  possible via **tunnel SSH chiffré** (`ssh -L 5432:localhost:5432
+  deploy@<IP_VPS>`) + Prisma Studio en local, aucune console d'administration
+  exposée. Ce port n'existe pas en staging.
+- `curl -i https://<domaine>/api/health` : `200` avec `{"status":"ok",…}` —
+  voir `docs/supervision.md`. Si `503`, vérifier `docker compose ... ps` (le
+  service `postgres` doit être `healthy`).
 - Scénarios `docs/cahier-recettes.md` : `TST-SEC-009` à `TST-SEC-012`.
 
 ## Rollback
@@ -156,3 +164,11 @@ Le service `backup` (`deploy/backup/`) tourne quotidiennement (3h) dans
 chaque stack : `pg_dump` gzip + miroir du bucket MinIO, écrits sur le volume
 `backups` (distinct de `pgdata`/`minio`), purge des dumps PostgreSQL de plus
 de 7 jours. Logs visibles via `docker compose -p storytide-<env> logs backup`.
+
+**Heartbeat (supervision v1, C4.1.2)** : si `BACKUP_HEARTBEAT_URL` est
+renseignée dans `.env.prod`/`.env.staging` (URL fournie par la sonde externe
+Better Stack), un ping HTTP est envoyé **uniquement** si `pg_dump` + miroir
+MinIO + purge se sont tous terminés sans erreur — voir `docs/supervision.md`.
+Variable optionnelle : absente ou vide, aucun ping (le script reste
+utilisable en local sans sonde), et un échec du ping ne fait jamais échouer
+la sauvegarde.

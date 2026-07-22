@@ -15,6 +15,11 @@ const envSchema = z.object({
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),
   S3_BUCKET: z.string().min(1),
+
+  // SHA de commit affiche par /api/health hors production uniquement
+  // (supervision v1, C4.1.2) - optionnel : cable plus tard via un build-arg
+  // Docker, absent tant que non injecte.
+  COMMIT_SHA: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

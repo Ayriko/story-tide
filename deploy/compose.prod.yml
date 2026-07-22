@@ -26,6 +26,14 @@ services:
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public"
     networks:
       - internal
+    # Rotation des logs (supervision v1) : un disque plein par les logs est la
+    # panne la plus frequente sur un VPS, non detectable par la sonde externe
+    # avant qu'il soit trop tard.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   app:
     image: ghcr.io/ayriko/story-tide-app:${IMAGE_TAG}
@@ -55,18 +63,18 @@ services:
       - internal
       - web
     healthcheck:
-      # node:slim n'a ni curl ni wget : sonde HTTP inline via le module http.
-      # Statut < 500 = serveur vivant (repond, y compris pages non trouvees) ;
-      # pas de route /api/health dediee pour rester chirurgical.
+      # node:slim n'a ni curl ni wget : sonde HTTP inline via fetch (Node 24).
+      # /api/health verifie aussi la base (supervision v1, C4.1.2) - statut
+      # 200 uniquement = app ET base vivantes, `--wait` du CD echoue sinon.
       test:
         - CMD
         - node
         - -e
-        - "require('http').get('http://localhost:3000/', (r) => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
-      interval: 10s
+        - "fetch('http://localhost:3000/api/health').then((r) => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 3
+      start_period: 40s
     labels:
       traefik.enable: "true"
       traefik.docker.network: web
@@ -79,6 +87,11 @@ services:
       traefik.http.routers.app-prod-www.tls.certresolver: le
       traefik.http.routers.app-prod-www.middlewares: "www-to-apex@file"
       traefik.http.services.app-prod.loadbalancer.server.port: "3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   worker:
     image: ghcr.io/ayriko/story-tide-worker:${IMAGE_TAG}
@@ -106,6 +119,11 @@ services:
     # depuis l'exterieur (aucun labels Traefik).
     networks:
       - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres:
     image: postgres:16-alpine
@@ -114,8 +132,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    # Pas de `ports:` — jamais joignable depuis Internet, reseau interne
-    # uniquement (meme garde-fou que l'app/le worker).
+    # Boucle locale UNIQUEMENT (supervision v1 / acces donnees) : injoignable
+    # depuis l'exterieur (pas de port publie sur l'interface publique), sert
+    # a la consultation des donnees de production via tunnel SSH chiffre +
+    # Prisma Studio - aucune console d'administration exposee. PROD
+    # uniquement (pas en staging, cf. compose.staging.yml).
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -126,6 +149,11 @@ services:
       start_period: 10s
     networks:
       - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
@@ -146,6 +174,11 @@ services:
       start_period: 10s
     networks:
       - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # Sauvegardes quotidiennes : pg_dump + miroir du bucket MinIO, retention 7 j.
   # Voir deploy/backup/. Prod uniquement dans ce fichier (staging = optionnel,
@@ -168,10 +201,18 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       S3_BUCKET: ${S3_BUCKET}
       BACKUP_RETENTION_DAYS: "7"
+      # Heartbeat (supervision v1) : ping apres succes complet de la sauvegarde.
+      # Optionnel - absent ou vide = aucun ping (voir deploy/backup/backup.sh).
+      BACKUP_HEARTBEAT_URL: ${BACKUP_HEARTBEAT_URL:-}
     volumes:
       - backups:/backups
     networks:
       - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   internal:

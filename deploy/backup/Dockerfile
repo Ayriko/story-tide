@@ -9,6 +9,9 @@
 FROM minio/mc:latest AS mc
 
 FROM postgres:16-alpine
+# curl absent de la base alpine — necessaire au heartbeat de fin de
+# sauvegarde (supervision v1, C4.1.2 ; voir backup.sh).
+RUN apk add --no-cache curl
 COPY --from=mc /usr/bin/mc /usr/local/bin/mc
 COPY backup.sh /usr/local/bin/backup.sh
 COPY crontab /etc/crontabs/root

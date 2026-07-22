@@ -348,6 +348,17 @@ stade (`[Unreleased]`).
   `buildGraphElements`/le rendu Cytoscape lui-même restent inchangés
   (ADR-0012). `TST-GRF-002`/`TST-GRF-003`/`TST-GRF-004` mis à jour au cahier de
   recettes.
+- **Supervision v1 (C4.1.2)** : endpoint `GET /api/health` (public, minimal —
+  statut, version, uptime, vérification base via `SELECT 1` avec timeout 2 s ;
+  SHA de commit renvoyé hors production uniquement, aucune fuite d'erreur
+  brute) ; healthcheck Docker du service `app` aligné dessus dans les deux
+  compose (`--wait` du CD échoue si l'app démarre sans base) ; heartbeat HTTP
+  en fin de sauvegarde quotidienne, uniquement si `pg_dump` + miroir MinIO +
+  purge ont réussi (`BACKUP_HEARTBEAT_URL`, optionnelle) ; rotation des logs
+  Docker (`json-file`, 10 Mo × 3) sur tous les services des deux compose ;
+  accès aux données de production par tunnel SSH chiffré (`postgres` bindé
+  `127.0.0.1:5432` en prod uniquement, aucune console d'administration
+  exposée). Voir `docs/supervision.md`, ADR-0019, `TST-SEC-015`.
 
 ### Corrigé
 

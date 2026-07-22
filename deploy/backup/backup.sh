@@ -27,3 +27,12 @@ echo "[backup] $(date -Iseconds) — purge des dumps PostgreSQL > ${RETENTION_DA
 find /backups/postgres -name '*.sql.gz' -mtime "+${RETENTION_DAYS}" -delete
 
 echo "[backup] $(date -Iseconds) — sauvegarde terminee"
+
+# Heartbeat (supervision v1, C4.1.2) : ping UNIQUEMENT si pg_dump, mc mirror
+# et la purge se sont tous termines sans erreur (set -e garantit qu'on
+# n'atteint ce point qu'apres leur succes complet). BACKUP_HEARTBEAT_URL est
+# OPTIONNELLE - absente ou vide, le script ne fait rien (utilisable en local
+# sans sonde). Le ping ne doit JAMAIS faire echouer la sauvegarde : `|| true`.
+if [ -n "${BACKUP_HEARTBEAT_URL:-}" ]; then
+  curl -fsS --retry 3 --max-time 10 "$BACKUP_HEARTBEAT_URL" || true
+fi

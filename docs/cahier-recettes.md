@@ -404,6 +404,16 @@
 - **Critères d'acceptation** : `tiptap-extensions.test.ts` (`SafeLink` : `href` en `javascript:` rejeté dès `parseHTML`, `JSON.stringify` du document ne contient jamais `javascript:`) ; `tiptap-content.test.ts` (garde-fou serveur existant, `assertSafeAttributes`, inchangé — double barrière).
 - **Type** : sécurité · **Statut** : ✅ (gates automatisés : lint, `tsc`, 322/322 tests unitaires, build, 9/9 e2e) — vérification manuelle Aymeric en attente.
 
+## TST-SEC-015 — Endpoint `/api/health` : statut nominal, base coupée, aucune fuite d'information (supervision v1, C4.1.2)
+
+- **Description** : la sonde externe de supervision (Better Stack) interroge `GET /api/health`. Cas nominal (base saine), cas d'échec (base injoignable/coupée), et vérification qu'aucun détail d'erreur brut (message d'exception, DSN) ne fuite dans la réponse HTTP.
+- **Objectif** : vérifier que l'endpoint permet une détection externe fiable de l'état de l'app (200 = vivante et connectée à la base, 503 sinon) sans exposer d'information sensible (OWASP A05) — le SHA de commit, seule donnée un peu plus précise, n'apparaît **jamais** en production.
+- **Préconditions** : stack (dev ou staging) démarrée, base de données accessible.
+- **Étapes** : 1) `curl -i http://localhost:3000/api/health` base saine. 2) Couper la base (`docker compose stop postgres` ou équivalent). 3) `curl -i http://localhost:3000/api/health` à nouveau. 4) Inspecter le corps de la réponse d'échec pour toute trace de message d'erreur brut/DSN.
+- **Résultat attendu** : (1) `200`, corps `{"status":"ok","version":"…","uptime":…,"checks":{"db":"ok"}}`, en-tête `Cache-Control: no-store`, pas de champ `commit` si `NODE_ENV=production`. (3) `503`, corps `{"status":"degraded","checks":{"db":"error"}}`. (4) aucune chaîne d'erreur d'origine, de DSN ni de stack trace dans le corps — la trace réelle part uniquement en log serveur (`console.error`).
+- **Critères d'acceptation** : `src/app/api/health/route.test.ts` (200 nominal, 503 base KO, 503 timeout 2 s, non-fuite du message d'erreur d'origine, SHA masqué en production/affiché hors production) ; vérifié en conditions réelles (stack dev, base coupée — sorties 200 puis 503 montrées, pas supposées).
+- **Type** : sécurité · **Statut** : ✅ `src/app/api/health/route.test.ts`
+
 ## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
 
 - **Description** : depuis le dialog « Insérer une image » de l'éditeur (KAN-39, remplace l'ancienne popover maison), un utilisateur importe un fichier (au lieu de saisir une URL), l'insère avec une légende (texte alternatif RGAA), sauvegarde, puis recharge la page.

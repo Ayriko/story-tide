@@ -45,4 +45,16 @@ describe("loadEnv", () => {
   it("rejette un S3_PORT non numerique", () => {
     expect(() => loadEnv({ ...validSource, S3_PORT: "not-a-port" })).toThrow();
   });
+
+  it("accepte l'absence de COMMIT_SHA (optionnel)", () => {
+    const env = loadEnv(validSource);
+
+    expect(env.COMMIT_SHA).toBeUndefined();
+  });
+
+  it("accepte un COMMIT_SHA quand fourni", () => {
+    const env = loadEnv({ ...validSource, COMMIT_SHA: "abc1234" });
+
+    expect(env.COMMIT_SHA).toBe("abc1234");
+  });
 });
