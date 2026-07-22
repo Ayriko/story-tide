@@ -85,6 +85,23 @@ export function RegisterForm() {
         ) : null}
       </div>
 
+      {/* Monde d'introduction "Atheraus" (KAN-35) : cree par defaut (opt-out),
+          case native + label (regle CLAUDE.md : elements natifs d'abord,
+          aucun composant Checkbox shadcn dans le projet a ce jour - pas de
+          nouvelle dependance pour une seule case). */}
+      <div className="flex items-start gap-2">
+        <input
+          id="skipIntroWorld"
+          name="skipIntroWorld"
+          type="checkbox"
+          className="mt-0.5 size-4 rounded border-input"
+        />
+        <Label htmlFor="skipIntroWorld" className="text-sm font-normal text-muted-foreground">
+          Ne pas créer le monde d&apos;exemple « Atheraus » (démonstration de la liaison automatique
+          d&apos;entités)
+        </Label>
+      </div>
+
       <SubmitButton />
     </form>
   );

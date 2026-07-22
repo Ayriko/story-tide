@@ -11,6 +11,10 @@ test("le quota de mondes bloque la creation au-dela de 3 mondes gratuits", async
   await page.getByLabel("Nom", { exact: true }).fill("Quota Worlds Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-quota-1234");
+  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
+  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
+  // ferait concourir la file de liaison partagee avec les autres jobs e2e.
+  await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 
@@ -41,6 +45,10 @@ test("le quota d'entites bloque la creation au-dela de 50 fiches gratuites par m
   await page.getByLabel("Nom", { exact: true }).fill("Quota Entities Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-quota-5678");
+  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
+  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
+  // ferait concourir la file de liaison partagee avec les autres jobs e2e.
+  await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 

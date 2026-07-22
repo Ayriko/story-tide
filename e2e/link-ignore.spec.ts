@@ -17,6 +17,11 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   await page.getByLabel("Nom", { exact: true }).fill("Link Ignore Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-ignore-1234");
+  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
+  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
+  // ferait concourir la file de liaison partagee avec les autres jobs e2e -
+  // cause reelle d'un flake observe (job du test noye parmi 25 jobs de seed).
+  await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 

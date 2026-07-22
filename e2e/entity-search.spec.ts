@@ -15,6 +15,10 @@ test("la recherche filtre les fiches par nom et par alias, insensible a la casse
   await page.getByLabel("Nom", { exact: true }).fill("Entity Search Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-recherche-1234");
+  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
+  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
+  // ferait concourir la file de liaison partagee avec les autres jobs e2e.
+  await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 

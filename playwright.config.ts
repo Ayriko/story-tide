@@ -36,7 +36,26 @@ export default defineConfig({
     // dependre d'un retry, exploitable via l'artefact CI (test-results/).
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  // intro-world.spec.ts (KAN-35) enfile 25 jobs de liaison reels sur la MEME
+  // file partagee que tous les autres e2e - execute en parallele (workers>1),
+  // ce lot fait concurrence aux jobs specifiques des autres tests et peut les
+  // faire depasser leur propre delai d'attente (flake constate : link-highlight
+  // et link-ignore, dont le job se retrouve noye derriere 25 autres). Projet
+  // separe avec `dependencies` : force ce fichier a s'executer APRES tous les
+  // autres, jamais en meme temps qu'eux, quel que soit --workers.
+  projects: [
+    {
+      name: "chromium",
+      use: { browserName: "chromium" },
+      testIgnore: /intro-world\.spec\.ts/,
+    },
+    {
+      name: "chromium-intro-world",
+      use: { browserName: "chromium" },
+      testMatch: /intro-world\.spec\.ts/,
+      dependencies: ["chromium"],
+    },
+  ],
   webServer: {
     command: `npx next dev -p ${PORT}`,
     url: baseURL,

@@ -22,6 +22,10 @@ test("creer une entree depuis le dashboard met a jour la Sidebar sans rechargeme
   await page.getByLabel("Nom", { exact: true }).fill("Dashboard Create Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-dashcreate-1234");
+  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
+  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
+  // ferait concourir la file de liaison partagee avec les autres jobs e2e.
+  await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 

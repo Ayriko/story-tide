@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { APIError } from "better-auth";
 import { auth } from "@/lib/auth";
 import { loginSchema, registerSchema } from "@/lib/auth-schemas";
+import { seedIntroWorld } from "@/services/intro-world-service";
 import type { ZodError } from "zod";
 
 export type AuthActionState = {
@@ -48,13 +49,30 @@ export async function registerAction(
     return { errors: fieldErrorsFrom(parsed.error), values };
   }
 
+  let userId: string;
   try {
-    await auth.api.signUpEmail({ body: parsed.data });
+    const result = await auth.api.signUpEmail({ body: parsed.data });
+    userId = result.user.id;
   } catch (error) {
     if (error instanceof APIError && error.body?.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
       return { errors: { email: "Un compte existe déjà avec cette adresse e-mail." }, values };
     }
     return { formError: "Inscription impossible pour le moment. Réessayez.", values };
+  }
+
+  // Monde d'introduction "Atheraus" (KAN-35) : cree par defaut, sautable via
+  // la case a cocher du formulaire (opt-out, decision Aymeric). Un echec est
+  // loggue (jamais avale) mais ne bloque pas l'inscription - le monde de
+  // demonstration est une amelioration de l'onboarding, pas une condition
+  // d'integrite du compte (meme politique que l'enfilage du job de liaison
+  // dans saveEntityContentAction).
+  const skipIntroWorld = formData.get("skipIntroWorld") !== null;
+  if (!skipIntroWorld) {
+    try {
+      await seedIntroWorld(userId);
+    } catch (error) {
+      console.error("[auth] Seed du monde d'introduction échoué :", error);
+    }
   }
 
   redirect("/");
