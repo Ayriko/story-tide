@@ -5,14 +5,15 @@
 > Préconditions, Étapes, Résultat attendu, Critères d'acceptation). Cas passants ET
 > cas d'échec. Statut : ⬜ à faire / ✅ OK / ❌ KO (→ `plan-correction-bogues.md`).
 >
-> État au 2026-07-19 : scénarios **AUT**, **SEC**, **MND** (mondes), **ENT**
+> État au 2026-07-22 : scénarios **AUT**, **SEC**, **MND** (mondes), **ENT**
 > (entités), **LNK** (liaison/graphe), **GRF** (graphe) et **QOT** (quotas
 > freemium, KAN-18) exécutés en conditions réelles (base Postgres réelle,
 > comptes réels via l'API Better Auth) — pas encore exécutés sur staging au
 > sens recette officielle (staging existe depuis KAN-10, la recette staging
-> planifiée se tient du 20 au 23/07). `TST-QOT-003` (exemption du monde
-> d'introduction) reste vérifié uniquement par test unitaire tant que KAN-35
-> (le monde d'introduction lui-même) n'est pas construit.
+> planifiée se tient du 20 au 23/07). Le monde d'introduction « Atheraus »
+> (KAN-35, `TST-AUT-009`/`TST-LNK-009`) est désormais construit et câblé sur
+> l'inscription ; `TST-QOT-003` couvre l'exemption `INTRO` en conditions
+> réelles, `DEMO` reste unitaire (aucun compte démo provisionné à ce jour).
 
 ## TST-AUT-001 — Inscription avec des identifiants valides
 
@@ -93,6 +94,16 @@
 - **Résultat attendu** : redirection vers `/login` ; une nouvelle tentative d'accès à `/worlds` redirige aussi vers `/login` (session bien effacée, pas seulement un état client). Cas d'échec (garde) : si `signOut` échoue côté serveur (ex. session déjà expirée), l'utilisateur est quand même redirigé vers `/login` (jamais bloqué sur une action qui échoue silencieusement).
 - **Critères d'acceptation** : couvert par `auth.test.ts` (`logoutAction` : appelle `signOut` puis redirige ; redirige aussi si `signOut` rejette, avec l'erreur réelle logguée) ; bouton natif (`<button type="submit">` dans un `<form>`), navigable au clavier, focus visible cohérent avec le reste du header (RGAA).
 - **Type** : fonctionnel + sécurité (OWASP A07) · **Statut** : ✅ (`auth.test.ts`)
+
+## TST-AUT-009 — Inscription : monde d'introduction « Atheraus » cloné par défaut, opt-out possible (KAN-35)
+
+- **Description** : à l'inscription, `registerAction` clone pour le nouveau compte un monde d'introduction « Atheraus » (25 entités, `origin: INTRO`) via `seedIntroWorld(ownerId)`, sauf si la case « Ne pas créer le monde d'exemple « Atheraus » » est cochée dans le formulaire (`register-form.tsx`, décochée par défaut — comportement opt-out tranché en session KAN-35).
+- **Objectif** : vérifier que le monde cloné est propre au compte (id frais, jamais partagé), peuplé, immédiatement visible sans attendre le worker pour son contenu de base, et que la case à cocher supprime bien le clonage sans bloquer l'inscription en cas d'échec du seed.
+- **Préconditions** : aucun compte existant avec l'e-mail utilisé.
+- **Étapes** : 1) Aller sur `/register`, renseigner nom/e-mail/mot de passe valides, laisser la case « Ne pas créer le monde d'exemple » décochée. 2) Soumettre, attendre la redirection vers `/worlds`. 3) Vérifier la présence du monde « Atheraus ». 4) L'ouvrir, ouvrir la fiche « Ordre du Verbe Clos », vérifier la présence immédiate de la mention manuelle vers « Selvenn » dans « Renvois ». 5) (Second compte) Recommencer en cochant la case avant de soumettre.
+- **Résultat attendu** : le compte du 2) obtient un monde « Atheraus » peuplé de 25 entités, avec la `Relation origin=MANUAL` vers Selvenn déjà présente (réconciliation synchrone au seed, pas d'attente du worker) ; le compte du 5) n'a aucun monde « Atheraus » ; dans les deux cas, l'inscription réussit et redirige normalement même si le seed échouait (échec loggué, jamais bloquant — même politique que l'enfilage de job dans `saveEntityContentAction`).
+- **Critères d'acceptation** : `auth.test.ts` (`registerAction` : seed appelé par défaut ; case cochée → `seedIntroWorld` jamais appelé ; échec du seed loggué mais redirection inchangée ; validation Zod ou `USER_ALREADY_EXISTS` → ni `signUpEmail` ni `seedIntroWorld` appelés) ; `intro-world-service.test.ts` (`seedIntroWorld` : deux passes création/résolution de mentions, `reconcileManualMentions` appelé avec les bons id résolus, un job de liaison enfilé par entité) ; `world-service.test.ts` (`createIntroWorld` : idempotent, jamais de requête de comptage de quota) ; `entity-service.test.ts` (`createSeedEntity` : upsert par `seedRef`, jamais le slug, NFC, `AliasSource.SEED`) ; vérifié en conditions réelles bout en bout (`e2e/intro-world.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée — latence mesurée du seed ~300 ms, bien sous le seuil d'arbitrage de 2 s fixé avant câblage).
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`auth.test.ts`, `intro-world-service.test.ts`, `world-service.test.ts`, `entity-service.test.ts`, `e2e/intro-world.spec.ts`)
 
 ## TST-SEC-001 — Le mot de passe n'est jamais stocké en clair
 
@@ -524,6 +535,16 @@
 - **Critères d'acceptation** : `src/lib/linker/aho-corasick.test.ts` (le moteur pur, isolé, conserve la limite connue face à du texte non normalisé — pin explicite — **et** un test de non-régression dédié prouve qu'avec un texte déjà NFC, garanti par la frontière applicative, aucun match n'est perdu) ; `entity-service.test.ts` (`createEntity`/`updateEntity` : nom et alias persistés en NFC même saisis en NFD) ; `tiptap-content.test.ts` (`normalizeContentText` : nœuds texte normalisés en NFC à toute profondeur, structure/marks/attrs préservés, fonction pure) ; `entity-content.test.ts` (`saveEntityContentAction` : body persisté et `plainText` extrait alignés sur la même forme NFC). Vérification manuelle : aucune donnée existante en base de développement n'était en forme non-NFC au moment du diagnostic (contrôle ponctuel, pas de migration nécessaire) — à revérifier sur staging/production avant bascule si des données antérieures à ce correctif y existent.
 - **Type** : fonctionnel + sécurité/robustesse (fiabilité du différenciateur produit, faux négatif silencieux) · **Statut** : ✅ (`aho-corasick.test.ts`, `entity-service.test.ts`, `tiptap-content.test.ts`, `entity-content.test.ts`)
 
+## TST-LNK-009 — Re-scan sur le monde d'introduction seedé : la Relation MANUAL survit (KAN-35)
+
+- **Description** : sur le monde d'introduction « Atheraus » (25 entités seedées, KAN-35), la fiche « Ordre du Verbe Clos » porte une mention manuelle vers « Selvenn » posée par le seed lui-même (`reconcileManualMentions`, pas une réimplémentation). Un re-scan déclenché par un re-save neutre du contenu ne doit jamais l'écraser — confirmation de la règle générale (TST-LNK-002) sur un contenu entièrement seedé plutôt que saisi manuellement à l'écran.
+- **Objectif** : vérifier, en conditions réelles sur le monde produit par `seedIntroWorld`, que le re-scan automatique (worker) laisse intacte une `Relation origin=MANUAL` matérialisée par le seed, exactement comme pour une mention posée à la main via le popup `@`.
+- **Préconditions** : un compte vient de s'inscrire sans cocher la case de saut (monde « Atheraus » présent, `Relation origin=MANUAL` vers Selvenn déjà posée sur la fiche « Ordre du Verbe Clos »).
+- **Étapes** : 1) Ouvrir la fiche « Ordre du Verbe Clos ». 2) Vérifier la présence du lien « Selvenn » dans « Renvois ». 3) Effectuer un re-save neutre (frappe puis retour arrière, aucun changement de contenu réel) et attendre l'indicateur « Enregistré. ». 4) Laisser le worker retraiter le job de liaison. 5) Recharger et revérifier « Renvois ».
+- **Résultat attendu** : le lien « Selvenn » reste présent dans « Renvois » après le re-scan déclenché à l'étape 3-4 — aucune disparition, aucune duplication.
+- **Critères d'acceptation** : `linker-service.test.ts` (`scanAndLinkEntity` ne touche jamais `origin=MANUAL`, règle déjà couverte par TST-LNK-002, ici confirmée sur un contenu produit par le seed) ; vérifié en conditions réelles bout en bout (`e2e/intro-world.spec.ts`, étape 5 du scénario, vrai worker, vraie base Postgres isolée).
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/intro-world.spec.ts`)
+
 ## TST-GRF-001 — Constellation : rendu Cytoscape + navigation cliquable
 
 - **Description** : la page `/worlds/[slug]/graph` affiche la Constellation (graphe interactif, canvas Cytoscape.js) des entités (nœuds) et de leurs relations (arêtes, AUTO et MANUAL confondues) ; cliquer sur un nœud navigue vers la fiche (entrée) correspondante.
@@ -586,10 +607,10 @@
 
 ## TST-QOT-003 — Exemption de quota pour les mondes `origin` INTRO/DEMO
 
-- **Description** : un monde marqué `origin: INTRO` (KAN-35, monde d'introduction "Atheraus" cloné à l'inscription — pas encore construit) ou `origin: DEMO` (compte de démonstration jury) n'est jamais compté parmi les 3 mondes gratuits, et ses entités ne sont jamais plafonnées à 50.
-- **Objectif** : vérifier dès maintenant (anticipation KAN-18, avant que KAN-35 n'existe et qu'un compte démo soit provisionné) que la logique de comptage exclut correctement les deux valeurs `origin != USER`, pour qu'aucune ligne de `world-service.ts`/`entity-service.ts` n'ait à être retouchée par la suite.
+- **Description** : un monde marqué `origin: INTRO` (KAN-35, monde d'introduction « Atheraus » cloné à l'inscription — construit et câblé) ou `origin: DEMO` (compte de démonstration jury, pas encore provisionné) n'est jamais compté parmi les 3 mondes gratuits, et ses entités ne sont jamais plafonnées à 50.
+- **Objectif** : vérifier que la logique de comptage exclut correctement les deux valeurs `origin != USER`, désormais confirmé en conditions réelles pour `INTRO` (25 entités du seed, bien au-delà d'un plafond de 50 qui ne s'applique pas ici) et pas seulement par anticipation unitaire.
 - **Préconditions** : un monde `origin: INTRO` (ou `DEMO`) contient déjà 50 entités (ou plus) ; le compte possède déjà 3 mondes `origin: USER`.
-- **Étapes** : 1) Créer une entité supplémentaire dans le monde `origin: INTRO`/`DEMO`. 2) (Hypothétique tant que KAN-35 n'existe pas) Créer un monde `origin: USER` alors que 3 mondes `USER` existent déjà en plus du monde INTRO/DEMO.
-- **Résultat attendu** : la création d'entité réussit sans jamais interroger le compteur (`entity.count` non appelé) ; un monde `origin: INTRO`/`DEMO` ne fait jamais échouer une création de monde par ailleurs légitime.
-- **Critères d'acceptation** : `entity-service.test.ts` (« saute le contrôle de quota pour un monde origin=INTRO/DEMO, même au-delà de la limite ») ; `world-service.test.ts` (le comptage `createWorld` filtre explicitement `origin: WorldOrigin.USER`).
-- **Type** : fonctionnel · **Statut** : ✅ vérifié par test unitaire uniquement — aucun monde réel n'a encore `origin: INTRO`/`DEMO` tant que KAN-35 n'est pas construit et qu'aucun compte démo n'est provisionné, pas de vérification e2e/staging possible avant cette date (pas de sur-déclaration).
+- **Étapes** : 1) Créer une entité supplémentaire dans le monde `origin: INTRO`/`DEMO`. 2) Créer 3 mondes `origin: USER` alors que le monde INTRO existe déjà pour ce compte.
+- **Résultat attendu** : la création d'entité réussit sans jamais interroger le compteur (`entity.count` non appelé) ; un monde `origin: INTRO`/`DEMO` ne fait jamais échouer une création de monde par ailleurs légitime — les 3 mondes `USER` se créent normalement malgré la présence d'Atheraus.
+- **Critères d'acceptation** : `entity-service.test.ts` (« saute le contrôle de quota pour un monde origin=INTRO/DEMO, même au-delà de la limite ») ; `world-service.test.ts` (le comptage `createWorld` filtre explicitement `origin: WorldOrigin.USER`) ; vérifié en conditions réelles bout en bout pour `INTRO` (`e2e/intro-world.spec.ts`, étape finale : 3 mondes `USER` créés avec succès en présence du monde Atheraus). `DEMO` reste vérifié par test unitaire uniquement, aucun compte démo n'étant encore provisionné.
+- **Type** : fonctionnel · **Statut** : ✅ (`entity-service.test.ts`, `world-service.test.ts`, `e2e/intro-world.spec.ts` pour `INTRO`)

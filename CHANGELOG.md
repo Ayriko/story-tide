@@ -359,6 +359,22 @@ stade (`[Unreleased]`).
   accès aux données de production par tunnel SSH chiffré (`postgres` bindé
   `127.0.0.1:5432` en prod uniquement, aucune console d'administration
   exposée). Voir `docs/supervision.md`, ADR-0019, `TST-SEC-015`.
+- **Monde d'introduction « Atheraus » (KAN-35)** : 25 fiches rédigées à l'avance
+  (personnages, ordres/lignées/royaumes, lieux, lore, magie, écologie, objets) seedées
+  depuis `prisma/seed/atheraus.json` via une fonction de clonage partagée
+  (`seedIntroWorld`, `src/services/intro-world-service.ts`), câblée sur l'inscription
+  (`registerAction`) : chaque nouveau compte reçoit, sauf case décochée
+  (« Ne pas créer le monde d'exemple « Atheraus » », opt-out), un monde `origin: INTRO`
+  frais et indépendant, déjà peuplé et déjà lié — vitrine immédiate de la liaison
+  automatique sans rien avoir à écrire. Le seed passe par la couche service (nouvelles
+  fonctions dédiées `createIntroWorld`/`createSeedEntity`, jamais d'accès Prisma direct) :
+  même normalisation NFC que le chemin utilisateur normal (ADR-0020), et les 3 mentions
+  manuelles prévues (Guivre Saline, Selvenn, Reliquaire du Verbe) produisent de vraies
+  `Relation origin=MANUAL` via `reconcileManualMentions`, jamais réimplémentée. Monde
+  `origin: INTRO` déjà hors quota (mécanisme KAN-18 réutilisé tel quel). CLI de
+  vérification locale (`npm run seed:intro`, `prisma/seed/run.ts`) utilisant la même
+  fonction que l'inscription. Voir ADR-0022, `TST-AUT-009`, `TST-LNK-009`,
+  `TST-QOT-003` (mis à jour).
 
 ### Corrigé
 
