@@ -43,6 +43,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
       migrate:
         condition: service_completed_successfully
     environment:
@@ -101,6 +103,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
       migrate:
         condition: service_completed_successfully
     environment:
@@ -180,6 +184,33 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # One-shot (BUG-011/BUG-010, 2026-07-23) : provisionne le bucket MinIO avant
+  # que app/worker/backup ne demarrent - un bucket manquant fait echouer TOUT
+  # upload d'image avec un message generique cote client ("Envoi impossible
+  # pour le moment."), cause reelle uniquement visible dans les logs serveur
+  # (NoSuchBucket). `--ignore-existing` : idempotent, ne re-echoue pas sur un
+  # bucket deja cree par un run precedent. `mc anonymous set none` : prive par
+  # defaut, meme mesure que docker-compose.dev.yml (OWASP A10).
+  minio-setup:
+    image: minio/mc:latest
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set prod http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+      mc mb --ignore-existing prod/${S3_BUCKET} &&
+      mc anonymous set none prod/${S3_BUCKET}
+      "
+    networks:
+      - internal
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # Sauvegardes quotidiennes : pg_dump + miroir du bucket MinIO, retention 7 j.
   # Voir deploy/backup/. Prod uniquement dans ce fichier (staging = optionnel,
   # donnees de test).
@@ -191,6 +222,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       PGHOST: postgres
       PGUSER: ${POSTGRES_USER}

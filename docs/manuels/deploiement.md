@@ -135,7 +135,13 @@ valide cette fois.
 ## Vérification post-déploiement
 
 - `docker compose -p storytide-<env> ... ps` : tous les services
-  `healthy`/`running`, aucun `restarting` en boucle.
+  `healthy`/`running`, aucun `restarting` en boucle — sauf `migrate` et
+  `minio-setup` (one-shot, `Exited (0)` attendu, jamais `restarting`).
+  `minio-setup` (BUG-010/BUG-011, 2026-07-23) provisionne le bucket MinIO
+  avant `app`/`worker`/`backup` — un `Exited` avec un code non-nul dessus
+  bloque le démarrage de ces trois services (`depends_on:
+  service_completed_successfully`), vérifier ses logs le cas échéant
+  (`docker compose ... logs minio-setup`).
 - `curl -I https://<domaine>` : `200`, certificat valide.
 - `curl -I http://<domaine>` : redirection `301`/`308` vers `https://`.
 - En-têtes de sécurité présents (`curl -sI https://<domaine>` — voir

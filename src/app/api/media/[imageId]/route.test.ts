@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
 import { requireSession } from "@/lib/auth-session";
 import { storage } from "@/lib/storage";
@@ -28,6 +28,7 @@ const mockedRequireSession = vi.mocked(requireSession);
 const worldFindFirst = vi.mocked(prisma.world.findFirst);
 const imageFindUnique = vi.mocked(prisma.image.findUnique);
 const getSignedUrl = vi.mocked(storage.getSignedUrl);
+const fetchMock = vi.fn();
 
 const OWNER_ID = "owner-1";
 const WORLD_ID = "w1";
@@ -67,20 +68,54 @@ function callRoute(imageId: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal("fetch", fetchMock);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("GET /api/media/[imageId]", () => {
-  it("redirige (302) vers l'URL signee quand tout est correct", async () => {
+  it("proxy le contenu de l'URL signee (jamais de redirection vers l'endpoint interne)", async () => {
     mockedRequireSession.mockResolvedValueOnce(SESSION);
     imageFindUnique.mockResolvedValueOnce(makeImage());
     worldFindFirst.mockResolvedValueOnce(makeWorld());
-    getSignedUrl.mockResolvedValueOnce("https://minio.local/signed-url");
+    getSignedUrl.mockResolvedValueOnce("http://minio:9000/signed-url");
+    const body = new ReadableStream();
+    fetchMock.mockResolvedValueOnce(new Response(body, { status: 200 }));
 
     const response = await callRoute("img-1");
 
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("https://minio.local/signed-url");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("content-type")).toBe("image/png");
+    expect(response.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
     expect(getSignedUrl).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000000");
+    expect(fetchMock).toHaveBeenCalledWith("http://minio:9000/signed-url");
+  });
+
+  it("renvoie 502 si le stockage est injoignable", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    imageFindUnique.mockResolvedValueOnce(makeImage());
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    getSignedUrl.mockResolvedValueOnce("http://minio:9000/signed-url");
+    fetchMock.mockRejectedValueOnce(new Error("fetch failed"));
+
+    const response = await callRoute("img-1");
+
+    expect(response.status).toBe(502);
+  });
+
+  it("renvoie 502 si le stockage repond avec un statut d'erreur", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    imageFindUnique.mockResolvedValueOnce(makeImage());
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    getSignedUrl.mockResolvedValueOnce("http://minio:9000/signed-url");
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404 }));
+
+    const response = await callRoute("img-1");
+
+    expect(response.status).toBe(502);
   });
 
   it("renvoie 401 si la session est absente", async () => {
