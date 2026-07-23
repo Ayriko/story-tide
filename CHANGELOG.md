@@ -18,6 +18,11 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   message d'erreur centralisés dans `src/lib/image-validation.ts`, partagés
   client/serveur. Voir `docs/plan-correction-bogues.md` (BUG-006),
   `TST-SEC-013`.
+- Dialog « Image » : un nom de fichier long élargissait et décalait tout le
+  dialog au lieu d'être tronqué — `DialogContent` est en `grid`, l'enfant
+  direct de la grille ne rétrécit pas sous la largeur de son contenu sans
+  `min-w-0` explicite (piège propre à `grid`, pas seulement `flex`). Voir
+  `docs/plan-correction-bogues.md` (BUG-013).
 
 - `package.json` `version` (lu par `GET /api/health`, supervision C4.1.2)
   était resté figé à `0.1.0` (scaffold `create-next-app`) depuis l'origine,

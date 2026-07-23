@@ -199,7 +199,12 @@ function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) 
             {error}
           </p>
         ) : null}
-        <div className="flex flex-col gap-1.5">
+        {/* min-w-0 : DialogContent est en grid (dialog.tsx) - cet enfant direct
+            de la grille ne retrecirait pas sous la largeur intrinseque de son
+            contenu (nom de fichier long) sans cet override, elargissant tout
+            le dialog. Le min-w-0 sur le <p> seul (plus bas, un niveau trop
+            profond) ne suffit pas : c'est CET enfant-ci que la grille contraint. */}
+        <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="image-file">Importer une image</Label>
             <Button
@@ -241,7 +246,10 @@ function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) 
             }}
             className="sr-only"
           />
-          <p className="text-xs text-muted-foreground">
+          {/* title conserve le nom complet au survol (perdu visuellement par
+              l'ellipsis) - voir le min-w-0 du conteneur ci-dessus pour la
+              vraie contrainte de largeur (celle-ci sur le <p> seul). */}
+          <p className="min-w-0 truncate text-xs text-muted-foreground" title={file?.name}>
             {file ? file.name : "Aucun fichier choisi"}
           </p>
         </div>
