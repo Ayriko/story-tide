@@ -7,6 +7,18 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Upload d'image entre 1 et 5 Mo (capacité annoncée par la spec) échouait avec
+  une erreur `500` brute, sans message : la limite **par défaut** des Server
+  Actions Next.js (1 Mo) était atteinte avant même le contrôle applicatif de
+  taille (5 Mo, `MAX_IMAGE_BYTES`). `experimental.serverActions.bodySizeLimit`
+  relevé à `6mb` dans `next.config.ts` (marge au-dessus de la limite
+  applicative, qui reste LA limite non contournable). Contrôle de taille
+  ajouté côté client (`checkImageFileSize`, choix du fichier dans le dialog
+  Image) pour un retour immédiat sans aller-retour réseau ; constante et
+  message d'erreur centralisés dans `src/lib/image-validation.ts`, partagés
+  client/serveur. Voir `docs/plan-correction-bogues.md` (BUG-006),
+  `TST-SEC-013`.
+
 - `package.json` `version` (lu par `GET /api/health`, supervision C4.1.2)
   était resté figé à `0.1.0` (scaffold `create-next-app`) depuis l'origine,
   malgré 8 tags posés — repéré lors de la vérification post-déploiement de

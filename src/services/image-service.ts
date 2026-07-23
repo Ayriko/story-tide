@@ -1,13 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "@/db/client";
 import { storage } from "@/lib/storage";
-import { sniffImageMime } from "@/lib/image-validation";
+import { IMAGE_TOO_LARGE_MESSAGE, MAX_IMAGE_BYTES, sniffImageMime } from "@/lib/image-validation";
 import { env } from "@/env";
 import { getWorld } from "./world-service";
 
-// Taille max arbitree (Aymeric, aucune valeur dans la spec) - src/lib/quotas.ts
-// suit la meme convention pour les chiffres non specifies.
-export const MAX_IMAGE_BYTES = 5_000_000;
+export { MAX_IMAGE_BYTES };
 
 export class ImageValidationError extends Error {
   constructor(message: string) {
@@ -38,7 +36,7 @@ export async function uploadImage(
   await getWorld(ownerId, worldId);
 
   if (buffer.byteLength > MAX_IMAGE_BYTES) {
-    throw new ImageValidationError("Image trop volumineuse (5 Mo maximum).");
+    throw new ImageValidationError(IMAGE_TOO_LARGE_MESSAGE);
   }
 
   // Sniffing par magic bytes (OWASP A10) : jamais le Content-Type declare par

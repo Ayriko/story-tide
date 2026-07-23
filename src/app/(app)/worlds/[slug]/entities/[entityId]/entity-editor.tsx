@@ -11,6 +11,7 @@ import { splitParagraphsOnBreaks } from "@/lib/tiptap-paste";
 import type { Pattern } from "@/lib/linker/aho-corasick";
 import { saveEntityContentAction } from "@/actions/entity-content";
 import { uploadImageAction } from "@/actions/image";
+import { checkImageFileSize } from "@/lib/image-validation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -222,7 +223,22 @@ function ImageControl({ editor, worldId }: { editor: Editor; worldId: string }) 
             id="image-file"
             type="file"
             accept="image/png,image/jpeg,image/gif,image/webp"
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => {
+              const chosen = event.target.files?.[0] ?? null;
+              // Verification immediate (BUG-006) : evite l'aller-retour reseau
+              // pour un fichier deja trop gros - le serveur reste la seule
+              // limite qui compte (uploadImage, image-service.ts), ceci n'est
+              // qu'un confort, jamais contournable en soi.
+              const sizeError = chosen ? checkImageFileSize(chosen.size) : null;
+              if (sizeError) {
+                setError(sizeError);
+                setFile(null);
+                event.target.value = "";
+                return;
+              }
+              setError(null);
+              setFile(chosen);
+            }}
             className="sr-only"
           />
           <p className="text-xs text-muted-foreground">

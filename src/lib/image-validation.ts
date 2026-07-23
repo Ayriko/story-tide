@@ -4,6 +4,22 @@
 // foi. Zero dependance tierce (pas de librairie de sniffing type `file-type`) :
 // quatre signatures suffisent pour le format autorise, meme esprit "zero
 // dependance" que src/lib/linker.
+// Partagee client (verification immediate au choix du fichier, BUG-006) et
+// serveur (uploadImage, image-service.ts - LA limite qui compte, jamais
+// contournable) : une seule source de verite, jamais deux valeurs (ni deux
+// messages) qui pourraient diverger. Taille max arbitree (Aymeric, aucune
+// valeur dans la spec).
+export const MAX_IMAGE_BYTES = 5_000_000;
+export const IMAGE_TOO_LARGE_MESSAGE = "Image trop volumineuse (5 Mo maximum).";
+
+// Verification pure (BUG-006) : le client l'utilise au choix du fichier pour
+// un retour immediat, sans aller-retour reseau pour un fichier deja trop
+// gros - jamais un substitut au controle serveur (uploadImage), qui reste la
+// seule limite non contournable.
+export function checkImageFileSize(byteLength: number): string | null {
+  return byteLength > MAX_IMAGE_BYTES ? IMAGE_TOO_LARGE_MESSAGE : null;
+}
+
 export const ALLOWED_IMAGE_MIME_TYPES = [
   "image/png",
   "image/jpeg",

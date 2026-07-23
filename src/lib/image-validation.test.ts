@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { sniffImageMime } from "./image-validation";
+import {
+  checkImageFileSize,
+  IMAGE_TOO_LARGE_MESSAGE,
+  MAX_IMAGE_BYTES,
+  sniffImageMime,
+} from "./image-validation";
 
 describe("sniffImageMime", () => {
   it("reconnait une signature PNG valide", () => {
@@ -49,5 +54,23 @@ describe("sniffImageMime", () => {
   it("rejette un buffer trop court pour porter une signature complete", () => {
     const buffer = Buffer.from([0x89, 0x50]); // debut de PNG tronque
     expect(sniffImageMime(buffer)).toBeNull();
+  });
+});
+
+describe("checkImageFileSize (BUG-006)", () => {
+  it("accepte un fichier de 2 Mo (sous la limite)", () => {
+    expect(checkImageFileSize(2_000_000)).toBeNull();
+  });
+
+  it("accepte un fichier exactement a la limite (5 Mo)", () => {
+    expect(checkImageFileSize(MAX_IMAGE_BYTES)).toBeNull();
+  });
+
+  it("rejette un fichier de 6 Mo (au-dessus de la limite) avec le message exact", () => {
+    expect(checkImageFileSize(6_000_000)).toBe(IMAGE_TOO_LARGE_MESSAGE);
+  });
+
+  it("rejette un fichier d'un seul octet au-dessus de la limite", () => {
+    expect(checkImageFileSize(MAX_IMAGE_BYTES + 1)).toBe(IMAGE_TOO_LARGE_MESSAGE);
   });
 });
