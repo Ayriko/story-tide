@@ -1,10 +1,237 @@
 # Changelog
 
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
-Ce projet suit [SemVer](https://semver.org/lang/fr/) — pas encore de tag posé à ce
-stade (`[Unreleased]`).
+Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
+
+### Corrigé
+
+- Lecture d'image (`GET /api/media/[imageId]`) : l'URL présignée MinIO était
+  construite avec l'endpoint **interne** au réseau Docker (`minio:9000`),
+  jamais résolvable depuis le navigateur en staging/prod (multi-conteneurs) —
+  toute image restait invisible (texte alternatif affiché à la place),
+  reproduit uniquement hors dev (`S3_ENDPOINT=localhost` en dev, résolvable).
+  Exposer MinIO publiquement via Traefik aurait cassé `TST-SEC-011` (déjà
+  validé) — la route proxy désormais le binaire (fetch serveur, stream au
+  client) au lieu de rediriger. `Cache-Control: private, max-age=31536000,
+  immutable` ajouté (contenu jamais modifié par `imageId`, vérifié dans le
+  code — `uploadImage` ne fait jamais qu'un `create`). Voir ADR-0023,
+  `docs/plan-correction-bogues.md` (BUG-011).
+- Bucket MinIO jamais provisionné sur staging/prod (contrairement à
+  `docker-compose.dev.yml`) : tout upload d'image y échouait avec un message
+  générique (« Envoi impossible pour le moment. »), cause réelle (`NoSuchBucket`)
+  visible uniquement dans les logs serveur. Service one-shot `minio-setup`
+  (idempotent, `mc mb --ignore-existing` + `mc anonymous set none`) ajouté aux
+  deux stacks de déploiement ; `app`/`worker`/`backup` en dépendent désormais.
+  Voir `docs/plan-correction-bogues.md` (BUG-010).
+
+## [1.2.0-rc.1] - 2026-07-22
+
+### Ajouté
+
+- **Supervision v1 (C4.1.2)** : endpoint `GET /api/health` (public, minimal —
+  statut, version, uptime, vérification base via `SELECT 1` avec timeout 2 s ;
+  SHA de commit renvoyé hors production uniquement, aucune fuite d'erreur
+  brute) ; healthcheck Docker du service `app` aligné dessus dans les deux
+  compose (`--wait` du CD échoue si l'app démarre sans base) ; heartbeat HTTP
+  en fin de sauvegarde quotidienne, uniquement si `pg_dump` + miroir MinIO +
+  purge ont réussi (`BACKUP_HEARTBEAT_URL`, optionnelle) ; rotation des logs
+  Docker (`json-file`, 10 Mo × 3) sur tous les services des deux compose ;
+  accès aux données de production par tunnel SSH chiffré (`postgres` bindé
+  `127.0.0.1:5432` en prod uniquement, aucune console d'administration
+  exposée). Voir `docs/supervision.md`, ADR-0019, `TST-SEC-015`.
+- **Monde d'introduction « Atheraus » (KAN-35)** : 25 fiches rédigées à l'avance
+  (personnages, ordres/lignées/royaumes, lieux, lore, magie, écologie, objets) seedées
+  depuis `prisma/seed/atheraus.json` via une fonction de clonage partagée
+  (`seedIntroWorld`, `src/services/intro-world-service.ts`), câblée sur l'inscription
+  (`registerAction`) : chaque nouveau compte reçoit, sauf case décochée
+  (« Ne pas créer le monde d'exemple « Atheraus » », opt-out), un monde `origin: INTRO`
+  frais et indépendant, déjà peuplé et déjà lié — vitrine immédiate de la liaison
+  automatique sans rien avoir à écrire. Le seed passe par la couche service (nouvelles
+  fonctions dédiées `createIntroWorld`/`createSeedEntity`, jamais d'accès Prisma direct) :
+  même normalisation NFC que le chemin utilisateur normal (ADR-0020), et les 3 mentions
+  manuelles prévues (Guivre Saline, Selvenn, Reliquaire du Verbe) produisent de vraies
+  `Relation origin=MANUAL` via `reconcileManualMentions`, jamais réimplémentée. Monde
+  `origin: INTRO` déjà hors quota (mécanisme KAN-18 réutilisé tel quel). CLI de
+  vérification locale (`npm run seed:intro`, `prisma/seed/run.ts`) utilisant la même
+  fonction que l'inscription. Voir ADR-0022, `TST-AUT-009`, `TST-LNK-009`,
+  `TST-QOT-003` (mis à jour).
+
+### Corrigé
+
+- Un texte collé en forme Unicode **décomposée** (NFD — accent = caractère
+  combinant séparé, ex. copier-coller depuis macOS/export tiers) pouvait
+  faire disparaître silencieusement le lien automatique d'une **autre**
+  entité mentionnée plus loin dans le même texte (décalage d'index faussant
+  la vérification de frontière de mot dans `AhoCorasick.search()`).
+  Diagnostiqué par test Vitest avant tout correctif (protocole imposé),
+  corrigé à **la frontière applicative** (normalisation NFC du nom/alias à
+  l'enregistrement, `entity-service.ts` ; du corps Tiptap à la sauvegarde,
+  `tiptap-content.ts`) — le moteur de liaison (`aho-corasick.ts`,
+  `normalize.ts`) reste intouché. Voir ADR-0020,
+  `docs/plan-correction-bogues.md` (BUG-005), `TST-LNK-008`.
+
+## [1.1.0-rc.2] - 2026-07-22
+
+### Corrigé
+
+- Créer une entrée via le bouton « Nouvelle entrée » du **dashboard** ne
+  rafraîchissait jamais la Sidebar une fois revenu dessus (visible sur
+  staging). Deux tentatives `revalidatePath` côté serveur (avec puis sans le
+  groupe de routes `(app)`) n'ont rien changé — cause réelle **côté client**,
+  prouvée par log : `entity-search.tsx` copiait la prop `initialEntities` dans
+  un `useState` au premier montage ; ce composant vivant dans un layout
+  persistant à travers toute navigation interne au monde, les props plus
+  récentes (nouvelle entrée créée) étaient silencieusement ignorées. La liste
+  par défaut (sans recherche active) dérive désormais directement de la prop
+  à chaque rendu, plus jamais une copie figée ; une recherche active (KAN-17)
+  reste en state, ses résultats venant du serveur. Voir
+  `docs/plan-correction-bogues.md` (BUG-004, historique complet des 3
+  tentatives), `TST-MND-008`.
+
+## [1.1.0-rc.1] - 2026-07-21
+
+### Ajouté
+
+- Recherche basique par nom et par alias (KAN-17) dans les entités du monde
+  courant, insensible à la casse et aux accents (`normalizeForMatch`, partagé
+  avec le moteur de liaison automatique) ; filtre en direct avec debounce dans
+  la page du monde (`searchEntities`, `entity-service.ts`, cascade
+  d'autorisation `getWorld`, OWASP A01). Scénarios `TST-ENT-007`/`TST-ENT-008`
+  au cahier de recettes.
+- Quotas freemium (KAN-18, sans Stripe) : 3 mondes par compte, 50 entités par
+  monde, appliqués en couche service (`WorldQuotaExceededError`/
+  `EntityQuotaExceededError`, non contournables — OWASP A04) via
+  `createWorld`/`createEntity`. `enum WorldOrigin { USER, INTRO, DEMO }`
+  (`World.origin`, `@default(USER)`) posé par anticipation du futur monde
+  d'introduction "Atheraus" (KAN-35) et d'un compte de démonstration jury :
+  les deux sont hors quota sur les deux axes, aucune logique à retoucher
+  quand ils existeront (voir ADR-0014). Scénarios `TST-QOT-001` à
+  `TST-QOT-003` au cahier de recettes.
+- `Entity.aliases` migré d'un `String[]` vers une table `Alias` dédiée
+  (`value`, `normalized`, `active`, `source` MANUAL/SEED) : index sur la
+  forme normalisée (accélère `searchEntities` KAN-17 et `buildDictionary` du
+  moteur de liaison), attributs propres pour un usage futur (désactiver un
+  alias, distinguer les alias de seed). Contrat externe inchangé
+  (`aliases: string[]` toujours renvoyé par `entity-service.ts` — zéro
+  changement dans les actions/formulaires). Migration en deux temps
+  (expand/contract) avec backfill des données réelles de production via
+  l'extension Postgres `unaccent` (voir ADR-0015). `Entity.seedRef` (clé
+  d'idempotence pour le futur script de seed KAN-35) posé en même temps.
+- Taxonomie des types d'entités étendue de 5 à 26, regroupés en 8 familles
+  (`ENTITY_TYPE_REFERENCE`, `src/lib/entity-schemas.ts`) — les 5 ids
+  historiques (`character`/`place`/`faction`/`object`/`event`) conservés à
+  l'identique. Sélecteur de type devenu un combobox interne cherchable et
+  groupé (`EntityTypeCombobox`, patron d'accessibilité de `mention-list.tsx`
+  réutilisé — voir ADR-0016, remplacement prévu par shadcn en KAN-36). Graphe
+  de relations : couleur des nœuds par famille (palette à 8 teintes validée
+  par le skill `dataviz`, `TST-GRF-004`) et filtres groupés par famille au
+  lieu de 26 cases à plat. Scénario `TST-ENT-009` au cahier de recettes.
+- Upload d'images depuis l'éditeur (KAN-16), via le port `Storage` existant
+  (MinIO, KAN-11 — aucune modification du port) : validation MIME **réelle
+  par magic bytes** (`sniffImageMime`, zéro dépendance tierce — PNG/JPEG/GIF/
+  WebP), taille max 5 Mo, modèle `Image` (métadonnées seules — `worldId`,
+  `key`, `contentType`, `size` ; le binaire vit dans MinIO). Référence stable
+  `/api/media/<imageId>` persistée dans `image.src` (jamais une URL MinIO
+  présignée directe — trop longue et expirante pour la contrainte
+  `isSafeHttpUrl` existante), résolue en URL signée fraîche à **chaque
+  lecture** par un Route Handler dédié qui revalide `getWorld` (OWASP A01,
+  voir ADR-0017). Purge best-effort des objets MinIO à la suppression d'un
+  monde (RGPD « purge monde + binaires », loggée, non bloquante).
+  `loading="lazy"` sur le node `Image` de l'éditeur. Scénarios `TST-SEC-013`
+  et `TST-ENT-010` au cahier de recettes.
+- Passe visuelle du parcours démo (KAN-36) : thème navy/mint (palette Bloc 1)
+  posé sur connexion/accueil → mondes → fiche d'entité → éditeur → backlinks
+  → graphe, via **shadcn/ui sur Radix Primitives** (composants vendored dans
+  `src/components/ui/` — voir ADR-0018). Aucun changement de logique métier,
+  d'autorisation, ni du schéma de nodes/décorations Tiptap ou du rendu
+  Cytoscape (ADR-0012). `EntityTypeCombobox` reconstruit sur le `Command` de
+  shadcn/`cmdk` (solde ADR-0016), comportement identique, les 7 tests
+  existants passent sans adaptation. Écrans hors parcours démo non touchés
+  (coexistence assumée, documentée à l'ADR).
+- Redimensionnement des images de l'éditeur par poignée de drag (KAN-39) :
+  NodeView React maison sur le node `Image` (`resizable-image-view.tsx`,
+  zéro dépendance tierce), largeur persistée en **pourcentage** de la
+  largeur du contenu (`width`, borné 10–100, défaut 100 — jamais en pixels,
+  la mise en page reste fluide). Équivalent clavier obligatoire (RGAA) :
+  poignée en `role="slider"`, flèches gauche/droite = pas de 5 %. Validation
+  serveur (`assertSafeAttributes`, OWASP A03) : nombre fini entre 10 et 100
+  exigé, rejet sinon. Rétrocompatible : une image déjà persistée sans
+  `width` obtient 100 au chargement (défaut du schéma ProseMirror), aucune
+  migration. `TST-ENT-012` au cahier de recettes.
+- Constellation (graphe de relations) en plein cadre (KAN-36 P5) : la vue
+  `/worlds/[slug]/graph` remplit la carte flottante (fini le canvas fixe
+  600 px du MVP KAN-25), bouton retour vers le monde visible. Filtres par
+  type : chips à état (`<button aria-pressed>`, focus MINT) groupées par
+  famille avec bascule « Tout »/« Rien », dans un panneau flottant repliable
+  en overlay (FERMÉ par défaut, retour Aymeric) — remplace les cases à cocher
+  empilées au-dessus du canvas. Stylesheet Cytoscape alignée aux tokens
+  navy/mint : libellés Inter avec halo (lisibilité sur fond variable), survol
+  de nœud en MINT (`cy.on` `mouseover`/`mouseout`, pas de pseudo-classe
+  `:hover` sur canvas), fond du canvas assombri avec grille discrète légèrement
+  floutée (couche CSS séparée derrière le canvas transparent, jamais un
+  `filter:blur` sur le canvas lui-même — flouterait aussi les nœuds), zoom
+  initial réduit (marge de layout Cytoscape augmentée). Même composant
+  `GraphView` que le panneau du dashboard : ces changements de style s'y
+  appliquent aussi. La liste accessible (RGAA, ADR-0012) est désormais masquée
+  derrière un disclosure « Observer les fils » (`graph-accessible-disclosure.tsx`,
+  FERMÉ par défaut) plutôt que retirée — reste intégralement présente dans le
+  DOM une fois ouverte. `buildAccessibleGraphEntries` (`graph-elements.ts`)
+  dédoublonne désormais une paire d'entités qui se mentionnent mutuellement
+  (relation dans les deux sens — un seul lien « ↔ », jamais deux lignes) ainsi
+  qu'une même cible reliée par AUTO et MANUEL dans le même sens ;
+  `buildGraphElements`/le rendu Cytoscape lui-même restent inchangés
+  (ADR-0012). `TST-GRF-002`/`TST-GRF-003`/`TST-GRF-004` mis à jour au cahier de
+  recettes.
+
+### Corrigé
+
+- Coller un texte externe (ex. Obsidian) dans l'éditeur d'entité faisait échouer
+  **toute la sauvegarde** avec « Contenu invalide. » : un wikilien converti en
+  `<a href="…">` avec un `href` relatif (parfois avec espaces) faisait rejeter le
+  document entier par la validation serveur (`isSafeHttpUrl`, OWASP A03), et un
+  retour à la ligne rendu en `<br>` fondait deux lignes du texte source en un seul
+  paragraphe. L'extension `SafeLink` assainit désormais le lien dès le collage
+  (retire la mark si l'URL n'est pas absolue `http(s)`, garde le texte de
+  l'ancre — validation serveur inchangée, non contournable) ; `splitParagraphsOnBreaks`
+  scinde les paragraphes contenant des `<br>` au collage. À l'occasion : les
+  popovers maison « Lien »/« Image » de la toolbar (sans Échap/clic extérieur/
+  focus trap) migrés vers le `Dialog` shadcn déjà en place, toolbar rendue
+  `sticky` pendant le défilement d'une longue entrée. Voir
+  `docs/plan-correction-bogues.md` (BUG-002), `TST-ENT-011`, `TST-SEC-014`.
+- `npm run worker` en local échouait systématiquement (`Variables
+  d'environnement invalides`) : contrairement à `next dev`, qui charge `.env`
+  automatiquement, `tsx src/worker/index.ts` est un process Node nu, sans
+  aucun chargement d'environnement. Le script `worker` utilise désormais le
+  flag natif Node `--env-file=.env` (Node 24, zéro nouvelle dépendance) ;
+  l'image Docker du worker (`Dockerfile`, cible `worker`) n'est pas concernée
+  — ses variables viennent de l'environnement réel du conteneur (compose),
+  jamais d'un fichier `.env`. `README.md` documente désormais explicitement
+  qu'un second terminal (`npm run worker`) est requis en local pour que la
+  liaison AUTO fonctionne (aucune trace de ce prérequis auparavant).
+- La disposition des nœuds de la Constellation changeait d'un rechargement à
+  l'autre de la même page : `listWorldRelations` n'avait aucun `orderBy`
+  (ordre de lignes non garanti par Postgres), et le layout `cose` de
+  Cytoscape traite les arêtes dans l'ordre reçu — un ordre instable fait
+  converger la simulation physique vers une disposition différente à chaque
+  appel. `orderBy: [{ createdAt: "asc" }, { id: "asc" }]` stabilise l'ordre.
+  Voir `docs/plan-correction-bogues.md` (BUG-003).
+
+## [1.0.1] - 2026-07-18
+
+### Corrigé
+
+- CD (`cd.yml`) : le nom du GitHub Environment (`production`) et le suffixe
+  des fichiers de déploiement (`compose.prod.yml`, `.env.prod`) divergent —
+  le déploiement prod appelait `deploy/.env.production`/
+  `compose.production.yml` (inexistants) au lieu de `.env.prod`/
+  `compose.prod.yml`. `FILE_ENV` distingue désormais explicitement le nom
+  d'environnement GitHub (gate d'approbation) du suffixe de fichier réel.
+
+## [1.0.0] - 2026-07-18
+
+_Contenu identique en `v1.0.0-rc.1`/`v1.0.0-rc.2` (staging) avant bascule prod._
 
 ### Sécurité
 
@@ -258,123 +485,6 @@ stade (`[Unreleased]`).
   ghcr.io public, déploiement SSH gaté par un GitHub Environment `production`
   à approbation manuelle — staging automatique sur tag `-rc.N`). Le VPS ne
   build jamais. Scénarios `TST-SEC-009` à `TST-SEC-012` au cahier de recettes.
-- Recherche basique par nom et par alias (KAN-17) dans les entités du monde
-  courant, insensible à la casse et aux accents (`normalizeForMatch`, partagé
-  avec le moteur de liaison automatique) ; filtre en direct avec debounce dans
-  la page du monde (`searchEntities`, `entity-service.ts`, cascade
-  d'autorisation `getWorld`, OWASP A01). Scénarios `TST-ENT-007`/`TST-ENT-008`
-  au cahier de recettes.
-- Quotas freemium (KAN-18, sans Stripe) : 3 mondes par compte, 50 entités par
-  monde, appliqués en couche service (`WorldQuotaExceededError`/
-  `EntityQuotaExceededError`, non contournables — OWASP A04) via
-  `createWorld`/`createEntity`. `enum WorldOrigin { USER, INTRO, DEMO }`
-  (`World.origin`, `@default(USER)`) posé par anticipation du futur monde
-  d'introduction "Atheraus" (KAN-35) et d'un compte de démonstration jury :
-  les deux sont hors quota sur les deux axes, aucune logique à retoucher
-  quand ils existeront (voir ADR-0014). Scénarios `TST-QOT-001` à
-  `TST-QOT-003` au cahier de recettes.
-- `Entity.aliases` migré d'un `String[]` vers une table `Alias` dédiée
-  (`value`, `normalized`, `active`, `source` MANUAL/SEED) : index sur la
-  forme normalisée (accélère `searchEntities` KAN-17 et `buildDictionary` du
-  moteur de liaison), attributs propres pour un usage futur (désactiver un
-  alias, distinguer les alias de seed). Contrat externe inchangé
-  (`aliases: string[]` toujours renvoyé par `entity-service.ts` — zéro
-  changement dans les actions/formulaires). Migration en deux temps
-  (expand/contract) avec backfill des données réelles de production via
-  l'extension Postgres `unaccent` (voir ADR-0015). `Entity.seedRef` (clé
-  d'idempotence pour le futur script de seed KAN-35) posé en même temps.
-- Taxonomie des types d'entités étendue de 5 à 26, regroupés en 8 familles
-  (`ENTITY_TYPE_REFERENCE`, `src/lib/entity-schemas.ts`) — les 5 ids
-  historiques (`character`/`place`/`faction`/`object`/`event`) conservés à
-  l'identique. Sélecteur de type devenu un combobox interne cherchable et
-  groupé (`EntityTypeCombobox`, patron d'accessibilité de `mention-list.tsx`
-  réutilisé — voir ADR-0016, remplacement prévu par shadcn en KAN-36). Graphe
-  de relations : couleur des nœuds par famille (palette à 8 teintes validée
-  par le skill `dataviz`, `TST-GRF-004`) et filtres groupés par famille au
-  lieu de 26 cases à plat. Scénario `TST-ENT-009` au cahier de recettes.
-- Upload d'images depuis l'éditeur (KAN-16), via le port `Storage` existant
-  (MinIO, KAN-11 — aucune modification du port) : validation MIME **réelle
-  par magic bytes** (`sniffImageMime`, zéro dépendance tierce — PNG/JPEG/GIF/
-  WebP), taille max 5 Mo, modèle `Image` (métadonnées seules — `worldId`,
-  `key`, `contentType`, `size` ; le binaire vit dans MinIO). Référence stable
-  `/api/media/<imageId>` persistée dans `image.src` (jamais une URL MinIO
-  présignée directe — trop longue et expirante pour la contrainte
-  `isSafeHttpUrl` existante), résolue en URL signée fraîche à **chaque
-  lecture** par un Route Handler dédié qui revalide `getWorld` (OWASP A01,
-  voir ADR-0017). Purge best-effort des objets MinIO à la suppression d'un
-  monde (RGPD « purge monde + binaires », loggée, non bloquante).
-  `loading="lazy"` sur le node `Image` de l'éditeur. Scénarios `TST-SEC-013`
-  et `TST-ENT-010` au cahier de recettes.
-- Passe visuelle du parcours démo (KAN-36) : thème navy/mint (palette Bloc 1)
-  posé sur connexion/accueil → mondes → fiche d'entité → éditeur → backlinks
-  → graphe, via **shadcn/ui sur Radix Primitives** (composants vendored dans
-  `src/components/ui/` — voir ADR-0018). Aucun changement de logique métier,
-  d'autorisation, ni du schéma de nodes/décorations Tiptap ou du rendu
-  Cytoscape (ADR-0012). `EntityTypeCombobox` reconstruit sur le `Command` de
-  shadcn/`cmdk` (solde ADR-0016), comportement identique, les 7 tests
-  existants passent sans adaptation. Écrans hors parcours démo non touchés
-  (coexistence assumée, documentée à l'ADR).
-- Redimensionnement des images de l'éditeur par poignée de drag (KAN-39) :
-  NodeView React maison sur le node `Image` (`resizable-image-view.tsx`,
-  zéro dépendance tierce), largeur persistée en **pourcentage** de la
-  largeur du contenu (`width`, borné 10–100, défaut 100 — jamais en pixels,
-  la mise en page reste fluide). Équivalent clavier obligatoire (RGAA) :
-  poignée en `role="slider"`, flèches gauche/droite = pas de 5 %. Validation
-  serveur (`assertSafeAttributes`, OWASP A03) : nombre fini entre 10 et 100
-  exigé, rejet sinon. Rétrocompatible : une image déjà persistée sans
-  `width` obtient 100 au chargement (défaut du schéma ProseMirror), aucune
-  migration. `TST-ENT-012` au cahier de recettes.
-- Constellation (graphe de relations) en plein cadre (KAN-36 P5) : la vue
-  `/worlds/[slug]/graph` remplit la carte flottante (fini le canvas fixe
-  600 px du MVP KAN-25), bouton retour vers le monde visible. Filtres par
-  type : chips à état (`<button aria-pressed>`, focus MINT) groupées par
-  famille avec bascule « Tout »/« Rien », dans un panneau flottant repliable
-  en overlay (FERMÉ par défaut, retour Aymeric) — remplace les cases à cocher
-  empilées au-dessus du canvas. Stylesheet Cytoscape alignée aux tokens
-  navy/mint : libellés Inter avec halo (lisibilité sur fond variable), survol
-  de nœud en MINT (`cy.on` `mouseover`/`mouseout`, pas de pseudo-classe
-  `:hover` sur canvas), fond du canvas assombri avec grille discrète légèrement
-  floutée (couche CSS séparée derrière le canvas transparent, jamais un
-  `filter:blur` sur le canvas lui-même — flouterait aussi les nœuds), zoom
-  initial réduit (marge de layout Cytoscape augmentée). Même composant
-  `GraphView` que le panneau du dashboard : ces changements de style s'y
-  appliquent aussi. La liste accessible (RGAA, ADR-0012) est désormais masquée
-  derrière un disclosure « Observer les fils » (`graph-accessible-disclosure.tsx`,
-  FERMÉ par défaut) plutôt que retirée — reste intégralement présente dans le
-  DOM une fois ouverte. `buildAccessibleGraphEntries` (`graph-elements.ts`)
-  dédoublonne désormais une paire d'entités qui se mentionnent mutuellement
-  (relation dans les deux sens — un seul lien « ↔ », jamais deux lignes) ainsi
-  qu'une même cible reliée par AUTO et MANUEL dans le même sens ;
-  `buildGraphElements`/le rendu Cytoscape lui-même restent inchangés
-  (ADR-0012). `TST-GRF-002`/`TST-GRF-003`/`TST-GRF-004` mis à jour au cahier de
-  recettes.
-- **Supervision v1 (C4.1.2)** : endpoint `GET /api/health` (public, minimal —
-  statut, version, uptime, vérification base via `SELECT 1` avec timeout 2 s ;
-  SHA de commit renvoyé hors production uniquement, aucune fuite d'erreur
-  brute) ; healthcheck Docker du service `app` aligné dessus dans les deux
-  compose (`--wait` du CD échoue si l'app démarre sans base) ; heartbeat HTTP
-  en fin de sauvegarde quotidienne, uniquement si `pg_dump` + miroir MinIO +
-  purge ont réussi (`BACKUP_HEARTBEAT_URL`, optionnelle) ; rotation des logs
-  Docker (`json-file`, 10 Mo × 3) sur tous les services des deux compose ;
-  accès aux données de production par tunnel SSH chiffré (`postgres` bindé
-  `127.0.0.1:5432` en prod uniquement, aucune console d'administration
-  exposée). Voir `docs/supervision.md`, ADR-0019, `TST-SEC-015`.
-- **Monde d'introduction « Atheraus » (KAN-35)** : 25 fiches rédigées à l'avance
-  (personnages, ordres/lignées/royaumes, lieux, lore, magie, écologie, objets) seedées
-  depuis `prisma/seed/atheraus.json` via une fonction de clonage partagée
-  (`seedIntroWorld`, `src/services/intro-world-service.ts`), câblée sur l'inscription
-  (`registerAction`) : chaque nouveau compte reçoit, sauf case décochée
-  (« Ne pas créer le monde d'exemple « Atheraus » », opt-out), un monde `origin: INTRO`
-  frais et indépendant, déjà peuplé et déjà lié — vitrine immédiate de la liaison
-  automatique sans rien avoir à écrire. Le seed passe par la couche service (nouvelles
-  fonctions dédiées `createIntroWorld`/`createSeedEntity`, jamais d'accès Prisma direct) :
-  même normalisation NFC que le chemin utilisateur normal (ADR-0020), et les 3 mentions
-  manuelles prévues (Guivre Saline, Selvenn, Reliquaire du Verbe) produisent de vraies
-  `Relation origin=MANUAL` via `reconcileManualMentions`, jamais réimplémentée. Monde
-  `origin: INTRO` déjà hors quota (mécanisme KAN-18 réutilisé tel quel). CLI de
-  vérification locale (`npm run seed:intro`, `prisma/seed/run.ts`) utilisant la même
-  fonction que l'inscription. Voir ADR-0022, `TST-AUT-009`, `TST-LNK-009`,
-  `TST-QOT-003` (mis à jour).
 
 ### Corrigé
 
@@ -388,57 +498,3 @@ stade (`[Unreleased]`).
   (évitée là pour une vraie raison d'encodage Windows, non pertinente pour du
   texte UI). Corrigé avec de vrais accents ; tout le texte UI livré depuis
   (mondes, entités) en tient compte dès l'origine.
-- Coller un texte externe (ex. Obsidian) dans l'éditeur d'entité faisait échouer
-  **toute la sauvegarde** avec « Contenu invalide. » : un wikilien converti en
-  `<a href="…">` avec un `href` relatif (parfois avec espaces) faisait rejeter le
-  document entier par la validation serveur (`isSafeHttpUrl`, OWASP A03), et un
-  retour à la ligne rendu en `<br>` fondait deux lignes du texte source en un seul
-  paragraphe. L'extension `SafeLink` assainit désormais le lien dès le collage
-  (retire la mark si l'URL n'est pas absolue `http(s)`, garde le texte de
-  l'ancre — validation serveur inchangée, non contournable) ; `splitParagraphsOnBreaks`
-  scinde les paragraphes contenant des `<br>` au collage. À l'occasion : les
-  popovers maison « Lien »/« Image » de la toolbar (sans Échap/clic extérieur/
-  focus trap) migrés vers le `Dialog` shadcn déjà en place, toolbar rendue
-  `sticky` pendant le défilement d'une longue entrée. Voir
-  `docs/plan-correction-bogues.md` (BUG-002), `TST-ENT-011`, `TST-SEC-014`.
-- `npm run worker` en local échouait systématiquement (`Variables
-  d'environnement invalides`) : contrairement à `next dev`, qui charge `.env`
-  automatiquement, `tsx src/worker/index.ts` est un process Node nu, sans
-  aucun chargement d'environnement. Le script `worker` utilise désormais le
-  flag natif Node `--env-file=.env` (Node 24, zéro nouvelle dépendance) ;
-  l'image Docker du worker (`Dockerfile`, cible `worker`) n'est pas concernée
-  — ses variables viennent de l'environnement réel du conteneur (compose),
-  jamais d'un fichier `.env`. `README.md` documente désormais explicitement
-  qu'un second terminal (`npm run worker`) est requis en local pour que la
-  liaison AUTO fonctionne (aucune trace de ce prérequis auparavant).
-- La disposition des nœuds de la Constellation changeait d'un rechargement à
-  l'autre de la même page : `listWorldRelations` n'avait aucun `orderBy`
-  (ordre de lignes non garanti par Postgres), et le layout `cose` de
-  Cytoscape traite les arêtes dans l'ordre reçu — un ordre instable fait
-  converger la simulation physique vers une disposition différente à chaque
-  appel. `orderBy: [{ createdAt: "asc" }, { id: "asc" }]` stabilise l'ordre.
-  Voir `docs/plan-correction-bogues.md` (BUG-003).
-- Créer une entrée via le bouton « Nouvelle entrée » du **dashboard** ne
-  rafraîchissait jamais la Sidebar une fois revenu dessus (visible sur
-  staging). Deux tentatives `revalidatePath` côté serveur (avec puis sans le
-  groupe de routes `(app)`) n'ont rien changé — cause réelle **côté client**,
-  prouvée par log : `entity-search.tsx` copiait la prop `initialEntities` dans
-  un `useState` au premier montage ; ce composant vivant dans un layout
-  persistant à travers toute navigation interne au monde, les props plus
-  récentes (nouvelle entrée créée) étaient silencieusement ignorées. La liste
-  par défaut (sans recherche active) dérive désormais directement de la prop
-  à chaque rendu, plus jamais une copie figée ; une recherche active (KAN-17)
-  reste en state, ses résultats venant du serveur. Voir
-  `docs/plan-correction-bogues.md` (BUG-004, historique complet des 3
-  tentatives), `TST-MND-008`.
-- Un texte collé en forme Unicode **décomposée** (NFD — accent = caractère
-  combinant séparé, ex. copier-coller depuis macOS/export tiers) pouvait
-  faire disparaître silencieusement le lien automatique d'une **autre**
-  entité mentionnée plus loin dans le même texte (décalage d'index faussant
-  la vérification de frontière de mot dans `AhoCorasick.search()`).
-  Diagnostiqué par test Vitest avant tout correctif (protocole imposé),
-  corrigé à **la frontière applicative** (normalisation NFC du nom/alias à
-  l'enregistrement, `entity-service.ts` ; du corps Tiptap à la sauvegarde,
-  `tiptap-content.ts`) — le moteur de liaison (`aho-corasick.ts`,
-  `normalize.ts`) reste intouché. Voir ADR-0020,
-  `docs/plan-correction-bogues.md` (BUG-005), `TST-LNK-008`.
