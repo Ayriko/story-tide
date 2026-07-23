@@ -23,7 +23,7 @@
 - **Étapes** : 1) Aller sur `/register`. 2) Renseigner nom, e-mail, mot de passe (≥8 caractères). 3) Soumettre.
 - **Résultat attendu** : redirection vers `/`, cookie de session posé (`HttpOnly`, `SameSite=Lax`).
 - **Critères d'acceptation** : une ligne `User`/`Session`/`Account` créée en base ; `account.password` est un hash, jamais en clair.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `POST /api/auth/sign-up/email` + inspection `psql`)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `POST /api/auth/sign-up/email` + inspection `psql`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : inscription compte A sur `staging.storytide.fr`, redirection `/worlds` obtenue, `User`/`Session`/`Account` vérifiés via Prisma Studio.
 
 ## TST-AUT-002 — Connexion avec des identifiants valides
 
@@ -33,7 +33,7 @@
 - **Étapes** : 1) Aller sur `/login`. 2) Renseigner e-mail et mot de passe corrects. 3) Soumettre.
 - **Résultat attendu** : redirection vers `/`, nouvelle session posée.
 - **Critères d'acceptation** : une nouvelle ligne `Session` créée, liée au bon `userId`.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `POST /api/auth/sign-in/email` + testé manuellement par Aymeric)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `POST /api/auth/sign-in/email` + testé manuellement par Aymeric) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : login compte A, redirection + nouvelle session confirmées.
 
 ## TST-AUT-003 — Connexion avec un mauvais mot de passe
 
@@ -43,7 +43,7 @@
 - **Étapes** : 1) Aller sur `/login`. 2) Renseigner l'e-mail valide et un mot de passe incorrect. 3) Soumettre.
 - **Résultat attendu** : message générique affiché : « E-mail ou mot de passe incorrect. »
 - **Critères d'acceptation** : le message ne distingue jamais « e-mail inconnu » de « mot de passe faux » ; aucune nouvelle session créée.
-- **Type** : cas d'échec / sécurité · **Statut** : ✅ (API : `401 INVALID_EMAIL_OR_PASSWORD` ; testé manuellement par Aymeric)
+- **Type** : cas d'échec / sécurité · **Statut** : ✅ (API : `401 INVALID_EMAIL_OR_PASSWORD` ; testé manuellement par Aymeric) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : message générique confirmé, aucune session créée.
 
 ## TST-AUT-004 — Inscription avec un e-mail déjà utilisé
 
@@ -53,7 +53,7 @@
 - **Étapes** : 1) Aller sur `/register`. 2) Renseigner un e-mail déjà utilisé. 3) Soumettre.
 - **Résultat attendu** : erreur affichée sous le champ e-mail : « Un compte existe déjà avec cette adresse e-mail. »
 - **Critères d'acceptation** : aucune nouvelle ligne `User` créée ; nom et e-mail saisis restent affichés (pas le mot de passe).
-- **Type** : cas d'échec · **Statut** : ✅ (API : `422 USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` ; testé manuellement par Aymeric)
+- **Type** : cas d'échec · **Statut** : ✅ (API : `422 USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL` ; testé manuellement par Aymeric) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : erreur affichée sous le champ, aucun nouveau compte créé.
 
 ## TST-AUT-005 — Champ requis manquant (inscription ou connexion)
 
@@ -63,7 +63,7 @@
 - **Étapes** : 1) Aller sur `/register` ou `/login`. 2) Laisser un champ vide ou saisir un e-mail invalide. 3) Soumettre.
 - **Résultat attendu** : erreur affichée sous le champ concerné, reliée via `aria-describedby`.
 - **Critères d'acceptation** : aucun appel à Better Auth déclenché (rejet avant l'appel `auth.api.*`) ; formulaire non soumis en base.
-- **Type** : cas d'échec · **Statut** : ✅ (testé manuellement par Aymeric)
+- **Type** : cas d'échec · **Statut** : ✅ (testé manuellement par Aymeric) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : erreur affichée sous le champ, rejet avant appel serveur confirmé.
 
 ## TST-AUT-006 — Accès à /login ou /register avec une session active
 
@@ -73,7 +73,7 @@
 - **Étapes** : 1) Se connecter. 2) Naviguer directement vers `/login` (ou `/register`).
 - **Résultat attendu** : redirection immédiate vers `/`.
 - **Critères d'acceptation** : redirection HTTP 307, aucun contenu du formulaire renvoyé.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié via curl avec cookie de session : `307` → `location: /`)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié via curl avec cookie de session : `307` → `location: /`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : redirection confirmée depuis `/login` et `/register` avec session active.
 
 ## TST-AUT-007 — Champs conservés après une erreur (non-régression)
 
@@ -83,7 +83,7 @@
 - **Étapes** : 1) Remplir le formulaire. 2) Provoquer une erreur (ex. mauvais mot de passe). 3) Observer les champs après le retour d'erreur.
 - **Résultat attendu** : nom et e-mail affichent toujours la valeur saisie ; le champ mot de passe est vide.
 - **Critères d'acceptation** : couvert par un test de non-régression automatisé (`login-form.test.tsx`) + validé manuellement par Aymeric.
-- **Type** : cas d'échec / régression · **Statut** : ✅ — cf. `plan-correction-bogues.md` BUG-001
+- **Type** : cas d'échec / régression · **Statut** : ✅ — cf. `plan-correction-bogues.md` BUG-001 — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : retest BUG-001 confirmé, e-mail conservé, mot de passe vide.
 
 ## TST-AUT-008 — Déconnexion
 
@@ -93,7 +93,7 @@
 - **Étapes** : 1) Cliquer sur « Se déconnecter ». 2) Observer la redirection. 3) Tenter de naviguer directement vers `/worlds`.
 - **Résultat attendu** : redirection vers `/login` ; une nouvelle tentative d'accès à `/worlds` redirige aussi vers `/login` (session bien effacée, pas seulement un état client). Cas d'échec (garde) : si `signOut` échoue côté serveur (ex. session déjà expirée), l'utilisateur est quand même redirigé vers `/login` (jamais bloqué sur une action qui échoue silencieusement).
 - **Critères d'acceptation** : couvert par `auth.test.ts` (`logoutAction` : appelle `signOut` puis redirige ; redirige aussi si `signOut` rejette, avec l'erreur réelle logguée) ; bouton natif (`<button type="submit">` dans un `<form>`), navigable au clavier, focus visible cohérent avec le reste du header (RGAA).
-- **Type** : fonctionnel + sécurité (OWASP A07) · **Statut** : ✅ (`auth.test.ts`)
+- **Type** : fonctionnel + sécurité (OWASP A07) · **Statut** : ✅ (`auth.test.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : redirection vers `/login` confirmée, accès à `/worlds` après déconnexion redirige aussi vers `/login` (session effacée en base).
 
 ## TST-AUT-009 — Inscription : monde d'introduction « Atheraus » cloné par défaut, opt-out possible (KAN-35)
 
@@ -103,7 +103,7 @@
 - **Étapes** : 1) Aller sur `/register`, renseigner nom/e-mail/mot de passe valides, laisser la case « Ne pas créer le monde d'exemple » décochée. 2) Soumettre, attendre la redirection vers `/worlds`. 3) Vérifier la présence du monde « Atheraus ». 4) L'ouvrir, ouvrir la fiche « Ordre du Verbe Clos », vérifier la présence immédiate de la mention manuelle vers « Selvenn » dans « Renvois ». 5) (Second compte) Recommencer en cochant la case avant de soumettre.
 - **Résultat attendu** : le compte du 2) obtient un monde « Atheraus » peuplé de 25 entités, avec la `Relation origin=MANUAL` vers Selvenn déjà présente (réconciliation synchrone au seed, pas d'attente du worker) ; le compte du 5) n'a aucun monde « Atheraus » ; dans les deux cas, l'inscription réussit et redirige normalement même si le seed échouait (échec loggué, jamais bloquant — même politique que l'enfilage de job dans `saveEntityContentAction`).
 - **Critères d'acceptation** : `auth.test.ts` (`registerAction` : seed appelé par défaut ; case cochée → `seedIntroWorld` jamais appelé ; échec du seed loggué mais redirection inchangée ; validation Zod ou `USER_ALREADY_EXISTS` → ni `signUpEmail` ni `seedIntroWorld` appelés) ; `intro-world-service.test.ts` (`seedIntroWorld` : deux passes création/résolution de mentions, `reconcileManualMentions` appelé avec les bons id résolus, un job de liaison enfilé par entité) ; `world-service.test.ts` (`createIntroWorld` : idempotent, jamais de requête de comptage de quota) ; `entity-service.test.ts` (`createSeedEntity` : upsert par `seedRef`, jamais le slug, NFC, `AliasSource.SEED`) ; vérifié en conditions réelles bout en bout (`e2e/intro-world.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée — latence mesurée du seed ~300 ms, bien sous le seuil d'arbitrage de 2 s fixé avant câblage).
-- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`auth.test.ts`, `intro-world-service.test.ts`, `world-service.test.ts`, `entity-service.test.ts`, `e2e/intro-world.spec.ts`)
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`auth.test.ts`, `intro-world-service.test.ts`, `world-service.test.ts`, `entity-service.test.ts`, `e2e/intro-world.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : compte A (case décochée) → monde Atheraus présent, lien MANUAL « Selvenn » visible immédiatement dans Renvois de « Ordre du Verbe Clos » (pas d'attente worker) ; compte B (case cochée) → inscription réussie, aucun monde Atheraus. Capture prise (parcours inscription→Atheraus).
 
 ## TST-SEC-001 — Le mot de passe n'est jamais stocké en clair
 
@@ -113,7 +113,7 @@
 - **Étapes** : 1) Créer un compte. 2) Inspecter la table `account` en base (`psql`).
 - **Résultat attendu** : la colonne `password` contient un hash au format `salt:hash` (scrypt), jamais la valeur saisie.
 - **Critères d'acceptation** : aucune occurrence du mot de passe en clair dans `account.password` ni dans les logs serveur.
-- **Type** : sécurité · **Statut** : ✅ (vérifié via `psql` après `TST-AUT-001`)
+- **Type** : sécurité · **Statut** : ✅ (vérifié via `psql` après `TST-AUT-001`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : `account.password` du compte A inspecté via Prisma Studio, format `salt:hash` confirmé, aucune valeur en clair. Capture DB prise.
 
 ## TST-MND-001 — Création d'un monde avec un nom valide
 
@@ -123,7 +123,7 @@
 - **Étapes** : 1) Aller sur `/worlds`. 2) Renseigner un nom dans « Nouveau monde ». 3) Soumettre.
 - **Résultat attendu** : le monde apparaît dans la liste, redirection vers `/worlds/<slug>`.
 - **Critères d'acceptation** : `World.ownerId` = l'utilisateur courant ; `World.slug` dérivé du nom (minuscules, sans accents, tirets).
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `world-service.ts` en conditions réelles : création + apparition dans `GET /worlds`)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié via `world-service.ts` en conditions réelles : création + apparition dans `GET /worlds`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : monde « Eldoria » créé (compte A), apparition + redirection confirmées.
 
 ## TST-MND-002 — Création d'un monde avec un nom déjà utilisé par le même propriétaire
 
@@ -133,7 +133,7 @@
 - **Étapes** : 1) Créer un monde « Eldoria ». 2) Créer un second monde « Eldoria ».
 - **Résultat attendu** : les deux mondes coexistent, le second reçoit un slug suffixé (`eldoria-2`).
 - **Critères d'acceptation** : aucune erreur de contrainte unique remontée à l'utilisateur ; les deux mondes restent distincts et accessibles.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `eldoria` puis `eldoria-2`)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `eldoria` puis `eldoria-2`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : deux mondes distincts confirmés, URLs `eldoria` puis `eldoria-2` (nom affiché « Eldoria » identique pour les deux, seul le slug est suffixé — comportement voulu, clarifié avec Aymeric).
 
 ## TST-MND-003 — Création d'un monde avec un nom vide
 
@@ -143,7 +143,7 @@
 - **Étapes** : 1) Aller sur `/worlds`. 2) Laisser le champ nom vide. 3) Soumettre.
 - **Résultat attendu** : erreur affichée sous le champ, reliée via `aria-describedby` : « Le nom est requis. »
 - **Critères d'acceptation** : aucun `World` créé en base.
-- **Type** : cas d'échec · **Statut** : ✅ (couvert par `world-schemas.test.ts` + `create-world-form.test.tsx`)
+- **Type** : cas d'échec · **Statut** : ✅ (couvert par `world-schemas.test.ts` + `create-world-form.test.tsx`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : erreur affichée sous le champ, confirmée.
 
 ## TST-MND-004 — Renommer un monde
 
@@ -153,7 +153,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Modifier le nom dans « Renommer ». 3) Soumettre.
 - **Résultat attendu** : redirection vers la nouvelle URL `/worlds/<nouveau-slug>`, nom mis à jour dans la liste.
 - **Critères d'acceptation** : le renommage vers le slug déjà occupé par le monde lui-même ne déclenche pas de suffixe inutile.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles + `world-service.test.ts`)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles + `world-service.test.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : renommage confirmé (nouvelle URL) ; renommage vers le nom actuel sans suffixe inutile confirmé aussi.
 
 ## TST-MND-005 — Suppression d'un monde
 
@@ -163,7 +163,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Cliquer « Supprimer ce monde ». 3) Confirmer.
 - **Résultat attendu** : le monde disparaît de la liste, redirection vers `/worlds`.
 - **Critères d'acceptation** : navigable sans souris (boutons natifs, pas de `window.confirm` bloquant) ; un clic sur « Annuler » n'entraîne aucune suppression.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteWorld` + `listWorlds` après suppression)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteWorld` + `listWorlds` après suppression) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : « Annuler » testé sans suppression, confirmation entièrement au clavier, monde supprimé et disparu de la liste.
 
 ## TST-MND-006 — Dashboard de monde : dernières entrées, panneau Constellation, actions rapides (KAN-36 P3)
 
@@ -173,7 +173,7 @@
 - **Étapes** : 1) Ouvrir `/worlds/[slug]`. 2) Modifier une entrée ancienne puis revenir à l'accueil. 3) Vérifier son rang dans « Dernières entrées ». 4) Cliquer « Explorer la constellation » sur le panneau. 5) Cliquer la chip « Nouvelle entrée », puis « Rechercher ».
 - **Résultat attendu** : l'entrée modifiée remonte en tête de « Dernières entrées » (tri `updatedAt` décroissant) ; « Explorer la constellation » navigue vers `/worlds/[slug]/graph` (filtres + liste accessible complets) ; « Nouvelle entrée » ouvre le Dialog de création ; « Rechercher » déplie la sidebar si repliée et place le focus dans son champ de recherche existant.
 - **Critères d'acceptation** : tri de lecture uniquement, aucun service modifié (`listEntities` reste trié par `createdAt`, inchangé pour la sidebar/la Constellation) ; le panneau miniature n'expose aucun filtre clavier dupliqué (l'équivalent accessible complet reste sur `/graph`) ; vérifié en conditions réelles (`e2e/smoke.spec.ts`, `e2e/graph.spec.ts`, `e2e/entity-search.spec.ts` — parcours passant par `/worlds/[slug]` inchangés après l'ajout du dashboard) + vérification manuelle Aymeric.
-- **Type** : fonctionnel · **Statut** : ✅ (gates automatisés : lint, `tsc`, 310/310 tests unitaires à 98,74 % de couverture, build, 9/9 e2e) — vérification manuelle Aymeric en attente.
+- **Type** : fonctionnel · **Statut** : ✅ (gates automatisés : lint, `tsc`, 310/310 tests unitaires à 98,74 % de couverture, build, 9/9 e2e) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : entrée modifiée remontée en tête (tri `updatedAt`), « Explorer la constellation »/« Nouvelle entrée »/« Rechercher » tous confirmés. Capture prise.
 
 ## TST-MND-007 — Dashboard de monde : monde sans entrée (état vide)
 
@@ -183,7 +183,7 @@
 - **Étapes** : 1) Créer un monde. 2) Observer sa page d'accueil sans créer d'entrée.
 - **Résultat attendu** : « Dernières entrées » affiche « Aucune entrée pour le moment. » ; le panneau Constellation se monte sans erreur (0 nœud, 0 arête) ; les compteurs par catégorie n'affichent que celles ayant au moins une entrée (aucune ligne à 0) ; aucune ligne « Dernière modification » (aucune date disponible).
 - **Critères d'acceptation** : pas d'exception serveur ni client sur un tableau d'entités vide (`buildGraphElements([], [])`, déjà couvert par `graph-elements.test.ts`) ; vérification manuelle Aymeric.
-- **Type** : fonctionnel (cas limite) · **Statut** : ✅ (couvert par construction : mêmes fonctions que TST-MND-006 sur un tableau vide, `graph-elements.test.ts`) — vérification manuelle Aymeric en attente.
+- **Type** : fonctionnel (cas limite) · **Statut** : ✅ (couvert par construction : mêmes fonctions que TST-MND-006 sur un tableau vide, `graph-elements.test.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : monde « Vide-Test » créé, état vide affiché sans erreur (aucune exception serveur/client).
 
 ## TST-MND-008 — Sidebar à jour après une création d'entrée depuis le dashboard (BUG-004)
 
@@ -193,7 +193,7 @@
 - **Étapes** : 1) Ouvrir `/worlds/[slug]`. 2) Créer une entrée via « Nouvelle entrée » du dashboard, revenir au dashboard (clic sur le nom du monde). 3) Créer une seconde entrée via le bouton de la Sidebar, revenir au dashboard. 4) Replier un groupe de la Sidebar, créer une troisième entrée, revenir au dashboard. 5) Lancer une recherche puis l'effacer.
 - **Résultat attendu** : les trois entrées apparaissent dans la Sidebar dès le retour au dashboard, sans rechargement de page (`F5`) ; le groupe replié à l'étape 4 reste replié après la création ; la recherche filtre correctement puis, une fois effacée, réaffiche la liste complète à jour.
 - **Critères d'acceptation** : cause réelle prouvée par log (pas par hypothèse) — `entity-search.tsx:36` copiait `initialEntities` dans un `useState` au premier montage, jamais resynchronisé ; corrigé par dérivation directe des props hors recherche active (`const results = isSearching ? (searchResults ?? []) : initialEntities`). Vérifié en conditions réelles bout en bout (`e2e/dashboard-create-entity.spec.ts` : création dashboard **et** sidebar, repli de groupe conservé, recherche active puis effacée) ; `e2e/entity-search.spec.ts` existant (champ vide réaffiche la liste initiale) inchangé et toujours vert ; vérification manuelle Aymeric sur staging (bug initialement détecté là ; deux tentatives serveur précédentes s'étaient révélées sans effet au retest, cf. `docs/plan-correction-bogues.md` BUG-004).
-- **Type** : fonctionnel · **Statut** : ✅ gates automatisés (lint, `tsc`, 341/341 tests, coverage, 10/10 e2e, build) — vérification manuelle Aymeric en attente (retest sur staging après déploiement du correctif v3).
+- **Type** : fonctionnel · **Statut** : ⚠️ Recette staging v1.2.0-rc.1 (2026-07-23) : correctif v3 confirmé pour la fraîcheur des données (3 entrées créées via dashboard/sidebar toutes visibles sans F5, recherche filtre puis réaffiche correctement) — ❌ en revanche l'état de repli des groupes se réinitialise à chaque navigation (même sans création). → `plan-correction-bogues.md` BUG-008, arbitré P2/report, ne bloque pas le tag v1.2.0. Gates automatisés historiques (lint, `tsc`, 341/341 tests, coverage, 10/10 e2e, build) inchangés.
 
 ## TST-SEC-002 — Accès à un monde d'autrui via URL directe
 
@@ -203,7 +203,7 @@
 - **Étapes** : 1) Se connecter avec le premier compte. 2) Naviguer vers l'URL du monde du second compte.
 - **Résultat attendu** : page 404 (`notFound()`), identique à celle d'un monde réellement inexistant.
 - **Critères d'acceptation** : aucune information ne permet de distinguer « monde inexistant » de « monde d'autrui » ; `getWorldBySlug` filtre systématiquement sur `ownerId`.
-- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`)
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : compte B → URL du monde « Eldoria » (compte A) → 404 confirmée. Capture prise.
 
 ## TST-ENT-001 — Création d'une entrée avec type et alias
 
@@ -213,7 +213,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Renseigner nom, type, alias (un par ligne) dans « Nouvelle entrée ». 3) Soumettre.
 - **Résultat attendu** : redirection vers `/worlds/<slug>/entities/<id>`, entrée visible dans la liste avec son type.
 - **Critères d'acceptation** : `Entity.worldId` correct ; alias vidés des doublons/entrées vides ; `content`/`plainText` initialisés vides (éditeur pas encore branché).
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `entity-service.ts` + `GET /worlds/<slug>` et `GET /worlds/<slug>/entities/<id>`)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `entity-service.ts` + `GET /worlds/<slug>` et `GET /worlds/<slug>/entities/<id>`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : entrée créée dans « Eldoria », redirection vers la fiche confirmée.
 
 ## TST-ENT-002 — Modification du nom, du type et des alias d'une entrée
 
@@ -223,7 +223,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Ouvrir « Paramètres de l'entrée » (icône engrenage) et modifier nom/type/alias. 3) Cliquer « Enregistrer ».
 - **Résultat attendu** : le dialog reste ouvert le temps de la soumission, puis les valeurs mises à jour s'affichent (nom/badge de type/alias du header).
 - **Critères d'acceptation** : les trois champs sont bien persistés ; `worldId` inchangé.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : dialog Paramètres confirmé, valeurs persistées et affichées après enregistrement. Capture prise.
 
 ## TST-ENT-003 — Création d'une entrée avec un nom vide ou un type inconnu
 
@@ -233,7 +233,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>`. 2) Laisser le nom vide (ou forcer un type invalide). 3) Soumettre.
 - **Résultat attendu** : erreur affichée sous le champ concerné, reliée via `aria-describedby`.
 - **Critères d'acceptation** : aucune `Entity` créée en base.
-- **Type** : cas d'échec · **Statut** : ✅ (couvert par `entity-schemas.test.ts` + `create-entity-form.test.tsx`)
+- **Type** : cas d'échec · **Statut** : ✅ (couvert par `entity-schemas.test.ts` + `create-entity-form.test.tsx`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : erreur affichée sous le champ, confirmée.
 
 ## TST-ENT-004 — Suppression d'une entrée
 
@@ -243,7 +243,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Ouvrir « Paramètres de l'entrée », cliquer « Supprimer cette entrée » dans la Zone de danger. 3) Confirmer.
 - **Résultat attendu** : l'entrée disparaît de la liste, redirection vers `/worlds/<slug>`.
 - **Critères d'acceptation** : navigable sans souris ; « Annuler » n'entraîne aucune suppression.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteEntity` + `listEntities` après suppression)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : `deleteEntity` + `listEntities` après suppression) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : « Annuler » testé sans suppression, confirmation au clavier, entrée supprimée avec redirection.
 
 ## TST-SEC-003 — Accès à une entrée via un monde qui ne vous appartient pas ou un mauvais monde
 
@@ -253,7 +253,7 @@
 - **Étapes** : 1) Se connecter avec le second compte. 2) Naviguer vers l'URL de l'entrée du premier compte.
 - **Résultat attendu** : page 404, identique à une entrée réellement inexistante.
 - **Critères d'acceptation** : `entity-service.ts` vérifie systématiquement l'appartenance du monde (`getWorld`) avant de chercher l'entrée ; un `worldId` correct mais non possédé par l'appelant lève `WorldNotFoundError`, jamais `EntityNotFoundError` (pas de distinction exploitable).
-- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes, `GET /worlds/<slug-d-autrui>/entities/<id>` → `404` ; cas mauvais `worldId` du même propriétaire testé au service)
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes, `GET /worlds/<slug-d-autrui>/entities/<id>` → `404` ; cas mauvais `worldId` du même propriétaire testé au service) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : compte B → URL de l'entrée d'Eldoria (compte A) → 404 confirmée. Capture prise.
 
 ## TST-ENT-005 — Édition du contenu d'une entrée avec sauvegarde automatique
 
@@ -263,7 +263,7 @@
 - **Étapes** : 1) Aller sur `/worlds/<slug>/entities/<id>`. 2) Écrire du contenu dans l'éditeur. 3) Attendre la fin du debounce.
 - **Résultat attendu** : `Entity.content` (JSON ProseMirror) et `Entity.plainText` (texte extrait) mis à jour en base ; indicateur « Enregistré. » annoncé via `aria-live="polite"`.
 - **Critères d'acceptation** : le contenu est rechargé correctement à la prochaine visite de la page ; `plainText` ne contient aucune balise, uniquement le texte.
-- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : round-trip complet titre+gras+citation → validation → extraction → persistance → relecture)
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié en conditions réelles : round-trip complet titre+gras+citation → validation → extraction → persistance → relecture) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : contenu tapé/formaté, indicateur « Enregistré. » observé, survit au rechargement.
 
 ## TST-ENT-006 — Parcours bout en bout : inscription → monde → entrée → éditeur → rechargement
 
@@ -273,7 +273,7 @@
 - **Étapes** : 1) `/register`, créer un compte (auto-connexion). 2) Créer un monde. 3) Créer une entrée. 4) Écrire du texte dans l'éditeur, le sélectionner, cliquer « Gras ». 5) Attendre l'indicateur « Enregistré. ». 6) Recharger la page.
 - **Résultat attendu** : à chaque étape, redirection vers la bonne URL ; le bouton « Gras » reflète `aria-pressed="true"` immédiatement après le clic (synchro toolbar `useEditorState`) ; après rechargement, le texte tapé est toujours visible dans l'éditeur (persistance à travers la frontière RSC → Client).
 - **Critères d'acceptation** : `npm run test:e2e` vert ; la base de dev (`story_tide`) reste inchangée pendant et après l'exécution (vérifié par comptage de lignes avant/après) ; la base e2e est repartie de zéro à chaque run (pas d'accumulation de données entre exécutions).
-- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/smoke.spec.ts`, vérifié en conditions réelles contre un vrai navigateur Chromium et une vraie base Postgres)
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/smoke.spec.ts`, vérifié en conditions réelles contre un vrai navigateur Chromium et une vraie base Postgres) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = `e2e/smoke.spec.ts` + recoupement direct avec le parcours bootstrap B1/B4 (inscription→monde→entrée→éditeur→rechargement), non rejoué séparément.
 
 ## TST-ENT-007 — Recherche basique par nom et par alias (KAN-17)
 
@@ -283,7 +283,7 @@
 - **Étapes** : 1) Ouvrir la page du monde. 2) Saisir le nom d'une entrée (casse différente) dans le champ « Rechercher une entrée ». 3) Effacer et saisir l'alias d'une autre entrée.
 - **Résultat attendu** : à l'étape 2, seule l'entrée dont le nom correspond apparaît ; à l'étape 3, seule l'entrée dont l'alias correspond apparaît (par l'entrée dont le nom ne correspond pas).
 - **Critères d'acceptation** : `searchEntities` (`entity-service.test.ts`) couvre nom/alias/casse/accents ; `e2e/entity-search.spec.ts` vérifié en conditions réelles (vrai navigateur, debounce, Server Action).
-- **Type** : fonctionnel · **Statut** : ⬜ à faire (exécuté sur staging)
+- **Type** : fonctionnel · **Statut** : ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : recherche par nom insensible à la casse confirmée, recherche par alias confirmée (première exécution en recette, précédemment ⬜).
 
 ## TST-ENT-008 — Recherche sans correspondance et scope par monde (KAN-17)
 
@@ -293,7 +293,7 @@
 - **Étapes** : 1) Saisir une requête ne correspondant à aucune entrée. 2) Vérifier que le message « Aucune entité trouvée. » s'affiche.
 - **Résultat attendu** : message d'état vide explicite ; aucune entrée d'un autre monde ne peut jamais apparaître (la cascade d'autorisation `getWorld` revalide le `worldId` à chaque appel, `WorldNotFoundError` sinon — même garde-fou que le reste des fonctions de `entity-service.ts`, OWASP A01).
 - **Critères d'acceptation** : `searchEntities` renvoie `[]` sans erreur ; `e2e/entity-search.spec.ts` vérifie l'affichage du message vide.
-- **Type** : fonctionnel · **Statut** : ⬜ à faire (exécuté sur staging)
+- **Type** : fonctionnel · **Statut** : ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : message « Aucune entité trouvée. » confirmé (première exécution en recette, précédemment ⬜).
 
 ## TST-ENT-009 — Sélecteur de type cherchable et groupé (KAN-18)
 
@@ -303,7 +303,7 @@
 - **Étapes** : 1) Ouvrir le combobox Type. 2) Taper un fragment de libellé (ex. « arme »). 3) Sélectionner un résultat au clavier (flèches + Entrée).
 - **Résultat attendu** : la liste affiche les types groupés par famille (8 en-têtes) ; la frappe filtre en direct ; le type sélectionné apparaît dans le champ et est bien celui soumis au formulaire ; `Échap` ferme la liste sans changer la sélection.
 - **Critères d'acceptation** : `entity-type-combobox.test.tsx` (filtrage, sélection souris/clavier, état vide « Aucun type trouvé. », `Échap`, retour au dernier type valide au blur) ; `entity-schemas.test.ts` (26 types, 8 groupes, 5 ids historiques conservés) ; vérifié en conditions réelles dans `e2e/graph.spec.ts` (création d'une entrée de type « Lieu » via le combobox).
-- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ✅ (`entity-type-combobox.test.tsx`, `entity-schemas.test.ts`, `e2e/graph.spec.ts`)
+- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ⚠️ Recette staging v1.2.0-rc.1 (2026-07-23) : groupement par famille, filtrage et sélection clavier confirmés — ❌ `Échap` ferme tout le dialog parent (pas seulement la liste), formulaire entièrement vidé. → `plan-correction-bogues.md` BUG-009, arbitré P2/report, ne bloque pas le tag v1.2.0. Gates automatisés historiques inchangés : ✅ (`entity-type-combobox.test.tsx`, `entity-schemas.test.ts`, `e2e/graph.spec.ts`)
 
 ## TST-SEC-004 — Rejet d'un contenu hors du schéma strict de l'éditeur
 
@@ -313,7 +313,7 @@
 - **Étapes** : 1) Appeler l'action de sauvegarde avec un JSON contenant un `codeBlock` (désactivé) ou un type de node inconnu.
 - **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout node/mark hors de l'allowlist (`Node.fromJSON` + `check()` contre le schéma ProseMirror réel) ; testé avec un payload `codeBlock` réel, pas seulement une chaîne de caractères.
-- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`, `entity-content.test.ts`, vérifié en conditions réelles avec un payload malveillant)
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`, `entity-content.test.ts`, vérifié en conditions réelles avec un payload malveillant) — Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = test automatisé (rejeu manuel nécessite de contourner l'éditeur/forger un payload — décision de session, cf. plan de recette).
 
 ## TST-SEC-005 — Rejet d'un contenu d'entrée surdimensionné (mitigation DoS)
 
@@ -323,7 +323,7 @@
 - **Étapes** : 1) Appeler `saveEntityContentAction` avec une chaîne JSON de plus de 1 000 000 octets.
 - **Résultat attendu** : rejet immédiat (« Contenu trop volumineux. »), sans tentative de `JSON.parse` ni appel au service de persistance.
 - **Critères d'acceptation** : `Buffer.byteLength(rawContentJson, "utf8")` vérifié avant tout `JSON.parse` ; aucun appel à `updateEntityContent`.
-- **Type** : sécurité · **Statut** : ✅ (`entity-content.test.ts`)
+- **Type** : sécurité · **Statut** : ✅ (`entity-content.test.ts`) — Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = test automatisé (payload >1 Mo hors périmètre du rejeu manuel, décision de session).
 
 ## TST-SEC-006 — Rejet d'une image dont le `src` n'est pas une URL http(s)
 
@@ -333,7 +333,7 @@
 - **Étapes** : 1) Appeler l'action de sauvegarde avec un `image.src` en `javascript:alert(1)` (ou `data:`, ou une chaîne non-URL).
 - **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` via `assertSafeAttributes`/`isSafeHttpUrl` pour tout `src` dont le protocole n'est pas `http:`/`https:`, ou qui n'est pas une URL syntaxiquement valide.
-- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`) — Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = test automatisé (décision de session).
 
 ## TST-SEC-007 — Rejet d'une image sans texte alternatif (contournement RGAA)
 
@@ -343,7 +343,7 @@
 - **Étapes** : 1) Appeler l'action de sauvegarde avec un node `image` dont `attrs.alt` est une chaîne vide.
 - **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` si `alt` est absent, non-chaîne, ou vide après `trim()`.
-- **Type** : sécurité / accessibilité · **Statut** : ✅ (`tiptap-content.test.ts`)
+- **Type** : sécurité / accessibilité · **Statut** : ✅ (`tiptap-content.test.ts`) — Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = test automatisé (décision de session).
 
 ## TST-SEC-008 — Rejet d'un lien dont le `href` n'est pas une URL http(s)
 
@@ -353,7 +353,7 @@
 - **Étapes** : 1) Appeler l'action de sauvegarde avec un mark `link` dont `attrs.href` est `javascript:alert(1)`.
 - **Résultat attendu** : la sauvegarde est refusée (« Contenu invalide. »), rien n'est persisté.
 - **Critères d'acceptation** : `parseContent()` lève `InvalidContentError` pour tout `href` dont le protocole n'est pas `http:`/`https:`.
-- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`)
+- **Type** : sécurité · **Statut** : ✅ (`tiptap-content.test.ts`) — Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = test automatisé (décision de session).
 
 ## TST-SEC-009 — Redirection HTTP→HTTPS et certificat TLS valide (KAN-10)
 
@@ -363,7 +363,7 @@
 - **Étapes** : 1) `curl -I http://storytide.fr` (et `staging.`). 2) `curl -vI https://storytide.fr` (et `staging.`).
 - **Résultat attendu** : l'appel HTTP répond `301`/`308` vers `https://` ; l'appel HTTPS répond `200` avec un certificat émis par Let's Encrypt, chaîne de confiance valide.
 - **Critères d'acceptation** : `deploy/traefik/traefik.yml` — `entryPoints.web.http.redirections` vers `websecure` ; `certificatesResolvers.le.acme.caServer` pointe l'endpoint **prod** (pas staging LE) au moment du test.
-- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur prod & staging: v1.0.1)
+- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur prod & staging: v1.0.1) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : volet HTTPS confirmé (`curl -vI https://staging.storytide.fr` : connexion TLS établie, ALPN négocié, aucun avertissement certificat) ; `curl -I http://staging.storytide.fr` → `308` (redirection HTTPS confirmée).
 
 ## TST-SEC-010 — En-têtes de sécurité présents sur les réponses de l'app (KAN-10)
 
@@ -373,7 +373,7 @@
 - **Étapes** : 1) `curl -sI https://staging.storytide.fr` (ou `storytide.fr`).
 - **Résultat attendu** : les 4 en-têtes sont présents dans la réponse, avec les valeurs attendues (`Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`).
 - **Critères d'acceptation** : `deploy/traefik/dynamic/middlewares.yml` (`secure-headers`) référencé par les labels Traefik de `deploy/compose.prod.yml`/`compose.staging.yml`.
-- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur staging: v1.0.0-rc.2)
+- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur staging: v1.0.0-rc.2) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : `curl -vI https://staging.storytide.fr` — les 4 en-têtes présents avec les valeurs exactes attendues.
 
 ## TST-SEC-011 — PostgreSQL et MinIO injoignables depuis Internet (KAN-10)
 
@@ -383,7 +383,7 @@
 - **Étapes** : 1) Depuis une machine externe, `nc -zv <IP_VPS> 5432` puis `nc -zv <IP_VPS> 9000` et `9001`. 2) `docker compose -p storytide-prod ... ps` sur le VPS pour confirmer l'absence de `ports:` publiés sur ces services.
 - **Résultat attendu** : les 3 connexions échouent (timeout/refused) depuis l'extérieur ; `docker compose ps` ne montre aucun port publié pour `postgres`/`minio` autre que via le réseau interne.
 - **Critères d'acceptation** : `deploy/compose.prod.yml`/`compose.staging.yml` — aucun `ports:` sur `postgres`/`minio`/`worker`/`migrate`/`backup`, seul `traefik` publie 80/443.
-- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur staging: v1.0.0-rc.2)
+- **Type** : sécurité · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur staging: v1.0.0-rc.2) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : `Test-NetConnection` sur les ports 5432/9000/9001 (IP VPS) — les 3 échouent (timeout/refused).
 
 ## TST-SEC-012 — Déploiement complet déclenché par tag, sans intervention manuelle sur le VPS (KAN-10)
 
@@ -393,7 +393,7 @@
 - **Étapes** : 1) Pousser un tag `vX.Y.Z-rc.N`. 2) Observer le run GitHub Actions (`cd.yml`) jusqu'au job `deploy`. 3) Sur le VPS, `docker compose -p storytide-staging ... ps`. 4) Répéter avec un tag `vX.Y.Z` (approuver l'environment `production` dans l'onglet Actions).
 - **Résultat attendu** : les 4 images sont poussées sur ghcr, le job `deploy` réussit (`--wait` healthchecks OK), `docker compose ps` montre tous les services `healthy`/`running`, sans commande manuelle sur le VPS en dehors de l'approbation GitHub pour la prod.
 - **Critères d'acceptation** : `.github/workflows/cd.yml` (jobs `build-push`/`deploy`) ; capture du run + de `docker compose ps` versées en preuve (`docs/cd.md`).
-- **Type** : sécurité / fonctionnel · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur prod & staging: v1.0.1)
+- **Type** : sécurité / fonctionnel · **Statut** : ✅ Validé le 18-07-2026 (exécuté sur prod & staging: v1.0.1) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : tag `v1.2.0-rc.1` → run GitHub Actions vert, aucune intervention manuelle sur le VPS (confirmé par Aymeric).
 
 ## TST-SEC-013 — Upload d'image : rejet d'un faux MIME (magic bytes) et d'une taille excessive (KAN-16)
 
@@ -403,7 +403,7 @@
 - **Étapes** : 1) Ouvrir le dialog « Image », choisir un fichier texte renommé en `.png`. 2) Renseigner l'alt, cliquer « Insérer ». 3) Répéter avec un fichier image valide mais supérieur à 5 Mo.
 - **Résultat attendu** : les deux tentatives sont rejetées avec un message clair (« Type de fichier non pris en charge. » / « Image trop volumineuse (5 Mo maximum). ») ; aucun objet n'est créé dans MinIO, aucune ligne `Image` en base.
 - **Critères d'acceptation** : `image-validation.test.ts` (signatures PNG/JPEG/GIF/WebP acceptées, texte brut rejeté) ; `image-service.test.ts` (`uploadImage` : MIME invalide et taille dépassée rejetés avant `storage.upload`/`prisma.image.create`).
-- **Type** : sécurité · **Statut** : ✅ (`image-validation.test.ts`, `image-service.test.ts`)
+- **Type** : sécurité · **Statut** : ⚠️ Recette staging v1.2.0-rc.1 (2026-07-23) : volet faux MIME ✅ (rejet propre) ; volet taille >5 Mo ❌ — `500` brut, aucun message utilisateur, UI bloquée sur « Envoi... ». Aucune fuite de sécurité confirmée (rien en base ni MinIO). → `plan-correction-bogues.md` BUG-006, arbitré P2/report, ne bloque pas le tag v1.2.0. Statut sous-jacent tests unitaires inchangé : ✅ (`image-validation.test.ts`, `image-service.test.ts`)
 
 ## TST-SEC-014 — Ancre `javascript:` collée dans l'éditeur, neutralisée dès le collage (KAN-39, BUG-002)
 
@@ -413,7 +413,7 @@
 - **Étapes** : 1) Coller un extrait HTML contenant `<a href="javascript:alert(1)">Cliquez ici</a>` dans l'éditeur. 2) Attendre l'indicateur « Enregistré. ». 3) Recharger la page.
 - **Résultat attendu** : le texte « Cliquez ici » est présent, sans aucun lien cliquable ; après rechargement, le contenu relu ne contient ni mark `link` ni la chaîne `javascript:`.
 - **Critères d'acceptation** : `tiptap-extensions.test.ts` (`SafeLink` : `href` en `javascript:` rejeté dès `parseHTML`, `JSON.stringify` du document ne contient jamais `javascript:`) ; `tiptap-content.test.ts` (garde-fou serveur existant, `assertSafeAttributes`, inchangé — double barrière).
-- **Type** : sécurité · **Statut** : ✅ (gates automatisés : lint, `tsc`, 322/322 tests unitaires, build, 9/9 e2e) — vérification manuelle Aymeric en attente.
+- **Type** : sécurité · **Statut** : ❌ Recette staging v1.2.0-rc.1 (2026-07-23) : après collage + sauvegarde + rechargement, la balise `<a href="javascript:alert(1)">` et la chaîne `javascript:` sont toujours présentes dans le DOM (inspection Elements) — critère d'acceptation non respecté malgré les gates automatisés. Ni clic simple ni Ctrl/Cmd+clic n'exécutent quoi que ce soit (aucun exploit vivant trouvé dans l'UI actuelle). → `plan-correction-bogues.md` BUG-007, P1, correctif requis avant le tag v1.2.0. Gates automatisés historiques (lint, `tsc`, 322/322 tests, build, 9/9 e2e) inchangés — n'avaient pas révélé ce cas.
 
 ## TST-SEC-015 — Endpoint `/api/health` : statut nominal, base coupée, aucune fuite d'information (supervision v1, C4.1.2)
 
@@ -423,7 +423,7 @@
 - **Étapes** : 1) `curl -i http://localhost:3000/api/health` base saine. 2) Couper la base (`docker compose stop postgres` ou équivalent). 3) `curl -i http://localhost:3000/api/health` à nouveau. 4) Inspecter le corps de la réponse d'échec pour toute trace de message d'erreur brut/DSN.
 - **Résultat attendu** : (1) `200`, corps `{"status":"ok","version":"…","uptime":…,"checks":{"db":"ok"}}`, en-tête `Cache-Control: no-store`, pas de champ `commit` si `NODE_ENV=production`. (3) `503`, corps `{"status":"degraded","checks":{"db":"error"}}`. (4) aucune chaîne d'erreur d'origine, de DSN ni de stack trace dans le corps — la trace réelle part uniquement en log serveur (`console.error`).
 - **Critères d'acceptation** : `src/app/api/health/route.test.ts` (200 nominal, 503 base KO, 503 timeout 2 s, non-fuite du message d'erreur d'origine, SHA masqué en production/affiché hors production) ; vérifié en conditions réelles (stack dev, base coupée — sorties 200 puis 503 montrées, pas supposées).
-- **Type** : sécurité · **Statut** : ✅ `src/app/api/health/route.test.ts`
+- **Type** : sécurité · **Statut** : ✅ `src/app/api/health/route.test.ts` — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : volet nominal `curl -i https://staging.storytide.fr/api/health` → `200 OK` confirmé. Volet panne base/non-fuite : non rejoué (base staging partagée, coupure non souhaitée) — preuve = `route.test.ts` (503 base KO, 503 timeout, non-fuite d'erreur, SHA masqué en prod), décision Aymeric.
 
 ## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
 
@@ -433,7 +433,7 @@
 - **Étapes** : 1) Ouvrir le dialog « Image ». 2) Choisir le fichier via « Importer une image ». 3) Renseigner la « Légende » (obligatoire). 4) Cliquer « Insérer ». 5) Attendre l'indicateur « Enregistré. ». 6) Recharger la page.
 - **Résultat attendu** : l'image est visible immédiatement après insertion (`src` = `/api/media/<imageId>`, jamais une URL MinIO directe) ; après rechargement, l'image reste visible et chargée (round-trip signé revalidé à chaque lecture).
 - **Critères d'acceptation** : vérifié en conditions réelles bout en bout (`e2e/image-upload.spec.ts`, vrai navigateur Chromium, vrai MinIO, `naturalWidth > 0` après chargement — pas seulement la présence DOM, l'image est `loading="lazy"`).
-- **Type** : fonctionnel (bout en bout) + accessibilité (alt obligatoire, RGAA) · **Statut** : ✅ (`e2e/image-upload.spec.ts`)
+- **Type** : fonctionnel (bout en bout) + accessibilité (alt obligatoire, RGAA) · **Statut** : ❌ Recette staging v1.2.0-rc.1 (2026-07-23) : bucket MinIO manquant sur cet environnement (BUG-010, corrigé en session via création manuelle du bucket `story-tide-staging`) ; après correction, upload réussi (visible dans MinIO) mais affichage cassé — URL présignée pointe vers l'hôte Docker interne `minio:9000`, inatteignable du navigateur (BUG-011, P1, correctif requis avant tag). En attente de retest après correctif BUG-011.
 
 ## TST-ENT-011 — Collage d'un texte externe (lien relatif + retours à la ligne) dans l'éditeur, enregistrement réussi (KAN-39, BUG-002)
 
@@ -443,7 +443,7 @@
 - **Étapes** : 1) Coller un extrait HTML avec un lien à `href` relatif (ex. `<a href="Cultistes des souterrains">Cultistes des souterrains</a>`) suivi d'un `<br>` puis d'un second texte (« Sous-titre ») dans le même bloc. 2) Attendre l'indicateur « Enregistré. ». 3) Recharger la page.
 - **Résultat attendu** : la sauvegarde réussit (pas de message d'erreur) ; « Cultistes des souterrains » et « Sous-titre » sont tous deux lisibles, dans deux paragraphes distincts ; aucun lien cliquable sur le premier texte.
 - **Critères d'acceptation** : `tiptap-extensions.test.ts` (`SafeLink` : href relatif/espaces rejeté, texte conservé ; `splitParagraphsOnBreaks` : `<br>` scindé en paragraphes distincts, pas de paragraphe vide ; cas d'intégration combinant les deux sur un collage réaliste).
-- **Type** : fonctionnel · **Statut** : ✅ (gates automatisés : lint, `tsc`, 322/322 tests unitaires, build, 9/9 e2e) — vérification manuelle Aymeric en attente.
+- **Type** : fonctionnel · **Statut** : ✅ (gates automatisés : lint, `tsc`, 322/322 tests unitaires, build, 9/9 e2e) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : collage HTML (lien relatif + `<br>`) confirmé, sauvegarde réussie, paragraphes distincts, aucun lien cliquable.
 
 ## TST-ENT-012 — Redimensionnement d'une image par poignée de drag, avec équivalent clavier (KAN-39 volet 5)
 
@@ -453,7 +453,7 @@
 - **Étapes** : 1) Cliquer l'image pour la sélectionner (cadre + poignée visibles). 2) Glisser la poignée horizontalement. 3) Attendre l'indicateur « Enregistré. », recharger la page — la taille doit être conservée. 4) Re-sélectionner l'image (souris, ou clavier via la sélection native de nœud de l'éditeur), puis utiliser les flèches gauche/droite pour ajuster la largeur par pas de 5 %.
 - **Résultat attendu** : le drag ajuste la largeur en direct sans à-coups, dans les bornes [10, 100] ; le clavier seul (sans souris) permet le même réglage, chaque pas annoncé via `aria-valuenow` (poignée `role="slider"`) ; la largeur choisie est identique avant/après rechargement.
 - **Critères d'acceptation** : `tiptap-content.test.ts` (`assertSafeAttributes` : accepte width valide et l'absence de `width` — défaut 100, rétrocompat — rejette hors bornes/mauvais type/non fini) ; `tiptap-extensions.test.ts` (round-trip HTML du style `width:%` via `generateJSON`) ; `resizable-image-view.test.tsx` (poignée présente uniquement si l'image est sélectionnée, commit clavier ±5 % borné aux limites) — pas de simulation de drag en unitaire, vérifiée manuellement.
-- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ✅ (gates automatisés : lint, `tsc`, 335/335 tests unitaires, build, 9/9 e2e ; validé manuellement par Aymeric).
+- **Type** : fonctionnel + accessibilité (clavier complet, RGAA) · **Statut** : ⏸️ Recette staging v1.2.0-rc.1 (2026-07-23) : bloqué par BUG-011 (aucune image ne s'affiche sur staging tant que l'URL présignée pointe vers l'hôte Docker interne) — nécessite une image visible pour tester le redimensionnement. En attente de retest après correctif. Gates automatisés historiques inchangés : ✅ (lint, `tsc`, 335/335 tests unitaires, build, 9/9 e2e ; validé manuellement par Aymeric).
 
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
@@ -463,7 +463,7 @@
 - **Étapes** : 1) Sauvegarder le contenu de l'entrée mentionnant l'autre entité. 2) Laisser le worker traiter le job de liaison (`entity-linking`, `singletonKey=entityId`).
 - **Résultat attendu** : une `Relation origin=AUTO` apparaît en base entre l'entrée source et l'entité mentionnée.
 - **Critères d'acceptation** : `scanAndLinkEntity` crée la relation ; vérifié en conditions réelles (vraie base Postgres, vrai adaptateur pg-boss, vrai worker) — la mention disparaît du texte → la relation `AUTO` correspondante est supprimée au re-scan suivant.
-- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`, vérifié en conditions réelles)
+- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`, vérifié en conditions réelles) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : entrée « Aldric » créée dans Eldoria, mentionnée depuis la première entrée, `Relation AUTO` visible dans Renvois après quelques secondes (worker).
 
 ## TST-LNK-002 — Une Relation origin=MANUAL n'est jamais écrasée par un re-scan automatique
 
@@ -473,7 +473,7 @@
 - **Étapes** : 1) Déclencher un re-scan de l'entrée source (sauvegarde de contenu). 2) Laisser le worker traiter le job.
 - **Résultat attendu** : la `Relation origin=MANUAL` est toujours présente et inchangée après le re-scan.
 - **Critères d'acceptation** : `scanAndLinkEntity` ne lit et n'écrit que des relations `origin=AUTO` (filtre explicite sur toutes les requêtes) ; vérifié en conditions réelles.
-- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`, vérifié en conditions réelles)
+- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`, vérifié en conditions réelles) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : mention `@Selyne` maintenue, re-save neutre déclenchant le worker AUTO, « Selyne » toujours présente dans Renvois après re-scan (ni supprimée ni dupliquée).
 
 ## TST-LNK-003 — Garde-fous du scan : auto-mention, `LinkIgnore`, occurrences ambiguës
 
@@ -483,7 +483,7 @@
 - **Étapes** : 1) Sauvegarder un contenu correspondant à l'un des trois cas. 2) Laisser le worker traiter le job.
 - **Résultat attendu** : aucune `Relation origin=AUTO` n'est créée pour l'occurrence concernée dans les trois cas.
 - **Critères d'acceptation** : couvert par `linker-service.test.ts` (auto-mention exclue, `LinkIgnore` respecté, occurrence ambiguë sans lien). Le marquage « ambigu » cliquable pour trancher (spec §4.4 point 6) reste hors périmètre — backlog KAN-19, nécessite un modèle de données dédié.
-- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`)
+- **Type** : fonctionnel · **Statut** : ✅ (`linker-service.test.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : replay auto-mention confirmé (« Aldric » mentionnant son propre nom → aucune relation vers lui-même) ; `LinkIgnore`/homonymes ambigus non rejoués, preuve = test automatisé.
 
 ## TST-LNK-004 — Surlignage live des mentions dans l'éditeur, navigation par Ctrl/Cmd+clic et par la liste accessible
 
@@ -493,7 +493,7 @@
 - **Étapes** : 1) Taper un texte mentionnant l'entité cible dans l'éditeur de l'entrée source. 2) Vérifier que le mot porte la classe `entity-mention` et l'attribut `data-target-id` correspondant. 3) Cliquer simplement sur la mention (sans modificateur). 4) Ctrl/Cmd+cliquer sur la mention. 5) Attendre l'autosave, laisser le worker traiter le job, recharger la page et consulter la liste « Renvois ». 6) Suivre le lien de la liste.
 - **Résultat attendu** : le surlignage apparaît immédiatement (avant tout traitement du worker) ; le clic simple ne change pas d'URL (édition normale) ; le Ctrl/Cmd+clic navigue vers l'entrée cible ; la liste « Renvois » affiche un lien vers la cible une fois le job traité, et ce lien navigue vers la même entrée.
 - **Critères d'acceptation** : `tiptap-positions.test.ts` (alignement caractère-exact `plainText` ↔ ProseMirror), `tiptap-link-highlight.test.ts` (décorations correctes : mention connue, ambiguïté/auto-mention/`LinkIgnore` sans décoration, re-scan sur changement de doc), `relation-service.test.ts` (`listOutgoingLinks`) ; vérifié en conditions réelles bout en bout (`e2e/link-highlight.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée).
-- **Type** : fonctionnel (bout en bout) + accessibilité · **Statut** : ✅ (`tiptap-positions.test.ts`, `tiptap-link-highlight.test.ts`, `relation-service.test.ts`, `e2e/link-highlight.spec.ts`)
+- **Type** : fonctionnel (bout en bout) + accessibilité · **Statut** : ✅ (`tiptap-positions.test.ts`, `tiptap-link-highlight.test.ts`, `relation-service.test.ts`, `e2e/link-highlight.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : surlignage live confirmé, clic simple sans navigation, Ctrl/Cmd+clic navigue, lien de la liste « Renvois » navigue aussi. Capture prise.
 
 ## TST-LNK-005 — Backlinks : liste « Échos » sur chaque entrée d'entité
 
@@ -503,7 +503,7 @@
 - **Étapes** : 1) Ouvrir l'entrée B (la cible mentionnée). 2) Consulter la section « Échos ». 3) Vérifier le lien vers A. 4) Ouvrir une entrée sans aucune mention entrante.
 - **Résultat attendu** : l'entrée B affiche un lien accessible vers A dans « Échos » ; l'entrée sans mention entrante affiche l'état vide dédié (« Aucune entrée ne mentionne cette entité pour l'instant. ») plutôt qu'une liste vide silencieuse ; les deux sections (« Renvois » / « Échos ») ont chacune un `aria-label` distinct pour les lecteurs d'écran.
 - **Critères d'acceptation** : `relation-service.test.ts` (`listIncomingLinks` : vide sans requêter les entités, tri par nom, source introuvable omise silencieusement) ; `LinkedEntities` généralisé (`linked-entities.tsx`) couvert par le même rendu que TST-LNK-004 (composant partagé, pas de duplication de markup).
-- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (`relation-service.test.ts`)
+- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (`relation-service.test.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : « Aldric » affiche le lien vers l'entrée source dans « Échos » ; entrée sans mention entrante affiche l'état vide attendu.
 
 ## TST-LNK-006 — Mentions manuelles @ : popup, insertion, relation MANUAL bidirectionnelle
 
@@ -513,7 +513,7 @@
 - **Étapes** : 1) Taper `@` puis le nom (même composé, espaces compris) de l'entité cible dans l'éditeur de l'entrée source. 2) Vérifier la popup filtrée puis valider par Entrée (ou clic). 3) Vérifier le rendu de la mention (classe, `data-target-id`, aucun `@` affiché). 4) Attendre l'autosave. 5) Clic simple sur la mention, puis Ctrl/Cmd+clic. 6) Recharger l'entrée source et consulter « Renvois ». 7) Ouvrir l'entrée cible et consulter « Échos ».
 - **Résultat attendu** : la popup reste ouverte et filtrée même après un espace dans la requête (`allowSpaces`, cf. ADR-0011) ; la mention insérée est visible immédiatement, sans attendre le worker ; le clic simple ne navigue jamais, le Ctrl/Cmd+clic navigue vers l'entrée cible ; « Renvois » (entrée source) et « Échos » (entrée cible) affichent la relation dès le premier rechargement après l'autosave (réconciliation synchrone, pas de délai comme pour l'AUTO).
 - **Critères d'acceptation** : `tiptap-content.test.ts` (`extractMentionedEntityIds`), `relation-service.test.ts` (`reconcileManualMentions` : ajout/suppression, id hors monde ignoré, auto-mention exclue, jamais de lecture/écriture des lignes AUTO), `entity-content.test.ts` (câblage dans `saveEntityContentAction`, échec non-fatal loggué), `tiptap-extensions.test.ts` (`filterMentionSuggestions`), `mention-list.test.tsx` (popup : rendu, navigation clavier, clic) ; vérifié en conditions réelles bout en bout (`e2e/manual-mention.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée — a révélé le bug `allowSpaces` avant toute mise en recette manuelle).
-- **Type** : fonctionnel (bout en bout) + accessibilité + sécurité (revalidation serveur des id mentionnés, OWASP A01) · **Statut** : ✅ (`tiptap-content.test.ts`, `relation-service.test.ts`, `entity-content.test.ts`, `tiptap-extensions.test.ts`, `mention-list.test.tsx`, `e2e/manual-mention.spec.ts`)
+- **Type** : fonctionnel (bout en bout) + accessibilité + sécurité (revalidation serveur des id mentionnés, OWASP A01) · **Statut** : ✅ (`tiptap-content.test.ts`, `relation-service.test.ts`, `entity-content.test.ts`, `tiptap-extensions.test.ts`, `mention-list.test.tsx`, `e2e/manual-mention.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : insertion `@Selyne` confirmée ; volet suppression confirmé au passage (`reconcileManualMentions`) ; popup `@ald` filtrée au clavier, mention propre sans `@` résiduel, clic simple sans navigation, Ctrl/Cmd+clic navigue, « Renvois »/« Échos » à jour dès le premier rechargement (réconciliation synchrone, pas de délai worker). Capture prise.
 
 ## TST-LNK-007 — Garde-fou « Ignorer ce lien » : suppression immédiate et blocage de la recréation
 
@@ -523,7 +523,7 @@
 - **Étapes** : 1) Ouvrir l'entrée source, repérer la cible dans « Renvois ». 2) Cliquer « Ignorer ce lien ». 3) Vérifier la disparition de « Renvois » et l'apparition dans « Liens ignorés ». 4) Cliquer « Ne plus ignorer ». 5) Vérifier la disparition de « Liens ignorés » et l'ABSENCE de recréation immédiate dans « Renvois ». 6) Déclencher un nouvel autosave (re-sauvegarde du contenu inchangé) et laisser le worker retraiter le job. 7) Recharger et vérifier la réapparition dans « Renvois ».
 - **Résultat attendu** : l'étape 2 supprime la relation sans attendre le worker ; l'étape 4 ne fait que lever le garde-fou (aucune relation recréée tant qu'aucun scan n'a eu lieu) ; l'étape 7 confirme qu'un nouveau scan redétecte normalement la mention une fois le garde-fou levé.
 - **Critères d'acceptation** : `relation-service.test.ts` (`ignoreLink` : authz via `getEntity`, revalidation du `targetId` contre le monde réel avant écriture — OWASP A01 —, transaction upsert `LinkIgnore` + suppression `Relation AUTO`, jamais `MANUAL` ; `unignoreLink` : suppression du `LinkIgnore`, no-op silencieux si absent ; `listIgnoredTargets` : noms résolus, cible supprimée omise silencieusement) ; `link-ignore.test.ts` (session expirée, entrée introuvable, échec générique loggué jamais avalé, succès + `revalidatePath`) ; vérifié en conditions réelles bout en bout (`e2e/link-ignore.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée).
-- **Type** : fonctionnel (bout en bout) + sécurité (revalidation serveur du `targetId`, OWASP A01) · **Statut** : ✅ (`relation-service.test.ts`, `link-ignore.test.ts`, `e2e/link-ignore.spec.ts`)
+- **Type** : fonctionnel (bout en bout) + sécurité (revalidation serveur du `targetId`, OWASP A01) · **Statut** : ✅ (`relation-service.test.ts`, `link-ignore.test.ts`, `e2e/link-ignore.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : suppression immédiate confirmée, apparition dans « Liens ignorés », « Ne plus ignorer » sans recréation immédiate, réapparition après re-scan confirmée. Note timing : premier check fait à ~1 s (sous le seuil qualité de 5 s), relation pas encore visible à ce moment — normal, pas un bogue ; confirmée après attente cumulée suffisante.
 
 ## TST-LNK-008 — Normalisation Unicode NFC : un texte collé en forme décomposée (NFD) ne fait jamais disparaître un lien (ADR-0020)
 
@@ -533,7 +533,7 @@
 - **Étapes** : 1) Créer l'entité cible avec un nom accentué. 2) Dans une autre fiche, écrire un texte mentionnant l'entité cible en forme NFD (ex. collé depuis une source qui décompose les accents) puis, plus loin dans la même phrase, mentionner une seconde entité valide sans aucun accent. 3) Sauvegarder, attendre le worker. 4) Consulter « Renvois » sur la fiche source.
 - **Résultat attendu** : les deux liens apparaissent dans « Renvois » — ni l'entité accentuée (forme NFD à l'origine) ni la seconde entité (mentionnée après, sans accent) ne sont perdues. Le nom/alias de l'entité créée en forme NFD est persisté en forme NFC (`Entity.name`/`Alias.value`), et le corps Tiptap sauvegardé (`Entity.content`, `Entity.plainText`) reflète la même forme NFC — jamais l'un normalisé et l'autre non.
 - **Critères d'acceptation** : `src/lib/linker/aho-corasick.test.ts` (le moteur pur, isolé, conserve la limite connue face à du texte non normalisé — pin explicite — **et** un test de non-régression dédié prouve qu'avec un texte déjà NFC, garanti par la frontière applicative, aucun match n'est perdu) ; `entity-service.test.ts` (`createEntity`/`updateEntity` : nom et alias persistés en NFC même saisis en NFD) ; `tiptap-content.test.ts` (`normalizeContentText` : nœuds texte normalisés en NFC à toute profondeur, structure/marks/attrs préservés, fonction pure) ; `entity-content.test.ts` (`saveEntityContentAction` : body persisté et `plainText` extrait alignés sur la même forme NFC). Vérification manuelle : aucune donnée existante en base de développement n'était en forme non-NFC au moment du diagnostic (contrôle ponctuel, pas de migration nécessaire) — à revérifier sur staging/production avant bascule si des données antérieures à ce correctif y existent.
-- **Type** : fonctionnel + sécurité/robustesse (fiabilité du différenciateur produit, faux négatif silencieux) · **Statut** : ✅ (`aho-corasick.test.ts`, `entity-service.test.ts`, `tiptap-content.test.ts`, `entity-content.test.ts`)
+- **Type** : fonctionnel + sécurité/robustesse (fiabilité du différenciateur produit, faux négatif silencieux) · **Statut** : ✅ (`aho-corasick.test.ts`, `entity-service.test.ts`, `tiptap-content.test.ts`, `entity-content.test.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : « Élara » collée en forme NFD suivie d'« Aldric » sans accent, après rechargement (post-worker) les deux liens apparaissent dans Renvois — aucune perte.
 
 ## TST-LNK-009 — Re-scan sur le monde d'introduction seedé : la Relation MANUAL survit (KAN-35)
 
@@ -543,7 +543,7 @@
 - **Étapes** : 1) Ouvrir la fiche « Ordre du Verbe Clos ». 2) Vérifier la présence du lien « Selvenn » dans « Renvois ». 3) Effectuer un re-save neutre (frappe puis retour arrière, aucun changement de contenu réel) et attendre l'indicateur « Enregistré. ». 4) Laisser le worker retraiter le job de liaison. 5) Recharger et revérifier « Renvois ».
 - **Résultat attendu** : le lien « Selvenn » reste présent dans « Renvois » après le re-scan déclenché à l'étape 3-4 — aucune disparition, aucune duplication.
 - **Critères d'acceptation** : `linker-service.test.ts` (`scanAndLinkEntity` ne touche jamais `origin=MANUAL`, règle déjà couverte par TST-LNK-002, ici confirmée sur un contenu produit par le seed) ; vérifié en conditions réelles bout en bout (`e2e/intro-world.spec.ts`, étape 5 du scénario, vrai worker, vraie base Postgres isolée).
-- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/intro-world.spec.ts`)
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`e2e/intro-world.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : re-save neutre sur « Ordre du Verbe Clos » (Atheraus), lien « Selvenn » toujours présent après re-scan, aucune duplication.
 
 ## TST-GRF-001 — Constellation : rendu Cytoscape + navigation cliquable
 
@@ -553,7 +553,7 @@
 - **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier la présence du canvas rendu. 3) Cliquer sur un nœud.
 - **Résultat attendu** : le canvas Cytoscape est monté (élément `<canvas>` réel, pas seulement le conteneur) ; le clic sur un nœud navigue vers `/worlds/[slug]/entities/[entityId]` de l'entité cliquée.
 - **Critères d'acceptation** : `graph-elements.test.ts` (`buildGraphElements` : nœuds/arêtes corrects, arêtes AUTO/MANUAL distinguées par id, arête omise silencieusement si une extrémité a disparu), `relation-service.test.ts` (`listWorldRelations`) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée).
-- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`graph-elements.test.ts`, `relation-service.test.ts`, `e2e/graph.spec.ts`)
+- **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`graph-elements.test.ts`, `relation-service.test.ts`, `e2e/graph.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : canvas Cytoscape visible, clic sur un nœud navigue vers la fiche correspondante. Capture prise.
 
 ## TST-GRF-002 — Constellation : filtrage par type (chips repliables, KAN-36 P5b)
 
@@ -563,7 +563,7 @@
 - **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'une chip existe pour chaque type présent, pressée. 3) Cliquer une chip.
 - **Résultat attendu** : chaque chip est pressée (`aria-pressed="true"`) par défaut ; cliquer la fait passer à `aria-pressed="false"` sans erreur ni rechargement de page.
 - **Critères d'acceptation** : vérifié en conditions réelles (`e2e/graph.spec.ts` : chip « Lieu » présente, pressée, puis dépressée après clic — `getByRole("button", { name, exact: true, pressed })`).
-- **Type** : fonctionnel + accessibilité (boutons natifs, focus visible) · **Statut** : ✅ (`e2e/graph.spec.ts`)
+- **Type** : fonctionnel + accessibilité (boutons natifs, focus visible) · **Statut** : ✅ (`e2e/graph.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : chips pressées par défaut, bascule sans erreur ni rechargement.
 
 ## TST-GRF-003 — Constellation : liste accessible derrière « Observer les fils » (clavier/lecteur d'écran)
 
@@ -573,7 +573,7 @@
 - **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Cliquer « Observer les fils ». 3) Localiser la région « Liste des liens de la constellation ». 4) Suivre un lien vers une entité cible.
 - **Résultat attendu** : la liste est absente du DOM tant que le disclosure n'est pas ouvert ; une fois ouverte, elle affiche l'entité source et un lien vers chaque cible (une seule fois par paire, même en cas de mention mutuelle ou de double origine AUTO+MANUEL) ; suivre le lien navigue vers la bonne entrée (`<h1>` de l'entrée cible).
 - **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement par source, tri, entité sans relation sortante absente de la liste mais atteignable comme cible, extrémité disparue omise silencieusement, dédoublonnage AUTO+MANUEL même sens, dédoublonnage d'une paire mutuelle rangée sous l'entité canonique, départage déterministe par id si noms identiques) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, ouverture du disclosure puis navigation clavier/lecteur d'écran).
-- **Type** : accessibilité (élim.) · **Statut** : ✅ gates automatisés (`graph-elements.test.ts`, `e2e/graph.spec.ts`) — vérif manuelle Aymeric en attente (disclosure, rendu « ↔ » d'une paire mutuelle réelle)
+- **Type** : accessibilité (élim.) · **Statut** : ✅ gates automatisés (`graph-elements.test.ts`, `e2e/graph.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : liste absente du DOM fermée, disclosure fonctionnel, paire mutuelle testée sans doublon (« ↔ »).
 
 ## TST-GRF-004 — Constellation : couleur et filtre par famille de types (KAN-18, chips KAN-36 P5b)
 
@@ -583,7 +583,7 @@
 - **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'une chip existe pour chaque type, regroupée sous l'en-tête de sa famille. 3) Cliquer une chip, puis « Rien » sur une famille.
 - **Résultat attendu** : chaque famille a son propre en-tête (`<legend>`) regroupant ses chips et ses boutons « Tout »/« Rien » ; cliquer une chip masque bien les nœuds de ce type précis (pas toute la famille) ; « Rien » dépresse toutes les chips de la famille d'un coup ; le libellé texte du type reste visible au clic/survol d'un nœud (couleur = famille, hover MINT, jamais l'unique moyen d'identifier le type précis).
 - **Critères d'acceptation** : palette à 8 teintes validée par le skill `dataviz` du projet (`node scripts/validate_palette.js`, bande de luminosité/chroma/CVD/contraste, toutes passantes en mode sombre) ; vérifié en conditions réelles (`e2e/graph.spec.ts` : chip « Lieu » présente, pressée, dépressée après clic, entrée créée via le combobox de type KAN-18) ; vérification manuelle Aymeric du « Tout »/« Rien » par famille et du hover MINT (non couvert par e2e).
-- **Type** : fonctionnel + accessibilité (couleur jamais seule, C2.2.3) · **Statut** : ✅ gates automatisés — vérif manuelle Aymeric en attente (Tout/Rien, hover MINT, plein cadre)
+- **Type** : fonctionnel + accessibilité (couleur jamais seule, C2.2.3) · **Statut** : ⚠️ Recette staging v1.2.0-rc.1 (2026-07-23) : familles regroupées (`<legend>`), chip individuelle isole bien son type, « Rien » bascule toute la famille — ❌ mais le type d'un nœud n'est identifiable que par sa couleur, aucun libellé au survol/clic. Capture prise (illustre aussi le défaut). → `plan-correction-bogues.md` BUG-012, arbitré P2/report, ne bloque pas le tag v1.2.0.
 
 ## TST-QOT-001 — Quota de mondes : blocage au-delà de 3 mondes gratuits
 
@@ -593,7 +593,7 @@
 - **Étapes** : 1) Créer 3 mondes successivement (chacun doit réussir). 2) Tenter la création d'un 4ᵉ monde.
 - **Résultat attendu** : les 3 premières créations réussissent et redirigent vers le monde créé ; la 4ᵉ tentative reste sur `/worlds` et affiche « Limite de mondes atteinte pour l'offre gratuite (3 maximum). ».
 - **Critères d'acceptation** : `world-service.test.ts` (`createWorld` : sous la limite, à la limite → `WorldQuotaExceededError`, `world.create` jamais appelé) ; vérifié en conditions réelles bout en bout (`e2e/quota.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée).
-- **Type** : fonctionnel (bout en bout) + sécurité (OWASP A04, anti-abus) · **Statut** : ✅ (`world-service.test.ts`, `e2e/quota.spec.ts`)
+- **Type** : fonctionnel (bout en bout) + sécurité (OWASP A04, anti-abus) · **Statut** : ✅ (`world-service.test.ts`, `e2e/quota.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : 3 mondes créés avec succès, 4ᵉ tentative bloquée avec le message attendu. Capture prise.
 
 ## TST-QOT-002 — Quota d'entités : blocage au-delà de 50 entrées gratuites par monde
 
@@ -603,7 +603,7 @@
 - **Étapes** : 1) Créer la 50ᵉ entrée du monde (doit réussir). 2) Tenter la création d'une 51ᵉ entrée.
 - **Résultat attendu** : la 50ᵉ création réussit et redirige vers l'entrée créée ; la 51ᵉ tentative affiche « Limite d'entrées atteinte pour ce monde (offre gratuite : 50 maximum). ».
 - **Critères d'acceptation** : `entity-service.test.ts` (`createEntity` : sous la limite, à la limite → `EntityQuotaExceededError`, `entity.create` jamais appelé) ; vérifié en conditions réelles bout en bout (`e2e/quota.spec.ts`, seed direct des 49 premières entrées via `pg.Client`, les 2 entrées déterminantes créées via la vraie UI).
-- **Type** : fonctionnel (bout en bout) + sécurité (OWASP A04, anti-abus) · **Statut** : ✅ (`entity-service.test.ts`, `e2e/quota.spec.ts`)
+- **Type** : fonctionnel (bout en bout) + sécurité (OWASP A04, anti-abus) · **Statut** : ✅ (`entity-service.test.ts`, `e2e/quota.spec.ts`) — Recette staging v1.2.0-rc.1 (2026-07-23) : preuve = `e2e/quota.spec.ts` (seed 49 via psql + 2 créations déterminantes via vraie UI), non rejoué manuellement en session (décision Aymeric, gain de temps fin de session).
 
 ## TST-QOT-003 — Exemption de quota pour les mondes `origin` INTRO/DEMO
 
@@ -613,4 +613,4 @@
 - **Étapes** : 1) Créer une entité supplémentaire dans le monde `origin: INTRO`/`DEMO`. 2) Créer 3 mondes `origin: USER` alors que le monde INTRO existe déjà pour ce compte.
 - **Résultat attendu** : la création d'entité réussit sans jamais interroger le compteur (`entity.count` non appelé) ; un monde `origin: INTRO`/`DEMO` ne fait jamais échouer une création de monde par ailleurs légitime — les 3 mondes `USER` se créent normalement malgré la présence d'Atheraus.
 - **Critères d'acceptation** : `entity-service.test.ts` (« saute le contrôle de quota pour un monde origin=INTRO/DEMO, même au-delà de la limite ») ; `world-service.test.ts` (le comptage `createWorld` filtre explicitement `origin: WorldOrigin.USER`) ; vérifié en conditions réelles bout en bout pour `INTRO` (`e2e/intro-world.spec.ts`, étape finale : 3 mondes `USER` créés avec succès en présence du monde Atheraus). `DEMO` reste vérifié par test unitaire uniquement, aucun compte démo n'étant encore provisionné.
-- **Type** : fonctionnel · **Statut** : ✅ (`entity-service.test.ts`, `world-service.test.ts`, `e2e/intro-world.spec.ts` pour `INTRO`)
+- **Type** : fonctionnel · **Statut** : ✅ (`entity-service.test.ts`, `world-service.test.ts`, `e2e/intro-world.spec.ts` pour `INTRO`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : volet « mondes USER malgré INTRO » confirmé en conditions réelles (les 3 mondes USER de QOT-001 créés avec succès en présence d'Atheraus) ; volet « pas de contrôle de quota dans un monde INTRO au-delà de 50 » non rejoué manuellement (Atheraus à 25 entités, pousser à 50+ jugé disproportionné pour la preuve), preuve = `entity-service.test.ts`.
