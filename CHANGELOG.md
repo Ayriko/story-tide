@@ -7,6 +7,14 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- `package.json` `version` (lu par `GET /api/health`, supervision C4.1.2)
+  était resté figé à `0.1.0` (scaffold `create-next-app`) depuis l'origine,
+  malgré 8 tags posés — repéré lors de la vérification post-déploiement de
+  `v1.2.0` (`/api/health` répondait toujours `"version":"0.1.0"`). Corrigé à
+  `1.2.0`, non rétroactif sur le conteneur `v1.2.0` déjà déployé (visible au
+  prochain redéploiement seulement). Voir `docs/cd.md` (note sur la
+  synchronisation manuelle à chaque tag, pas encore automatisée).
+
 - Lecture d'image (`GET /api/media/[imageId]`) : l'URL présignée MinIO était
   construite avec l'endpoint **interne** au réseau Docker (`minio:9000`),
   jamais résolvable depuis le navigateur en staging/prod (multi-conteneurs) —

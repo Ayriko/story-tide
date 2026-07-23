@@ -47,6 +47,14 @@ jamais exposés (garde-fou ufw/Docker, voir `docs/securite-owasp.md` A05).
   `git tag -a vX.Y.Z` après recette OK sur staging) poussé sur `origin`
   (`git push origin <tag>`) — jamais de déploiement sur un simple push de
   branche.
+- **`package.json` `version`** (lu par `GET /api/health`, supervision C4.1.2) :
+  à mettre à jour **manuellement** dans le même commit que chaque tag `vX.Y.Z`
+  (pas les `-rc.N`, pour éviter le bruit) — resté à `0.1.0` (scaffold) de
+  `v1.0.0-rc.1` à `v1.2.0` inclus (repéré et corrigé le 2026-07-23 **après**
+  le déploiement prod de `v1.2.0`, donc pas rétroactif sur cette version déjà
+  déployée — visible seulement au prochain redéploiement). Pas encore
+  automatisé (ex. `npm version` dans le workflow CD à partir du tag poussé) —
+  amélioration future, hors périmètre de ce correctif ponctuel.
 - **Rollback** : re-taguer et re-pousser un tag existant ne republie pas
   (l'image existe déjà sur ghcr) — la procédure de retour arrière consiste à
   redéployer manuellement le tag précédent :

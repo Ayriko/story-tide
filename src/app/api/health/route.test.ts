@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
 import { env } from "@/env";
+import pkg from "../../../../package.json";
 import { GET } from "./route";
 
 vi.mock("@/db/client", () => ({
@@ -32,7 +33,7 @@ describe("GET /api/health", () => {
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(body).toEqual({
       status: "ok",
-      version: "0.1.0",
+      version: pkg.version,
       uptime: expect.any(Number),
       checks: { db: "ok" },
     });
