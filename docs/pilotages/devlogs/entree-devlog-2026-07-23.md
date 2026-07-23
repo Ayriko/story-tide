@@ -130,5 +130,68 @@ bloquants — voir la section suivante.
 | 2026-07-23 | Image uploadée avec succès mais jamais affichée (texte alternatif à la place), `Location: http://minio:9000/...` | URL présignée MinIO construite avec l'endpoint interne (`env.S3_ENDPOINT`), jamais résolvable par le navigateur | `src/app/api/media/[imageId]/route.ts` proxy désormais le binaire (fetch serveur + stream) au lieu de rediriger — ADR-0023 |
 | 2026-07-23 | `{"ok":false,"error":"Envoi impossible pour le moment."}` (upload image valide) | Bucket MinIO jamais provisionné sur staging (ni prod) | Service one-shot `minio-setup` ajouté à `compose.staging.yml`/`compose.prod.yml`, idempotent, dont dépendent désormais `app`/`worker`/`backup` |
 
-Note finale : tout le travail de cette journée (recette + corrections) a été committé et
-poussé par Aymeric ; CI verte confirmée. Rien n'est en attente de commit à ce stade.
+Note (mise à jour ci-dessous) : la session s'est poursuivie par le déploiement prod de
+v1.2.0, puis par un re-arbitrage de BUG-006 et un nouveau correctif — voir la section
+suivante.
+
+---
+
+### Session — 2026-07-23 — Déploiement prod v1.2.0, re-arbitrage BUG-006, v1.2.1
+
+**Thèmes abordés :**
+- Déploiement `v1.2.0` en prod (tag, approbation GitHub Environment, checklist post-déploiement complète).
+- Découverte et correction d'un écart de longue date (`package.json` `version` jamais synchronisée avec les tags).
+- Re-arbitrage de BUG-006 (P2→P1) après identification de son impact réel, correctif, retest staging, puis prod (`v1.2.1`).
+- Bogue cosmétique trouvé et corrigé pendant la validation locale (BUG-013, dialog Image).
+
+**Décisions prises :**
+- BUG-006 **re-arbitré P2→P1** par Aymeric le jour même : le premier arbitrage ne couvrait que le cas >5 Mo (rejet non gracieux, pas de perte) ; en y regardant à nouveau, tout upload de 1 à 5 Mo — la capacité **annoncée par la spec** — était aussi cassé par la même cause (limite Server Actions Next.js à 1 Mo), ce qui dégrade une fonctionnalité documentée, pas un simple cas limite mal géré.
+- Correctif retenu : relever `bodySizeLimit` à `6mb` (marge au-dessus des 5 Mo applicatifs, qui restent LA limite non contournable) plutôt que de désactiver toute limite ou de la fixer à exactement 5 Mo (marge de sécurité contre l'overhead du multipart/form-data).
+- Constante et message d'erreur (`MAX_IMAGE_BYTES`, `IMAGE_TOO_LARGE_MESSAGE`) déplacés de `image-service.ts` (serveur uniquement) vers `src/lib/image-validation.ts` (zéro dépendance, déjà partagé) pour permettre un contrôle client immédiat sans dupliquer la valeur — même philosophie que `url-safety.ts` pour `isSafeHttpUrl` (BUG-002).
+- `package.json` `version` : corrigée immédiatement (bump à `1.2.0`) plutôt que simplement notée au backlog, car elle sert directement la supervision (C4.1.2, `/api/health`) — mais **pas automatisée** (note ajoutée dans `docs/cd.md` : synchronisation manuelle à chaque tag `vX.Y.Z`, amélioration future hors périmètre de ce correctif ponctuel).
+- BUG-013 (dialog Image qui déborde sur un nom de fichier long) : corrigé et déployé en prod **sans repasser par staging** — décision Aymeric, correctif purement cosmétique (CSS `min-w-0`), déjà validé en local, jugé disproportionné de refaire un cycle rc complet pour ça.
+
+**Éléments notables / appris (gotchas) :**
+- **`npm install --package-lock-only` avec un `replace_all` naïf a corrompu le lockfile** : en cherchant à remplacer `"0.1.0"` par `"1.2.0"` dans `package-lock.json`, un premier essai a utilisé `replace_all`, qui a aussi réécrit la version d'autres paquets ayant coïncidentalement la même chaîne (`yocto-queue`, etc. — confirmé par `npm ci --dry-run` montrant des changements de version sur des dépendances tierces). Reverti (`git checkout --`) et corrigé avec deux edits ciblés (ancres uniques en tête de fichier), jamais de `replace_all` sur une valeur générique (numéro de version, chaîne courte) susceptible d'apparaître ailleurs dans un gros fichier généré. Candidat clair pour une future skill projet.
+- **`DialogContent` (shadcn/Radix, `dialog.tsx`) est en `display: grid`, pas `flex`** — un premier correctif de troncature (`truncate`/`min-w-0` sur le `<p>` du nom de fichier) n'a pas suffi car le `<p>` n'est pas l'enfant direct de la grille : c'est le `<div>` englobant (`flex flex-col gap-1.5`) qui l'est, et qui ne rétrécit pas sous la largeur intrinsèque de son contenu sans son propre `min-w-0` (piège `min-width: auto` par défaut sur les enfants de grid, même famille que sur les enfants de flex mais sur le mauvais niveau d'imbrication si on ne vérifie pas quel élément est réellement l'enfant direct du conteneur `grid`/`flex`). Corrigé en ajoutant `min-w-0` sur le bon niveau. Candidat clair pour une future skill projet (troncature de texte dans un composant shadcn Dialog).
+- Vérification `docker compose ps` post-déploiement prod : `minio-setup` en `Exited (0)` confirmé en conditions réelles (pas seulement `docker compose config`, qui ne peut valider que la syntaxe/interpolation sans démon actif) — la première preuve que BUG-010 est réellement résolu, pas juste validé sur le papier.
+- Un plantage `ECONNREFUSED` sur `Session.findFirst` en testant en local n'était pas lié au correctif en cours (Postgres local simplement pas démarré, `docker-compose.dev.yml`) — bon réflexe de vérifier l'environnement avant de suspecter le code venant d'être modifié.
+
+**Commandes utiles de la session :**
+- `npm install --package-lock-only` — resynchronise `package-lock.json` après un changement manuel de `package.json`, mais peut recalculer des dépendances optionnelles non liées (vu ici) : préférer un edit ciblé pour un simple bump de version.
+- `npm ci --dry-run` — détecte si un lockfile modifié à la main introduit un changement de dépendance non désiré, sans rien installer réellement.
+
+**Livrables produits :**
+- `next.config.ts` : `experimental.serverActions.bodySizeLimit: "6mb"` (BUG-006).
+- `src/lib/image-validation.ts` (+ test) : `MAX_IMAGE_BYTES`, `IMAGE_TOO_LARGE_MESSAGE`, `checkImageFileSize` (fonction pure, nouvelle source unique de vérité client+serveur).
+- `src/services/image-service.ts` : réutilise la constante/le message partagés au lieu de sa propre définition locale.
+- `src/app/(app)/worlds/[slug]/entities/[entityId]/entity-editor.tsx` : contrôle de taille immédiat au choix du fichier (BUG-006) + troncature correcte du nom de fichier long (BUG-013, `min-w-0` au bon niveau).
+- `package.json`/`package-lock.json` : `version` synchronisée à `1.2.0`.
+- `src/app/api/health/route.test.ts` : assertion de version rendue dynamique (`pkg.version`) pour ne plus jamais se figer à une future release.
+- `docs/cd.md` : note sur la synchronisation manuelle de `package.json` `version` à chaque tag.
+- `docs/plan-correction-bogues.md`, `docs/cahier-recettes.md`, `CHANGELOG.md` : BUG-006 (re-arbitrage tracé), BUG-013 (nouveau), mis à jour.
+- Gates : lint 0 warning, `tsc` clean, **381/381 tests unitaires**, couverture 98,13 %.
+- **Déployé et validé en prod** : `v1.2.0` (checklist post-déploiement complète, tous les checks verts) puis `v1.2.1` (BUG-006 validé en local et sur `v1.2.1-rc.1` staging ; BUG-013 validé en local uniquement, décision Aymeric).
+
+**Avancement certification :**
+- **C2.3.1 (recette)** : boucle complète re-arbitrage→correctif→test→déploiement bouclée deux fois le même jour (`v1.2.0`, puis `v1.2.1`) — les deux tags sont désormais en production.
+- **C2.4.1 (traçabilité)** : `docs/cd.md` documente désormais explicitement la synchronisation manuelle de version, jusqu'ici un angle mort silencieux.
+- **C2.2.2 (tests)** : `image-validation.test.ts` étendu (4 nouveaux cas), `route.test.ts` (santé) rendu résistant aux futures releases.
+
+**À faire / suite :**
+- Automatiser la synchronisation `package.json` `version` avec les tags git (ex. étape dans `cd.yml`) — amélioration notée, pas encore planifiée.
+- Reporter les deux sections du jour dans `dev-log.md` (hors repo) + redéposer dans le projet Claude.
+- Mettre à jour le board Jira (BUG-006/BUG-013 → colonne appropriée, tags `v1.2.0`/`v1.2.1` en prod).
+
+---
+
+**Erreurs rencontrées & Solutions (suite 2)**
+
+| Date | Symptôme (message exact) | Cause | Solution |
+|---|---|---|---|
+| 2026-07-23 | `npm ci --dry-run` montre des changements de version sur des paquets tiers (`yocto-queue`, etc.) après un simple bump de `package.json` | `replace_all` sur la chaîne générique `"0.1.0"` dans `package-lock.json` a aussi réécrit la version d'autres paquets partageant coïncidentalement cette valeur | Revert (`git checkout --`) puis deux edits ciblés sur les seules ancres uniques en tête de fichier (`"name": "story-tide", "version": ...`) |
+| 2026-07-23 | Nom de fichier long dans le dialog Image : le dialog s'élargit et se décale au lieu de tronquer, malgré `truncate`/`min-w-0` posés sur le `<p>` | `DialogContent` est en `grid` ; le `<p>` n'est pas l'enfant direct de la grille (un `<div>` englobant l'est) — c'est ce `<div>` qui a besoin de `min-w-0`, pas le `<p>` | `min-w-0` ajouté sur le conteneur (enfant direct de la grille) en plus du `<p>` |
+
+Note finale : tout le travail de cette session (correctifs BUG-006/BUG-013, déploiements
+v1.2.0 et v1.2.1) a été committé, poussé et déployé par Aymeric ; les deux tags sont en
+prod et validés. Rien n'est en attente de commit à ce stade.
