@@ -26,7 +26,7 @@ import { LinkedEntities } from "./linked-entities";
 // (angle editeur/liaison), duplication de 4 chaines jugee preferable a un
 // refactor partage pour ce volume.
 const ENTITY_TIPS = [
-  "Ctrl/Cmd+clic sur un lien surligné navigue vers la fiche liée — un clic simple reste de l'édition normale.",
+  "Ctrl/Cmd+clic sur un lien surligné navigue vers l'entrée liée — un clic simple reste de l'édition normale.",
   "Tape « @ » pour mentionner une entrée existante — le lien se crée immédiatement, sans attendre.",
   "Les liens détectés automatiquement peuvent prendre quelques secondes à apparaître dans « Renvois ».",
   "« Ignorer ce lien », depuis « Renvois », empêche un lien automatique détecté de se retisser tout seul.",
