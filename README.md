@@ -25,15 +25,10 @@ docker compose -f docker-compose.dev.yml up -d
 npm install
 npm run db:migrate
 npm run dev
+npm run worker #dans un second terminal
 ```
 
-Dans un **second terminal**, lancer aussi le worker (queue pg-boss) :
-
-```bash
-npm run worker
-```
-
-Sans ce second process, la détection automatique d'entités (Aho-Corasick) enfile
+Sans ce second process (worker), la détection automatique d'entités (Aho-Corasick) enfile
 bien les jobs de liaison (`entity-linking`) mais aucune `Relation` AUTO n'est
 jamais créée — le job reste en attente en base tant qu'aucun worker n'est démarré
 pour le consommer. La liaison MANUELLE (mention `@`) n'est pas concernée
