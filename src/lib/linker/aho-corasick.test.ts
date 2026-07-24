@@ -144,7 +144,6 @@ describe("AhoCorasick", () => {
     expect(matches.every((m) => m.start >= 0 && m.start < m.end && m.end <= bigText.length)).toBe(
       true,
     );
-    // Chaque entite du dictionnaire est bien liee au moins une fois.
     expect(new Set(matches.map((m) => m.entityId)).size).toBe(entityCount);
 
     // Pas d'assertion sur un chrono (performance.now() est flaky en CI sous

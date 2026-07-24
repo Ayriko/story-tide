@@ -16,7 +16,7 @@ function stringField(formData: FormData, name: string): string {
 }
 
 // "Ignorer ce lien" (KAN-23, garde-fou anti-faux-positifs) : reste sur la
-// meme page (pas de redirect), revalidePath rafraichit la liste "Entites
+// meme page (pas de redirect), revalidatePath rafraichit la liste "Entites
 // liees"/"Liens ignores" au prochain rendu.
 export async function ignoreLinkAction(
   _prevState: LinkIgnoreFormState,

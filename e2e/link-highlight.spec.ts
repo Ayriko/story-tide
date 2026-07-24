@@ -15,10 +15,8 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   await page.getByLabel("Nom", { exact: true }).fill("Link Highlight Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-highlight-1234");
-  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
-  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
-  // ferait concourir la file de liaison partagee avec les autres jobs e2e -
-  // cause reelle d'un flake observe (job du test noye parmi 25 jobs de seed).
+  // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts -
+  // cause reelle d'un flake observe ici (job noye parmi 25 jobs de seed).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");

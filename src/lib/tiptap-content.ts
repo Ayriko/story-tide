@@ -133,7 +133,7 @@ export function normalizeContentText(content: JSONContent): JSONContent {
   return normalized;
 }
 
-// Extraction du texte brut (pour le futur scan de liaison + la recherche) -
+// Extraction du texte brut (pour le scan de liaison + la recherche) -
 // fonction pure, ne necessite pas de DOM/navigateur reel.
 export function extractPlainText(content: JSONContent): string {
   return generateText(content, extensions);

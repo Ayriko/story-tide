@@ -14,7 +14,7 @@ import { WorldNotFoundError, getWorld } from "@/services/world-service";
 // depuis le serveur, jamais depuis le navigateur. La reponse est donc
 // proxy-ee ici (fetch cote serveur, puis stream vers le client) plutot que
 // redirigee - le navigateur ne parle jamais qu'a cette route, deja publique
-// (BUG-011).
+// (BUG-011, ADR-0023).
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ imageId: string }> },

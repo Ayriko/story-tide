@@ -16,10 +16,8 @@ function SubmitButton() {
   );
 }
 
-// Formulaire nu (KAN-36 P2) : le titre vient du DialogTitle du Dialog
-// englobant (world-settings-dialog.tsx). Succes = updateWorldAction redirige
-// (actions/world.ts), echec = l'etat re-affiche l'erreur dans le Dialog
-// toujours ouvert.
+// Formulaire nu (KAN-36 P2), meme patron que create-world-form.tsx : le
+// titre vient du Dialog englobant (world-settings-dialog.tsx).
 export function RenameWorldForm({ worldId, name }: { worldId: string; name: string }) {
   const initialState: WorldFormState = { values: { name } };
   const [state, formAction] = useActionState(updateWorldAction, initialState);

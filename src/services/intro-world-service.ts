@@ -11,7 +11,7 @@ import { jobQueue } from "@/lib/queue";
 import { ENTITY_LINKING_QUEUE } from "@/lib/queue/entity-linking";
 import atherausSeed from "../../prisma/seed/atheraus.json";
 
-// Format d'AUTORAGE des mentions dans le JSON de seed (KAN-35) : `seedRef` de
+// Format d'ancrage des mentions dans le JSON de seed (KAN-35) : `seedRef` de
 // la cible plutot qu'un `id` reel, puisque les ids Prisma n'existent qu'apres
 // insertion (ordre creation-avant-lien) - jamais un id en dur dans le JSON.
 interface SeedMentionAttrs {
@@ -45,9 +45,8 @@ function stripMentionsToText(node: JSONContent): JSONContent {
   return clone;
 }
 
-// Remplace chaque noeud mention {attrs:{seedRef,label}} par un noeud mention
-// Tiptap reel {attrs:{id,label}} - utilise au SECOND passage, une fois les 25
-// entites creees et leurs ids reels connus (seedRefToId).
+// Remplace chaque noeud mention seedRef par un noeud mention Tiptap reel
+// (id, label) - 2e passage, une fois les ids reels connus (seedRefToId).
 function resolveMentions(node: JSONContent, seedRefToId: Map<string, string>): JSONContent {
   if (node.type === "mention" && node.attrs && "seedRef" in node.attrs) {
     const attrs = node.attrs as unknown as SeedMentionAttrs;
@@ -138,8 +137,7 @@ export async function seedIntroWorld(ownerId: string): Promise<{ worldId: string
     await reconcileManualMentions(ownerId, world.id, entityId, mentionedIds);
   }
 
-  // Enfilage du job de liaison pour les 25 entites - le worker produira les
-  // Relation origin=AUTO a son prochain passage, jamais ici (contrat §1).
+  // Enfilage du job de liaison (contrat §1 : AUTO nait du worker, jamais ici).
   for (const id of seedRefToId.values()) {
     await jobQueue.enqueue(
       ENTITY_LINKING_QUEUE,

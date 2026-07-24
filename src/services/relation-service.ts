@@ -29,12 +29,9 @@ export interface LinkedEntity {
 
 // Liste les entites liees (AUTO et MANUAL, jamais filtre sur origin ici -
 // contrairement a scanAndLinkEntity qui ne lit/ecrit QUE l'origin=AUTO) pour
-// la liste "Entites liees" affichee sous l'editeur (navigation clavier/lecteur
-// d'ecran, RGAA - le surlignage live dans l'editeur n'est pas atteignable au
-// clavier). Deux requetes a select plat (jamais de select imbrique sur une
-// relation Prisma) plutot qu'un join : chacune reste mockable en test avec un
-// objet complet du modele (cf. skill prisma-mock-partial-select), sans dependre
-// de la precision du type genere pour un select imbrique specifique.
+// la liste "Entites liees" affichee sous l'editeur (RGAA : le surlignage live
+// dans l'editeur n'est pas atteignable au clavier). Deux requetes a select
+// plat plutot qu'un join, cf. skill prisma-mock-partial-select.
 export async function listOutgoingLinks(
   ownerId: string,
   worldId: string,
@@ -95,9 +92,6 @@ export async function listIncomingLinks(
   return relations
     .flatMap((relation) => {
       const name = nameById.get(relation.sourceId);
-      // Source supprimee entre la lecture de Relation et celle-ci (rare, cf.
-      // onDelete: Cascade normalement synchrone) : on ne devine jamais un nom,
-      // on omet silencieusement l'entree plutot que d'afficher un lien mort.
       return name === undefined ? [] : [{ id: relation.sourceId, name, origin: relation.origin }];
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -213,9 +207,9 @@ export interface IgnoredTarget {
 }
 
 // Cibles actuellement ignorees pour cette entite, noms resolus (UI "Liens
-// ignores" + bouton "Ne plus ignorer") - meme patron deux-requetes-a-select-
-// plat que listOutgoingLinks. getIgnoredTargetIds (ids seuls) reste inchange,
-// deja utilise par scanAndLinkEntity et le surlignage live.
+// ignores" + bouton "Ne plus ignorer") - meme patron que listOutgoingLinks.
+// getIgnoredTargetIds (ids seuls) reste inchange, deja utilise par
+// scanAndLinkEntity et le surlignage live.
 export async function listIgnoredTargets(
   ownerId: string,
   worldId: string,
@@ -247,8 +241,7 @@ export async function listIgnoredTargets(
   return ignored
     .flatMap((row) => {
       const name = nameById.get(row.targetId);
-      // Cible supprimee entre les deux requetes (rare) : on omet
-      // silencieusement, meme convention que listOutgoingLinks/listIncomingLinks.
+      // Meme convention que listOutgoingLinks/listIncomingLinks.
       return name === undefined ? [] : [{ id: row.targetId, name }];
     })
     .sort((a, b) => a.name.localeCompare(b.name));

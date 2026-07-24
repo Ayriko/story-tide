@@ -150,7 +150,6 @@ export class AhoCorasick {
     const normalized = normalizeForMatch(text);
     const raw: Match[] = [];
 
-    // --- Passage unique sur le texte normalisé -------------------------
     let state = 0;
     for (let i = 0; i < normalized.length; i++) {
       // i < normalized.length garantit un caractère défini à cet indice.
@@ -173,7 +172,6 @@ export class AhoCorasick {
       }
     }
 
-    // --- Plus long match prioritaire, sans chevauchement ---------------
     raw.sort((a, b) => a.start - b.start || b.end - a.end);
     const result: Match[] = [];
     let lastEnd = -1;

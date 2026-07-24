@@ -66,8 +66,7 @@ describe("logoutAction", () => {
   });
 });
 
-// Diagnostic normalisation Unicode / BUG-005 non concerne ici - couvre
-// uniquement le nouveau branchement KAN-35 (seedIntroWorld apres inscription,
+// Couvre le nouveau branchement KAN-35 (seedIntroWorld apres inscription,
 // sautable via la case a cocher).
 describe("registerAction", () => {
   const VALID_FIELDS = {

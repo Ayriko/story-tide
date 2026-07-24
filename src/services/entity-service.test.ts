@@ -434,9 +434,7 @@ describe("updateEntity", () => {
     expect(entityUpdate).not.toHaveBeenCalled();
   });
 
-  // Diagnostic normalisation Unicode (ADR-0020) : meme garantie qu'a la
-  // creation - name/aliases toujours persistes en NFC, y compris sur une
-  // mise a jour saisie en forme NFD.
+  // Meme garantie qu'a la creation (ADR-0020, cf. test ci-dessus), sur une mise a jour.
   it("normalise le nom et les alias en NFC avant persistance, meme saisis en forme NFD", async () => {
     const nfc = "Éléa";
     const nfd = nfc.normalize("NFD");

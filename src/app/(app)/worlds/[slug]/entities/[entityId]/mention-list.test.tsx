@@ -118,7 +118,6 @@ describe("MentionList", () => {
     expect(pressKey("ArrowDown")).toBe(true);
     expect(screen.getAllByRole("option")[1]).toHaveAttribute("aria-selected", "true");
 
-    // Boucle de la derniere a la premiere option.
     expect(pressKey("ArrowDown")).toBe(true);
     expect(screen.getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true");
 

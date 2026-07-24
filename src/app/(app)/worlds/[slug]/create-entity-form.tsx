@@ -21,12 +21,8 @@ function SubmitButton() {
   );
 }
 
-// Formulaire nu (KAN-36 P2) : le "chrome" (titre, cadre) vient desormais du
-// Dialog qui l'enveloppe (create-entity-dialog.tsx) - DialogTitle porte deja
-// le nom accessible de la boite de dialogue. Succes = createEntityAction
-// redirige (actions/entity.ts) : la page entiere (donc ce Dialog) est
-// demontee, aucune fermeture explicite requise. Echec = l'etat re-affiche
-// l'erreur, le Dialog reste simplement ouvert.
+// Formulaire nu (KAN-36 P2), meme patron que create-world-form.tsx : le
+// "chrome" vient du Dialog englobant (create-entity-dialog.tsx).
 export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worldSlug: string }) {
   const [state, formAction] = useActionState(createEntityAction, initialState);
 

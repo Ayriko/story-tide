@@ -18,10 +18,8 @@ function SubmitButton() {
   );
 }
 
-// Formulaire nu (KAN-36 P2) : le titre vient du DialogTitle du Dialog
-// englobant (entity-settings-dialog.tsx). Succes = updateEntityAction
-// redirige (actions/entity.ts), echec = l'etat re-affiche l'erreur dans le
-// Dialog toujours ouvert.
+// Formulaire nu (KAN-36 P2), meme patron que create-world-form.tsx : le
+// titre vient du Dialog englobant (entity-settings-dialog.tsx).
 export function EditEntityForm({
   worldId,
   worldSlug,

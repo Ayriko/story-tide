@@ -17,10 +17,8 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   await page.getByLabel("Nom", { exact: true }).fill("Link Ignore Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
   await page.getByLabel("Mot de passe").fill("mot-de-passe-ignore-1234");
-  // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
-  // concerne pas, et son seed (25 entites + enfilage de jobs) ralentirait/
-  // ferait concourir la file de liaison partagee avec les autres jobs e2e -
-  // cause reelle d'un flake observe (job du test noye parmi 25 jobs de seed).
+  // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts -
+  // cause reelle d'un flake observe ici (job noye parmi 25 jobs de seed).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
@@ -89,14 +87,9 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   await page.keyboard.press("Backspace");
   await expect(page.getByText("Enregistré.")).toBeVisible({ timeout: 10_000 });
 
-  // Le clic + la navigation (verifie au passage que le lien pointe toujours
-  // vers la bonne cible) restent DANS le meme bloc de retry que le reload -
-  // meme raisonnement que link-highlight.spec.ts : juste apres un reload, la
-  // page peut ne pas encore etre pleinement interactive (hydratation), un
-  // clic peut alors ne rien declencher de fiable (flake constate en CI,
-  // jamais reproduit en local). Si le clic ou la navigation echouent, le
-  // retry refait un reload() et retente le cycle complet plutot que
-  // d'echouer immediatement sur un lien juste visible.
+  // Clic + navigation restent DANS le meme bloc de retry que le reload -
+  // meme raisonnement que link-highlight.spec.ts (flake hydratation
+  // post-reload, constate en CI, jamais reproduit en local).
   await expect(async () => {
     await page.reload();
     const link = linkedEntitiesNav.getByRole("link", { name: targetName });
