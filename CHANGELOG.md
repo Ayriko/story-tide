@@ -3,7 +3,7 @@
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
-## [Unreleased]
+## [1.2.2] - 2026-07-24
 
 ### Modifié
 
@@ -13,6 +13,16 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   (formulaire nu, historique du monde d'introduction dans les specs e2e),
   ajout de renvois ADR manquants (ADR-0014, ADR-0023). Aucun changement de
   comportement — 25 fichiers, commentaires et espaces uniquement.
+- Audit final de cohérence documentaire avant livraison Bloc 2 (versions,
+  ADR, cahier de recettes, sécurité OWASP, accessibilité RGAA, supervision,
+  manuels) — corrections de wording, renvois manquants et captures ajoutées,
+  aucun contenu d'ADR accepté modifié.
+
+### Corrigé
+
+- Tip de l'éditeur (`ENTITY_TIPS`) : dernier résidu du lexique produit
+  obsolète (« fiche » au lieu d'« entrée »), repéré par l'audit de
+  cohérence.
 
 ## [1.2.1] - 2026-07-23
 
