@@ -23,7 +23,11 @@
 | 9 | **C2.4.1** — Rédiger la documentation technique d'exploitation du logiciel détaillant son fonctionnement afin d'assurer une traçabilité pour le suivi des équipes et des futures évolutions du logiciel | `manuels/`, `adr/` | non | ≈ 3 |
 
 ## Fil rouge à glisser (différenciateur, absent du dossier de référence)
-<!-- TODO : sobriété / impact environnemental dans C2.2.1 (archi) et dans la justification des choix (ADR/C2.4.1). -->
+
+**Fait le (2026-07-24)** : glisser un
+paragraphe sobriété / impact environnemental dans la section C2.2.1 (archi) et dans
+la justification des choix (ADR/C2.4.1) — ex. VPS unique plutôt que multi-cloud,
+pas de sur-provisionnement, worker à arrêt gracieux (SIGTERM), pas de service superflu.
 
 ## Rappel des livrables imposés (règlement spécial) — checklist de complétude
 <!-- protocole CD ✓ · critères qualité/perf ✓ · protocole CI ✓ · archi maintenable ✓ · présentation d'un prototype ✓ · framework & paradigmes ✓ · jeu de tests unitaires ✓ · mesures de sécurité ✓ · actions accessibilité ✓ · historique des versions ✓ · dernière version fonctionnelle (kit jury) ✓ · cahier de recettes ✓ · plan de correction des bogues ✓ · manuel de déploiement ✓ · manuel d'utilisation ✓ · manuel de mise à jour ✓ -->

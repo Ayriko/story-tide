@@ -47,3 +47,7 @@
 
 - Les 3 epics P0 (KAN-1 à KAN-3, 116 SP soit 58 j/h) sont encore intégralement en Backlog à J-15 de la deadline du 24 juillet (dépôt Bloc 2). Le board vient d'être initialisé (07/07), c'est attendu à ce stade, mais le démarrage de KAN-1 (Infra/CI-CD, prérequis des autres lots) cette semaine conditionnera la tenue du planning.
 - Charge déséquilibrée sur Fabrice Ervé (76 SP, 45 % du total) — à surveiller lors des prochains arbitrages.
+
+## Capture
+
+`docs/pilotages/captures/2026-07-07-board.png` / `2026-07-07-board-epics.png` — capture du board proche de cette date (tickets créés le 07/07, snapshot tiré le 09/07).

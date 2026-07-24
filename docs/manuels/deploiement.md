@@ -110,7 +110,7 @@ docker volume create traefik_letsencrypt
 staging, décommenter la ligne prod (voir commentaire en tête du fichier).
 
 ```bash
-docker compose -f compose.traefik.ymlS up -d
+docker compose -f compose.traefik.yml up -d
 ```
 
 ### 4. Déploiement production

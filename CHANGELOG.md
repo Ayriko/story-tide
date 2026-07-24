@@ -5,6 +5,17 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Passe de revue des commentaires du code source avant relecture jury (Bloc 2) :
+  suppression de duplicatas et de bruit, correction de deux coquilles et de
+  deux formulations obsolètes, factorisation de commentaires dupliqués
+  (formulaire nu, historique du monde d'introduction dans les specs e2e),
+  ajout de renvois ADR manquants (ADR-0014, ADR-0023). Aucun changement de
+  comportement — 25 fichiers, commentaires et espaces uniquement.
+
+## [1.2.1] - 2026-07-23
+
 ### Corrigé
 
 - Upload d'image entre 1 et 5 Mo (capacité annoncée par la spec) échouait avec
@@ -23,7 +34,6 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   direct de la grille ne rétrécit pas sous la largeur de son contenu sans
   `min-w-0` explicite (piège propre à `grid`, pas seulement `flex`). Voir
   `docs/plan-correction-bogues.md` (BUG-013).
-
 - `package.json` `version` (lu par `GET /api/health`, supervision C4.1.2)
   était resté figé à `0.1.0` (scaffold `create-next-app`) depuis l'origine,
   malgré 8 tags posés — repéré lors de la vérification post-déploiement de
@@ -31,6 +41,10 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   `1.2.0`, non rétroactif sur le conteneur `v1.2.0` déjà déployé (visible au
   prochain redéploiement seulement). Voir `docs/cd.md` (note sur la
   synchronisation manuelle à chaque tag, pas encore automatisée).
+
+## [1.2.0] - 2026-07-23
+
+### Corrigé
 
 - Lecture d'image (`GET /api/media/[imageId]`) : l'URL présignée MinIO était
   construite avec l'endpoint **interne** au réseau Docker (`minio:9000`),

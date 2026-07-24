@@ -1,8 +1,15 @@
 # Harnais de tests unitaires — C2.2.2 (ÉLIMINATOIRE)
 
-> Vitrine naturelle à terme : le moteur Aho-Corasick (`src/lib/linker/`), pas encore codé.
-> État au 2026-07-14 : outillage en place, démonstrateur actuel = code métier réellement
-> livré (auth, ports infra, Mondes, Entités, éditeur Tiptap/validation de contenu).
+> État au 2026-07-24 : le moteur Aho-Corasick (`src/lib/linker/`), différenciateur
+> produit, est livré et testé à 100 % (dont un test de passage à l'échelle sur
+> ~100 000 caractères) depuis la v1.0.0 — plus une vitrine anticipée mais la
+> fonctionnalité réellement couverte. La section « Fonctionnalité couverte »
+> ci-dessous date du démonstrateur initial (2026-07-14 : auth, ports infra,
+> Mondes, Entités, éditeur Tiptap/validation) et n'a pas été ré-énumérée
+> exhaustivement depuis — le détail de chaque fonctionnalité livrée ensuite
+> (liaison auto, recherche, quotas, alias, upload/redimensionnement d'image,
+> mentions manuelles, graphe, monde d'introduction…) et ses tests dédiés vivent
+> dans `CHANGELOG.md`, entrée par entrée.
 
 ## Outillage
 
@@ -69,15 +76,15 @@ homonymes).
 
 ## Couverture
 
-Rapport `npm run test:coverage` au 2026-07-14 (périmètre `src/lib/**` +
+Rapport `npm run test:coverage` au 2026-07-24 (périmètre `src/lib/**` +
 `src/services/**`, wrappers exclus, cf. ci-dessus) :
 
 | Métrique | Résultat | Seuil |
 |---|---|---|
-| Lignes | 100 % | 80 % |
-| Branches | 100 % | 80 % |
-| Fonctions | 97,1 % | 80 % |
-| Statements | 100 % | 80 % |
+| Lignes | 98,02 % | 80 % |
+| Branches | 95,4 % | 80 % |
+| Fonctions | 94,26 % | 80 % |
+| Statements | 98,13 % | 80 % |
 
-97 tests, 15 fichiers de test. Rapport HTML/LCOV généré dans `/coverage` (gitignoré),
+381 tests, 38 fichiers de test. Rapport HTML/LCOV généré dans `/coverage` (gitignoré),
 publié en artefact CI + commentaire de PR (cf. `ci.md`).

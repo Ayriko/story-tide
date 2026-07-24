@@ -1,6 +1,12 @@
 # Critères de qualité et de performance — C2.1.1
 
-> État au 2026-07-12 : qualité statique en place et vérifiée, désormais **bloquante en CI**. Performance = cibles de la spec, pas encore mesurées (rien n'est déployé).
+> État au 2026-07-24 : qualité statique en place et vérifiée, **bloquante en CI**.
+> Staging et production sont déployés depuis le 2026-07-18/23 (v1.0.0 à v1.2.1,
+> voir `docs/cd.md`) et supervisés (`docs/supervision.md`) — mais les cibles de
+> performance chiffrées ci-dessous n'ont pas fait l'objet d'une **mesure
+> formelle enregistrée** à ce jour (pas de campagne de charge, pas de relevé
+> p95/taux d'erreur documenté) : écart entre déploiement réel et mesure
+> documentée, à combler avant la recette finale plutôt que passé sous silence.
 
 ## Qualité (statique)
 
@@ -17,13 +23,14 @@
 - Revue de diffs : pas d'outil dédié, relecture manuelle systématique avant chaque
   commit proposé cette session (typecheck+lint+format+build à chaque étape).
 
-Tous ces gates sont **verts** au 2026-07-11 (dernière vérification : étape Vitest,
-commit `0f5dc36`).
+Tous ces gates sont **verts** au 2026-07-24 (lint 0 warning, `tsc` clean, 381/381
+tests, couverture 98,13 % — cf. `docs/tests-unitaires.md`).
 
 ## Performance (runtime)
 
-Cibles chiffrées actées dans la spec (§9.2) — **pas encore mesurées**, rien n'est
-déployé ni chargé en conditions réelles :
+Cibles chiffrées actées dans la spec (§9.2) — **pas de mesure formelle
+enregistrée** à ce jour, malgré le déploiement réel en staging/prod (aucune
+campagne de charge menée, aucun relevé p95/taux d'erreur documenté) :
 
 - Latence p95 des actions API < 500 ms (hors scan de liaison, asynchrone par design).
 - Liaison automatique visible < 5 s après la fin du debounce de sauvegarde.
@@ -42,5 +49,6 @@ Taille de bundle / requêtes N+1 : rien à mesurer, une seule route dynamique
   json-summary) est publié comme artefact du run (14 j de rétention).
 - **Commentaire de couverture sur les PR** : `davelosert/vitest-coverage-report-action`
   poste/actualise un résumé de couverture directement sur la pull request.
-- Monitoring runtime léger côté VPS (healthcheck, uptime) : <!-- TODO, arrivera avec
-  le déploiement staging/prod, VPS pas encore commandé -->.
+- **Monitoring runtime côté VPS** (supervision v1, C4.1.2) : en place depuis le
+  2026-07-22 — healthcheck Docker + sonde externe Better Stack sur `/api/health`
+  + heartbeat de sauvegarde, voir `docs/supervision.md`.

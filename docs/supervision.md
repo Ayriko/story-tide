@@ -87,6 +87,19 @@ dépôt de code, pas de secret ni d'URL de webhook committée).
   restauration automatisé).
 - Seuils de la sonde externe (intervalle, nombre d'échecs avant alerte)
   configurés directement dans Better Stack — pas versionnés dans ce dépôt.
+- **Un 5ᵉ moniteur envisagé a été écarté** : arbitrage de coût/limite du plan
+  Better Stack retenu, pas un choix technique — remplacé par un contrôle
+  ponctuel `curl -I` daté plutôt qu'une sonde continue automatisée sur ce
+  point précis (voir `docs/manuels/deploiement.md`/`mise-a-jour.md`, et le
+  scénario correspondant du cahier de recettes).
+
+## Captures
+
+- `docs/pilotages/captures/2026-07-23-betterstack-point-zero.PNG` /
+  `2026-07-23-betterstack-point-zero-heartbeat.PNG` — état initial des moniteurs
+  et du heartbeat backup au lancement de la supervision.
+- `docs/pilotages/captures/2026-07-24-betterstack-point-zero-status.PNG` — état
+  de statut au 2026-07-24.
 
 ## Feuille de route v2
 

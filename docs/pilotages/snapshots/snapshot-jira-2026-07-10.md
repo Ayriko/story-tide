@@ -51,3 +51,7 @@ Ticket en cours : KAN-7 — Initialiser le repo (conventions Git, Docker Compose
 
 - Aucun ticket terminé à J-14 du dépôt Bloc 2 (24 juillet). Les 3 epics P0 représentent 116 SP (~58 j/h) : au rythme actuel (1 ticket en cours, 0 terminé), la totalité du P0 ne sera mathématiquement pas absorbée d'ici la deadline. Point normal en tout début de projet, mais à surveiller : prioriser la clôture de KAN-7 puis l'entame de KAN-8/KAN-9 (chemin critique infra/CI) pour amorcer le flux et disposer d'un premier throughput mesurable au prochain snapshot.
 - La charge est concentrée sur Fabrice Ervé (76 SP, 45 % du total) : à rééquilibrer si le P1/P2 glisse.
+
+## Capture
+
+`docs/pilotages/captures/2026-07-10-board.png` — capture du board à cette date.

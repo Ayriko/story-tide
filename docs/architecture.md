@@ -1,16 +1,23 @@
 # Architecture logicielle — C2.2.1 (ÉLIMINATOIRE)
 
 > Posture actée : « l'architecture la plus simple qui couvre le besoin, justifiée. » Pas de microservices.
-> État au 2026-07-14 : socle (auth + infra ports + CI + images Docker) posé,
-> Mondes et Entités (CRUD) livrés avec autorisation en cascade, éditeur Tiptap
-> avec validation stricte du contenu et auto-save ; moteur de liaison pas encore codé.
+> État au 2026-07-24 : périmètre Bloc 2 livré en production (v1.2.1) — en plus du
+> socle décrit ci-dessous (2026-07-14 : auth, Mondes/Entités, éditeur Tiptap),
+> le moteur de liaison automatique (Aho-Corasick), l'upload/redimensionnement
+> d'image, le graphe de relations (Cytoscape), la recherche, les quotas
+> freemium, les mentions manuelles et le monde d'introduction sont livrés et
+> testés. Le détail chronologique de chaque livraison vit dans `CHANGELOG.md` ;
+> les patrons d'architecture ci-dessous restent la référence à jour, la section
+> « Prototype fonctionnel » documente l'état initial et n'a pas été
+> ré-énumérée depuis (voir la note qui la clôt).
 
 ## Vue d'ensemble
 
 Monolithe **Next.js App Router** (RSC + Server Actions), un seul déploiement pour l'app,
-un **worker Node séparé** (`src/worker/index.ts`) consomme la file de jobs pg-boss —
-squelette en place (souscription à la file `entity-linking`, arrêt gracieux SIGTERM),
-le traitement réel (scan Aho-Corasick) arrivera avec le moteur de liaison. Un seul
+un **worker Node séparé** (`src/worker/index.ts`) consomme la file de jobs pg-boss
+(souscription à la file `entity-linking`, arrêt gracieux SIGTERM) et exécute
+réellement le scan Aho-Corasick (`scanAndLinkEntity`, `src/services/linker-service.ts`)
+depuis la v1.0.0. Un seul
 système stateful : **PostgreSQL**, qui porte à la fois les données applicatives
 (Prisma) et la file `pg-boss` (schéma `pgboss`, géré par pg-boss lui-même). **MinIO**
 (S3-compatible) pour les binaires utilisateurs uniquement, buckets privés.
@@ -89,8 +96,11 @@ cross-monde-et-cross-fiche, round-trip complet de contenu Tiptap) et par la suit
 tests automatisés (couverture 100 % sur `src/services/world-service.ts`,
 `src/services/entity-service.ts`, `src/lib/tiptap-content.ts`).
 
-Pas encore construit : upload d'images (via `Storage`), moteur de liaison automatique,
-graphe de relations, recherche, quotas freemium.
+**Mise à jour 2026-07-24** : la liste ci-dessus s'arrête au démonstrateur initial
+(2026-07-14) et n'a pas été ré-énumérée depuis — upload/redimensionnement d'image,
+moteur de liaison automatique, graphe de relations, recherche, quotas freemium,
+mentions manuelles et monde d'introduction sont tous livrés en production depuis.
+Détail par fonctionnalité et tests dédiés : `CHANGELOG.md`.
 
 ## Prise en compte de la sécurité (renvoi)
 

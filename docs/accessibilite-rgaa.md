@@ -17,7 +17,7 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
 
 - **Landmarks** : `<header><nav aria-label="Navigation principale">`, `<main
   id="main-content">`, sections `<section aria-labelledby="...">` pour les
-  entités, les paramètres du monde et d'une fiche.
+  entités, les paramètres du monde et d'une entrée.
 - **Lien d'évitement** (« Aller au contenu principal ») visible au focus clavier,
   premier élément atteignable au Tab.
 - **Formulaires** (création, renommage, édition d'entité) : mêmes conventions que
@@ -25,7 +25,7 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   les alias), `aria-invalid`/`aria-describedby`, erreurs dans une région
   `role="alert"`.
 - **Suppression** : confirmation en deux étapes avec des `<button type="button">`
-  natifs (« Supprimer ce monde »/« Supprimer cette fiche » → « Confirmer la
+  natifs (« Supprimer ce monde »/« Supprimer cette entrée » → « Confirmer la
   suppression » / « Annuler »), jamais de `window.confirm` bloquant — entièrement
   navigable au clavier.
 - **Éditeur Tiptap** (`EntityEditor`) : barre d'outils `role="toolbar"
@@ -45,7 +45,7 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   l'édition du texte. Le chemin **accessible** est délibérément séparé : la liste
   « Entités liées » sous l'éditeur (`<nav aria-label="Entités liées">` + vrais
   `<Link>` dans une `<ul>`), atteignable au Tab et annoncée normalement par un
-  lecteur d'écran. Les deux chemins mènent à la même fiche — aucune information
+  lecteur d'écran. Les deux chemins mènent à la même entrée — aucune information
   n'est disponible à la souris seule.
 - **Mentions manuelles @** (2026-07-17, ADR-0011) : contrairement au surlignage,
   la popup de suggestion (`mention-list.tsx`) est **entièrement clavier** —
@@ -86,7 +86,7 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   aussi une même cible reliée par AUTO **et** MANUEL dans le même sens.
 - **Passe visuelle shadcn/ui sur Radix (2026-07-20, KAN-36, ADR-0018)** — thème
   navy/mint (Bloc 1) posé sur le parcours démo entier (connexion → mondes →
-  fiche → éditeur → backlinks → graphe), composants vendored dans
+  entrée → éditeur → backlinks → Constellation), composants vendored dans
   `src/components/ui/` sur primitives `@radix-ui/*` (`Label`, `Popover`) et
   `cmdk` (`Command`, solde ADR-0016 sur `EntityTypeCombobox`) :
   - **Contraste vérifié par calcul, pas à l'œil** : chaque paire
@@ -143,8 +143,15 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
     cette session, pas aggravé (conteneur reposé sur le token le plus sombre
     de la palette), mais pas corrigé — à reprendre si le rendu Cytoscape
     lui-même est un jour retouché.
-  - **Dialogs (KAN-36 P2)** : création/renommage/suppression de monde et de
-    fiche déplacés dans `Dialog`/`AlertDialog` (Radix, focus trap + retour de
+  - **BUG-012, limite connue reportée P2 (2026-07-23)** : le type d'un nœud de
+    la Constellation n'est identifiable que par sa couleur (famille) — aucun
+    tooltip au survol/clic, aucun libellé de type au niveau du nœud individuel
+    (le clic navigue vers l'entrée où le type est affiché en badge, limitant
+    l'impact pratique). Manquement RGAA/WCAG 1.4.1 (usage de la couleur).
+    Arbitré P2 par Aymeric, ne bloque pas le tag v1.2.0 — voir
+    `docs/plan-correction-bogues.md` (BUG-012).
+  - **Dialogs (KAN-36 P2)** : création/renommage/suppression de monde et
+    d'entrée déplacés dans `Dialog`/`AlertDialog` (Radix, focus trap + retour de
     focus au déclencheur natifs). Bouton de suppression jamais un
     `AlertDialogAction` (son `onClick` referme le calque avant que la Server
     Action async ait pu renvoyer une erreur) — un `Button` simple, la
@@ -152,7 +159,7 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
     laisse ouvert avec l'erreur visible.
   - **Dashboard de monde (KAN-36 P3)** : `<h1>` unique (nom du monde, plus de
     doublon avec le fil d'ariane), sections `Dernières entrées`/`Constellation`
-    en `<h2>`. Panneau graphe miniature en aperçu **non interactif au clavier**
+    en `<h2>`. Panneau Constellation miniature en aperçu **non interactif au clavier**
     (même canvas Cytoscape `aria-hidden`, cf. ADR-0010/0012 ci-dessus) —
     aucun fieldset de filtres dupliqué ici : l'équivalent accessible complet
     (filtres + liste, `GraphAccessibleList`) reste entièrement sur `/graph`,
@@ -204,7 +211,7 @@ d'assertion a11y dédiée, voir ci-dessous).
   function`, dépendance à des internals Jest non fournis par le package). Pas de
   fix jugé utile d'insister à ce stade (voir `ci.md`).
 - **Audit pleine-page à outiller** : le harnais Playwright existe désormais
-  (`e2e/smoke.spec.ts`, 2026-07-15 — login → monde → fiche → éditeur, base e2e
+  (`e2e/smoke.spec.ts`, 2026-07-15 — login → monde → entrée → éditeur, base e2e
   isolée) et lève le blocage Vitest/jsdom (axe fonctionne nativement avec un
   vrai navigateur). L'injection d'`@axe-core/playwright` et l'assertion
   `toHaveNoViolations` sur chaque page du parcours restent

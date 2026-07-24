@@ -37,4 +37,4 @@
 
 ---
 
-**Rappel : rien n'a été committé pendant cette session — les 25 fichiers modifiés sont encore en attente de `git add`/`commit` par Aymeric.**
+**Rappel : ajout bien commité

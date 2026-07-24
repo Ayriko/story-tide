@@ -6,6 +6,12 @@ Projet de certification RNCP39583 (Bloc 2). Voir `CLAUDE.md` (règles de travail
 `docs/spec-technique-bloc2.md` (spécification complète) pour le contexte produit et
 les contraintes d'architecture.
 
+## Liens (kit jury)
+
+- **Production** : [storytide.fr](https://storytide.fr)
+- **Staging** : [staging.storytide.fr](https://staging.storytide.fr)
+- **Statut / supervision** : [status.storytide.fr](https://status.storytide.fr/)
+
 ## Prérequis
 
 - [Node.js](https://nodejs.org/) 24+ (Active LTS ; requis par pg-boss)

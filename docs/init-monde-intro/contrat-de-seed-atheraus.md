@@ -1,6 +1,6 @@
 # Contrat de seed — monde d'introduction « Atheraus »
 
-> **Emplacement cible dans le repo :** `docs/contrat-de-seed-atheraus.md`
+> **Emplacement dans le repo :** `docs/init-monde-intro/contrat-de-seed-atheraus.md`
 > **Rédigé le :** 2026-07-19 · **Ticket :** KAN-35 (dépend de KAN-18)
 > **Statut :** validé pour la partie schéma (bloc A), à exécuter pour la partie contenu.
 

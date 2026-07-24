@@ -181,7 +181,7 @@ Outillage (à tracer dans le dossier) : **axe-core en CI** (via Playwright) · *
 
 ## 8. Cahier de recettes (C2.3.1, élim.) & plan de correction (C2.3.2)
 
-- `/docs/cahier-de-recettes.md` : scénarios **dérivés des user stories MoSCoW du Bloc 1** (continuité traçable).
+- `/docs/cahier-recettes.md` : scénarios **dérivés des user stories MoSCoW du Bloc 1** (continuité traçable).
 - **Nomenclature** (reprise d'un dossier Bloc 2 validé) : `TST-<CAT>-<NNN>` avec catégories **AUT** (authentification) · **MND** (mondes) · **ENT** (entités/éditeur) · **LNK** (liaison auto/backlinks) · **GRF** (graphe) · **SEC** (sécurité) · **QOT** (quotas freemium).
 - **6 champs par scénario** : Description · Objectif · Préconditions · Étapes de test · Résultat attendu · Critères d'acceptation. Mêler cas passants **et** cas d'échec attendus.
 - Scénarios **sécurité dédiés** obligatoires (ex. `TST-SEC-001` : accès URL directe à un monde d'autrui → 403/redirection ; `TST-SEC-002` : upload d'un faux MIME → rejet) et **structurels** (worker down → job repris ; re-scan n'écrase jamais un lien MANUAL).

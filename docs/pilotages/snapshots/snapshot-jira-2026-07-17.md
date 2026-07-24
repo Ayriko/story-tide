@@ -91,3 +91,7 @@ En cours actuellement : KAN-11 (Infra, 4), KAN-12 (Auth, 8), KAN-22 (surlignage 
 ---
 
 *Snapshot généré automatiquement en lecture seule sur Jira. Aucun ticket créé ni modifié.*
+
+## Capture
+
+`docs/pilotages/captures/2026-07-17-board.png` — capture du board à cette date.

@@ -100,9 +100,11 @@ Une carte porte des **propriétés typées** (bouton « Ajouter une propriété 
 - Rendu en **canvas 2D + fine couche SVG** en overlay (`webgl: false`) — nœuds/liens dessinés sur canvas, pas de nœuds en DOM.
 - Choix perf : le canvas encaisse des centaines/milliers de nœuds là où le DOM/SVG pur (react-flow) sature au-delà de quelques centaines.
 
-**Décision Story Tide → `docs/adr/ADR-0010-rendu-graphe.md` (proposé) :**
-- **MVP** : react-flow (SVG) — simple, démo propre au Bloc 3.
-- **Si passage à l'échelle** : lib canvas 2D (cytoscape en mode canvas, sigma.js) comme vvd.
+**Décision Story Tide** — proposition initiale react-flow (SVG) écartée avant
+implémentation, remplacée par Cytoscape.js dès le MVP (canvas, comme vvd) : voir
+`docs/adr/0012-graphe-cytoscape.md` (décision retenue) et
+`docs/adr/0021-rendu-graphe-proposition-initiale-remplacee.md` (traçabilité de
+l'écart avec la proposition ci-dessous).
 
 Branche la parade « perf du liage à l'échelle ».
 

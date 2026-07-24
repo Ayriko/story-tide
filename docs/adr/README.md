@@ -29,4 +29,5 @@
 | 0019 | Supervision v1 : sonde externe plutôt qu'auto-hébergée | accepté | 2026-07-22 |
 | 0020 | Normalisation Unicode NFC du moteur de liaison : à la frontière, pas dans le moteur | accepté | 2026-07-22 |
 | 0021 | Rendu du graphe de relations : proposition initiale (react-flow), remplacée par ADR-0012 | remplacé par ADR-0012 | 2026-07-17 |
+| 0022 | Monde d'introduction « Atheraus » : fonction de clonage partagée, pas de template en base | accepté | 2026-07-22 |
 | 0023 | Lecture d'image via proxy applicatif, jamais de MinIO public | accepté | 2026-07-23 |
