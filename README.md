@@ -4,7 +4,8 @@ Plateforme SaaS de worldbuilding (wiki d'entités + éditeur riche + graphe de
 relations + liaison automatique des entités via un automate Aho-Corasick maison).
 Projet de certification RNCP39583 (Bloc 2). Voir `CLAUDE.md` (règles de travail) et
 `docs/spec-technique-bloc2.md` (spécification complète) pour le contexte produit et
-les contraintes d'architecture.
+les contraintes d'architecture.  
+**Repository** : https://github.com/Ayriko/story-tide
 
 ## Liens (kit jury)
 
