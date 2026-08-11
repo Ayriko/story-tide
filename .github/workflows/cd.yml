@@ -16,9 +16,34 @@ permissions:
   packages: write
 
 jobs:
+  # Garde-fou (KAN-44) : refuse le tag si package.json/CHANGELOG.md sont
+  # incoherents avec lui, AVANT toute construction/publication d'image. Rejoue
+  # scripts/release.ts --verify (src/lib/release/verify.ts) - meme regle que
+  # celle testee par Vitest, aucune reimplementation en YAML. Voir ADR-0024,
+  # docs/cd.md.
+  release-consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Historique complet requis : le controle verifie que le tag est
+          # annote et que son commit appartient a origin/main.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verifier la coherence du tag (version, CHANGELOG, annotation, main)
+        run: node --import tsx scripts/release.ts --verify "$GITHUB_REF_NAME"
+
   # Construit et pousse les 4 images (app/worker/migrate/backup) sur ghcr.io,
   # publiques — aucun secret ghcr necessaire cote VPS pour le `pull`.
   build-push:
+    needs: release-consistency
     runs-on: ubuntu-latest
     strategy:
       matrix:

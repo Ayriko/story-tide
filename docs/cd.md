@@ -9,6 +9,9 @@
 
 ```
 tag git (vX.Y.Z[-rc.N])
+  └─▶ cd.yml / job release-consistency (KAN-44, ADR-0024)
+        └─ scripts/release.ts --verify <tag> : version/CHANGELOG/annotation
+           coherents, sinon le workflow s'arrete ici (voir plus bas)
   └─▶ cd.yml / job build-push
         ├─ docker/build-push-action (matrix : app, worker, migrate, backup)
         └─ push → ghcr.io/ayriko/story-tide-{app,worker,migrate,backup}:<tag> (public)
@@ -43,18 +46,22 @@ jamais exposés (garde-fou ufw/Docker, voir `docs/securite-owasp.md` A05).
 
 ## Déclenchement & rollback
 
-- **Déclenchement** : un tag git annoté (`git tag -a vX.Y.Z-rc.N` puis
-  `git tag -a vX.Y.Z` après recette OK sur staging) poussé sur `origin`
-  (`git push origin <tag>`) — jamais de déploiement sur un simple push de
+- **Déclenchement** : un tag git annoté (`npm run release -- X.Y.Z-rc.N` puis
+  `npm run release -- X.Y.Z` après recette OK sur staging, cf.
+  `docs/manuels/mise-a-jour.md`) poussé sur `origin` (`git push origin main &&
+  git push origin <tag>`) — jamais de déploiement sur un simple push de
   branche.
 - **`package.json` `version`** (lu par `GET /api/health`, supervision C4.1.2) :
-  à mettre à jour **manuellement** dans le même commit que chaque tag `vX.Y.Z`
-  (pas les `-rc.N`, pour éviter le bruit) — resté à `0.1.0` (scaffold) de
-  `v1.0.0-rc.1` à `v1.2.0` inclus (repéré et corrigé le 2026-07-23 **après**
-  le déploiement prod de `v1.2.0`, donc pas rétroactif sur cette version déjà
-  déployée — visible seulement au prochain redéploiement). Pas encore
-  automatisé (ex. `npm version` dans le workflow CD à partir du tag poussé) —
-  amélioration future, hors périmètre de ce correctif ponctuel.
+  resté à `0.1.0` (scaffold) de `v1.0.0-rc.1` à `v1.2.0` inclus, puis
+  redésynchronisé au tag `v1.2.1` suivant malgré un premier correctif ponctuel
+  (`d71f38f`) — 3 récidives datées au total, dont deux avec le CHANGELOG resté
+  sous `[Unreleased]` au moment même du tag (`v1.2.0`, `v1.2.1`). **Automatisé
+  depuis KAN-44 (ADR-0024)** : `npm run release` (`scripts/release.ts`)
+  synchronise `package.json`/`package-lock.json` (y compris pour les
+  `-rc.N`, contrairement à la politique précédente) et bascule le CHANGELOG au
+  tag final ; le job `release-consistency` de `cd.yml` rejoue la même
+  vérification (`src/lib/release/verify.ts`) sur le tag poussé et bloque
+  `build-push` en cas d'incohérence — plus de rattrapage manuel possible.
 - **Rollback** : re-taguer et re-pousser un tag existant ne republie pas
   (l'image existe déjà sur ghcr) — la procédure de retour arrière consiste à
   redéployer manuellement le tag précédent :
@@ -72,7 +79,8 @@ jamais exposés (garde-fou ufw/Docker, voir `docs/securite-owasp.md` A05).
 
 ## Preuves pour le jury
 
-- Extrait de workflow : `.github/workflows/cd.yml` (jobs `build-push`/`deploy`).
+- Extrait de workflow : `.github/workflows/cd.yml` (jobs
+  `release-consistency`/`build-push`/`deploy`).
 - Run GitHub Actions complet (build → push → deploy) : capture à joindre après
   le premier déploiement staging réel (`TST-SEC-012`).
 - `docker compose -p storytide-staging ... ps` / `docker compose -p

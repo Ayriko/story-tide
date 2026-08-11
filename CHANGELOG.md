@@ -3,6 +3,19 @@
 Format basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
+## [Unreleased]
+
+### Ajouté
+
+- Script `npm run release` (`scripts/release.ts`, KAN-44) : bascule le
+  CHANGELOG (`[Unreleased]` → section datée, tag final uniquement) et
+  synchronise `package.json`/`package-lock.json` au tag, avec `--dry-run`.
+  Garde-fou associé côté CD (`release-consistency`, avant `build-push`) :
+  refuse le déploiement si le tag est incohérent (version désynchronisée,
+  section CHANGELOG manquante, `[Unreleased]` non vide, tag non annoté, ou
+  hors de `origin/main`) — corrige la classe de bug à l'origine de 3
+  récidives (`v1.2.0`, `v1.2.1`). Voir ADR-0024.
+
 ## [1.2.2] - 2026-07-24
 
 ### Modifié

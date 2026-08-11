@@ -11,35 +11,66 @@ préproduction distinct. Une montée de version se fait **uniquement par tag** �
 VPS ne construit jamais d'image, il ne fait que récupérer une image déjà poussée
 par la chaîne CI/CD.
 
+Depuis KAN-44 (ADR-0024), la bascule du CHANGELOG et la synchronisation de
+`package.json`/`package-lock.json` sont automatisées par `npm run release`
+(`scripts/release.ts`) — ce n'est plus un geste manuel. Un garde-fou côté CD
+(job `release-consistency`, avant `build-push`) rejoue la même vérification
+sur le tag poussé et refuse le déploiement en cas d'incohérence.
+
+```bash
+npm run release -- X.Y.Z-rc.N --dry-run   # previsualise, n'ecrit rien
+npm run release -- X.Y.Z-rc.N             # bascule/commit/tag reels
+```
+
 ### 1.1 Étape 1 — staging (obligatoire avant la prod)
 
 ```bash
-git tag -a vX.Y.Z-rc.N -m "Préproduction vX.Y.Z-rc.N"
-git push origin vX.Y.Z-rc.N
+npm run release -- X.Y.Z-rc.N
+git push origin main && git push origin vX.Y.Z-rc.N
 ```
 
-Le workflow `cd.yml` construit et pousse les 4 images (`app`, `worker`,
-`migrate`, `backup`) sur `ghcr.io`, puis **déploie automatiquement en staging**
-(`staging.storytide.fr`, aucune approbation requise). La recette
-(`docs/cahier-recettes.md`) s'exécute sur cet environnement.
+Un tag `-rc.N` ne touche jamais au CHANGELOG (bascule réservée au tag final)
+mais synchronise tout de même `package.json`/`package-lock.json` — `/api/health`
+en staging annonce donc la version de préproduction exacte.
+
+Le workflow `cd.yml` vérifie d'abord la cohérence du tag (`release-consistency`),
+puis construit et pousse les 4 images (`app`, `worker`, `migrate`, `backup`) sur
+`ghcr.io`, puis **déploie automatiquement en staging** (`staging.storytide.fr`,
+aucune approbation requise). La recette (`docs/cahier-recettes.md`) s'exécute
+sur cet environnement.
 
 ### 1.2 Étape 2 — production (après recette validée)
 
-Mettre à jour le champ **`version` de `package.json`** dans le même commit que le
-tag `vX.Y.Z` : cette valeur est renvoyée par `GET /api/health` et sert la
-supervision (C4.1.2). La synchronisation est **manuelle** à ce jour (note tracée
-dans `docs/cd.md` ; automatisation via `cd.yml` = amélioration future).
-
 ```bash
-git tag -a vX.Y.Z -m "Mise en production vX.Y.Z"
-git push origin vX.Y.Z
+npm run release -- X.Y.Z
+git push origin main && git push origin vX.Y.Z
 ```
 
-Le job `build-push` tourne, puis le job `deploy` **se met en pause** : il faut
-l'**approuver** dans l'onglet *Actions* du dépôt GitHub (GitHub Environment
-`production`, *reviewer* requis). Une fois approuvé, la chaîne exécute sur le
-VPS `docker compose pull && docker compose up -d --wait` — la bascule n'a lieu
-que si les *healthchecks* passent.
+`npm run release` bascule `## [Unreleased]` en `## [X.Y.Z] - AAAA-MM-JJ` (refuse
+si la section est vide — rien à journaliser aurait signifié du contenu livré
+sans trace) et met à jour le champ **`version` de `package.json`** (lue par
+`GET /api/health`, supervision C4.1.2) dans le même commit que le tag.
+
+Le job `release-consistency` tourne en premier, puis `build-push`, puis le job
+`deploy` **se met en pause** : il faut l'**approuver** dans l'onglet *Actions*
+du dépôt GitHub (GitHub Environment `production`, *reviewer* requis). Une fois
+approuvé, la chaîne exécute sur le VPS `docker compose pull && docker compose
+up -d --wait` — la bascule n'a lieu que si les *healthchecks* passent.
+
+### 1.3 En cas d'échec du garde-fou (`release-consistency`)
+
+Le garde-fou s'exécute **après** que le tag a été poussé — il bloque le
+déploiement, jamais la pose du tag. **Ne jamais laisser la CI committer un
+correctif de rattrapage** (ADR-0024, option écartée) : un tag doit pointer sur
+un commit qui contient déjà son CHANGELOG et sa version cohérents.
+
+```bash
+git push --delete origin vX.Y.Z    # retire le tag distant incoherent
+# corriger localement (ex: relancer npm run release après avoir corrige la cause)
+git tag -d vX.Y.Z                  # retire le tag local
+npm run release -- X.Y.Z           # re-tague proprement
+git push origin main && git push origin vX.Y.Z
+```
 
 ## 2. Migrations de base de données
 
