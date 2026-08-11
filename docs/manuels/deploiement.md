@@ -62,6 +62,11 @@ du repo).
 
 ## Procédure (staging puis prod)
 
+> Séquence historique du tout premier bring-up (`v1.0.0`), conservée telle
+> quelle. Depuis KAN-44 (ADR-0024), les tags `git tag -a` manuels ci-dessous
+> sont remplacés par `npm run release -- X.Y.Z[-rc.N]` pour toute montée de
+> version ultérieure — voir `docs/manuels/mise-a-jour.md` §1.
+
 ### 1. Bring-up de Traefik (une fois)
 
 ```bash
