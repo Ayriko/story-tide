@@ -177,3 +177,17 @@
 .themed-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: var(--primary);
 }
+
+/* Scrollbar masquee (retour Aymeric, KAN-45) : les conteneurs defilants du
+   pied de page (worlds/page.tsx, world-shell.tsx, (auth)/layout.tsx,
+   mentions-legales/page.tsx) ne doivent montrer aucune scrollbar - contraire
+   au choix "themed-scrollbar" ci-dessus (Sidebar/dashboard), assume ici :
+   le defilement reste fonctionnel (molette, clavier, scrollIntoView au Tab),
+   seul le rendu visuel de la scrollbar disparait. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

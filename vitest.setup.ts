@@ -27,3 +27,18 @@ globalThis.ResizeObserver = ResizeObserverPolyfill;
 if (!Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
+
+// jsdom n'implemente pas IntersectionObserver - ScrollHint (KAN-45) en
+// instancie un pour savoir si le pied de page est visible, jamais exploite
+// en test (pas de vrai layout/scroll sous jsdom). Polyfill no-op minimal,
+// meme principe que ResizeObserverPolyfill ci-dessus. Cast necessaire ici
+// (contrairement a ResizeObserver) : l'interface IntersectionObserver exige
+// aussi `root`/`rootMargin`/`thresholds`/`takeRecords()`, non pertinents
+// pour un stub qui ne fait jamais reellement d'intersection sous jsdom.
+class IntersectionObserverPolyfill {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.IntersectionObserver =
+  IntersectionObserverPolyfill as unknown as typeof IntersectionObserver;

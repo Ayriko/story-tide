@@ -9,7 +9,7 @@
 **RGAA** retenu (vs OPQUAST) : référentiel officiel français, aligné WCAG, déjà
 introduit au Bloc 1 — continuité assumée plutôt que de changer de référentiel en
 cours de route. Pages/écrans audités à ce jour : `/login`, `/register`, `/worlds`,
-`/worlds/[slug]`, `/worlds/[slug]/entities/[entityId]`.
+`/worlds/[slug]`, `/worlds/[slug]/entities/[entityId]`, `/mentions-legales`.
 
 ## Actions mises en œuvre
 
@@ -170,6 +170,64 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
     Entrée, focus atterrit bien dans le champ). Compteurs par catégorie et
     icônes de type : toujours accompagnés du libellé texte du groupe/type,
     jamais l'icône ou la couleur seules.
+- **Pied de page partagé (KAN-45, `src/app/footer.tsx`)** : `<footer>`
+  natif rendu sur `/login`, `/register`, `/worlds`, les pages d'un monde et
+  `/mentions-legales` — landmark `contentinfo` implicite garanti de premier
+  niveau (jamais imbriqué dans `<main>`/`<section>`/`<article>`, qui en
+  retirerait le rôle). Sur ces cinq écrans, un conteneur défilant dédié
+  (`min-h-0 flex-1 overflow-y-auto`, hauteur de viewport contrainte en
+  `h-dvh` sur le layout parent, attribut `data-scroll-container`) enveloppe
+  `<main>` **et** `<footer>` comme frères, avec `min-h-full` sur `<main>` :
+  le pied de page n'est donc jamais une barre permanente (retour Aymeric,
+  KAN-45) — il reste hors du cadre par défaut, quelle que soit la longueur
+  du contenu, jusqu'à ce que l'utilisateur défile. Trois liens : « Mentions
+  légales » (`/mentions-legales`), « Contact » — l'adresse
+  `contact@storytide.fr` affichée **en toutes lettres comme texte du lien**
+  (retour Aymeric : pas de libellé qui la masque, l'utilisateur doit voir
+  l'adresse avant de cliquer), et « Statut du service »
+  (`status.storytide.fr`, nouvel onglet).
+  - **Scrollbar masquée** (`.no-scrollbar`, `globals.css`, retour Aymeric) :
+    `scrollbar-width: none` + `::-webkit-scrollbar { display: none }` sur
+    les 4 conteneurs défilants — choix inverse de `.themed-scrollbar`
+    (Sidebar/dashboard, qui garde une scrollbar visible mais rethématisée) :
+    ici aucune scrollbar visible n'était voulue. Le défilement reste
+    entièrement fonctionnel (molette, clavier, `scrollIntoView` au Tab) —
+    seul le rendu visuel disparaît, aucune information/fonction n'en dépend.
+  - **`ScrollHint`, bouton natif à bascule** (pas un lien) : repère si le
+    `<footer>` est visible dans son conteneur (`IntersectionObserver`,
+    `root` = l'ancêtre `[data-scroll-container]`, jamais le viewport global
+    — sinon la détection serait fausse dans un panneau imbriqué) et fait
+    défiler `container.scrollTo({ top: … })` vers le bas ou vers le haut au
+    clic, icône `ChevronDown` qui pivote (`rotate-180`) selon l'état. Trois
+    itérations avant ce design : d'abord purement décoratif
+    (`aria-hidden`/`pointer-events-none`), puis un lien à sens unique vers
+    l'ancre `#site-footer` — retour Aymeric à chaque fois
+    (`docs/captures-front/capture-footer*.PNG`) : l'élément *ressemblait*
+    déjà à un bouton (cercle, ombre) et devait en être un, à double sens.
+    **Pas de `aria-expanded`** : rien n'apparaît/ne disparaît du DOM (le
+    footer y est déjà) — l'utiliser aurait été un abus d'ARIA, même
+    catégorie d'erreur que `role="tab"` retiré d'`auth-tabs.tsx` (cf.
+    ci-dessous). Le **nom accessible change avec l'état** à la place
+    (« Aller au pied de page » ⟷ « Remonter en haut de page »). Le chemin
+    **accessible** principal reste le Tab direct vers les liens du pied de
+    page (le navigateur fait défiler la zone jusqu'à eux) — `ScrollHint` est
+    un raccourci en plus, pas à la place — même doctrine « deux chemins »
+    que le surlignage des liaisons/la Constellation (ADR-0010/0012).
+  - Lien externe (« Statut du service ») annoncé avant activation : icône
+    `ExternalLink` en `aria-hidden` **et**
+    `<span class="sr-only">(nouvelle fenêtre)</span>` dans le nom accessible
+    du lien, en plus de `target="_blank"` + `rel="noopener noreferrer"`.
+  - Contrastes calculés (formule de luminance relative WCAG 2.1, méthode
+    `globals.css:56-69`), pire cas = NAVY2 `#15394A` (fond le plus clair du
+    dégradé partagé, avant l'assombrissement `bg-black/45` de
+    `ShellBackground`) : `muted-foreground` (copyright) = 4,80:1 ;
+    `foreground` (liens au repos) ≥ 10,5:1 ; `primary` (survol et anneau de
+    focus) = 4,65:1 — tous au-dessus du seuil 4,5:1 texte / 3:1 non-texte.
+  - **Indicateur de développement Next.js désactivé** (`devIndicators: false`,
+    `next.config.ts`) : badge bas-gauche visible uniquement en `next dev`
+    (jamais en production), retiré après avoir été confondu avec un artefact
+    du pied de page pendant la review visuelle — sans rapport avec
+    l'accessibilité de l'application elle-même.
 
 Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 
