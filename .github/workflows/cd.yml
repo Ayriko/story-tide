@@ -23,6 +23,12 @@ jobs:
   # docs/cd.md.
   release-consistency:
     runs-on: ubuntu-latest
+    # npm ci declenche `postinstall: prisma generate`, qui charge la config
+    # Prisma et exige DATABASE_URL des le chargement du module — meme
+    # placeholder non-secret que ci.yml (aucune connexion reelle ici, le job
+    # ne fait que relire CHANGELOG/package.json/tags via scripts/release.ts).
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/story_tide?schema=public"
     steps:
       - uses: actions/checkout@v4
         with:
