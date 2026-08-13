@@ -37,8 +37,9 @@ function tryGit(args: string[]): string | null {
   }
 }
 
-// Windows resout "npm" en "npm.cmd" (script batch) : execFileSync sans shell
-// ne passe pas par PATHEXT et echoue en ENOENT sur ce poste de dev.
+// Windows resout "npm" en "npm.cmd" (script batch) : "npm" seul echoue en
+// ENOENT (pas de resolution PATHEXT), et depuis le durcissement Node
+// CVE-2024-27980 un .cmd exige en plus shell:true a l'appel (sinon EINVAL).
 function npmCommand(): string {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
@@ -150,8 +151,12 @@ function runRelease(rawVersion: string, dryRun: boolean): void {
   }
   // Synchronise package.json ET package-lock.json ("version" racine) ; le
   // flag ne supprime que le commit+tag automatiques de npm, pas le lockfile.
+  // Node >= 22 (durcissement CVE-2024-27980) : executer un .cmd/.bat exige
+  // shell:true sous Windows, sinon spawnSync echoue en EINVAL. Sans risque ici :
+  // version.version est un SemVer valide (aucun metacaractere shell possible).
   execFileSync(npmCommand(), ["version", version.version, "--no-git-tag-version"], {
     stdio: "inherit",
+    shell: process.platform === "win32",
   });
 
   const filesToCommit =
