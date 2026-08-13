@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-13
+
 ### Ajouté
 
 - Script `npm run release` (`scripts/release.ts`, KAN-44) : bascule le
