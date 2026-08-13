@@ -36,6 +36,12 @@ jobs:
           # annote et que son commit appartient a origin/main.
           fetch-depth: 0
 
+      # actions/checkout remplace le tag annote declencheur par un tag LEGER
+      # pointant sur le commit (issue actions/checkout#290) : sans ce re-fetch
+      # force des vrais objets tag, le controle "tag annote" du garde-fou
+      # echoue a tort sur tout tag pourtant correctement annote.
+      - run: git fetch --tags --force
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
