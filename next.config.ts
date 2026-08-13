@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   // tracees, pour une image Docker app legere (pas de node_modules complet).
   output: "standalone",
   poweredByHeader: false,
+  // Indicateur de dev Next.js (badge rond bas-gauche, next dev uniquement,
+  // deja absent du build de prod) : masque - confondait la review visuelle
+  // du pied de page KAN-45, qui scrolle desormais jusqu'a cette zone.
+  devIndicators: false,
   experimental: {
     serverActions: {
       // BUG-006 : la limite par defaut (1 Mo) etait atteinte avant meme le

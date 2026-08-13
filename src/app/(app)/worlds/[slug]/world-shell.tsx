@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { EntitySearchResult } from "@/services/entity-service";
+import { Footer } from "../../../footer";
 import { LocalClock } from "../../local-clock";
+import { ScrollHint } from "../../../scroll-hint";
 import { TopBar } from "../../top-bar";
 import { UserMenu } from "../../user-menu";
 import { FOCUS_SEARCH_EVENT } from "./entity-search";
@@ -166,17 +168,40 @@ export function WorldShell({
           }
         />
 
-        <main id="main-content" className="min-h-0 flex-1 overflow-y-auto px-4 pb-10 lg:px-6">
-          {/* overflow-visible (KAN-39 volet 3) : le style de base de Card
-              porte overflow-hidden (components/ui/card.tsx) - un ancetre
-              overflow!=visible entre un element sticky et son vrai conteneur
-              defilant (ce <main>) neutralise position:sticky (constate sur la
-              toolbar de l'editeur). Override cible sur cet usage precis
-              uniquement - les autres Card de l'app gardent leur clipping. */}
-          <Card className="mx-auto max-w-[1150px] overflow-visible border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
-            <div className="px-6 py-8 sm:px-8 sm:py-10">{children}</div>
-          </Card>
-        </main>
+        {/* Conteneur defilant (KAN-45) : deplace depuis <main> pour que
+            <footer> (rendu apres lui, hors de <main>) reste un landmark
+            "contentinfo" de premier niveau (perdu si imbrique dans <main>).
+            <main> repasse en overflow-visible - c'est desormais CE div, et
+            non plus <main>, le vrai conteneur defilant vise par le
+            commentaire "sticky" ci-dessous (KAN-39 volet 3). scroll-smooth :
+            defilement fluide au clic sur ScrollHint. no-scrollbar (retour
+            Aymeric) : scrollbar visuelle masquee, le defilement reste
+            fonctionnel. data-scroll-container : ancre reperee par
+            ScrollHint (closest()) pour cibler CE conteneur precis. */}
+        <div
+          data-scroll-container
+          className="no-scrollbar min-h-0 flex-1 scroll-smooth overflow-y-auto"
+        >
+          <main id="main-content" className="min-h-full overflow-visible px-4 pb-10 lg:px-6">
+            {/* min-h-full (retour Aymeric, capture-footer.PNG) : sans
+                contrainte de hauteur, une fiche courte laissait le footer
+                depasser un peu au premier ecran au lieu de rester hors du
+                cadre par defaut, contrairement a worlds/page.tsx qui a deja
+                ce comportement via son propre <main>. */}
+            {/* overflow-visible (KAN-39 volet 3) : le style de base de Card
+                porte overflow-hidden (components/ui/card.tsx) - un ancetre
+                overflow!=visible entre un element sticky et son vrai
+                conteneur defilant (le div ci-dessus) neutralise
+                position:sticky (constate sur la toolbar de l'editeur).
+                Override cible sur cet usage precis uniquement - les autres
+                Card de l'app gardent leur clipping. */}
+            <Card className="mx-auto max-w-[1150px] overflow-visible border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
+              <div className="px-6 py-8 sm:px-8 sm:py-10">{children}</div>
+            </Card>
+          </main>
+          <ScrollHint />
+          <Footer />
+        </div>
       </div>
     </div>
   );

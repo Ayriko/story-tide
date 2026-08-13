@@ -98,7 +98,24 @@ L'application est utilisable **entièrement au clavier** (formulaires, éditeur,
 suppression en deux étapes, filtres et liste de la Constellation). Le
 référentiel suivi est le **RGAA** (voir `docs/accessibilite-rgaa.md`).
 
-## 4. Compte de démonstration (kit jury)
+## 4. Contact et mentions légales
+
+Un pied de page est présent sur `/login`, `/register`, `/worlds` et les pages
+d'un monde (visible en bas de l'écran, atteint en faisant défiler le contenu
+dans l'application) ainsi que sur la page **« Mentions légales »**. Il porte
+trois liens :
+
+- **« Mentions légales »** → `/mentions-legales` : éditeur du site, directeur
+  de la publication, hébergeur, nature du service, et un volet « Données
+  personnelles » (données collectées, finalité, droits, cookies).
+- **« Contact »** → `contact@storytide.fr`, le **canal officiel des retours
+  bêta** : questions, signalements de bogues, et exercice des droits
+  d'accès/rectification/suppression décrits sur la page légale (demande
+  traitée sous 30 jours).
+- **« Statut du service »** → `status.storytide.fr`, la sonde externe (voir
+  `docs/supervision.md`), ouvert dans un nouvel onglet.
+
+## 5. Compte de démonstration (kit jury)
 
 Il n'y a **pas de compte partagé** : chaque évaluateur s'inscrit **en
 autonomie** sur `storytide.fr` et reçoit automatiquement le monde

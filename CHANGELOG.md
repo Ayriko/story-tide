@@ -15,6 +15,37 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   section CHANGELOG manquante, `[Unreleased]` non vide, tag non annoté, ou
   hors de `origin/main`) — corrige la classe de bug à l'origine de 3
   récidives (`v1.2.0`, `v1.2.1`). Voir ADR-0024.
+- **Pied de page applicatif (KAN-45)** : composant `Footer` (`src/app/footer.tsx`)
+  rendu sur `/login`, `/register`, `/worlds`, les pages d'un monde et
+  `/mentions-legales`, avec mention « © Tidemark Studio » et trois liens —
+  « Mentions légales », « Contact » (adresse `contact@storytide.fr` affichée
+  en toutes lettres, `mailto:`) et « Statut du service »
+  (`status.storytide.fr`, nouvel onglet). Le pied de page n'est pas une
+  barre permanente : sur les cinq écrans, il reste hors du cadre par défaut
+  (conteneur défilant dédié, hauteur de viewport contrainte, scrollbar
+  masquée visuellement mais défilement toujours fonctionnel) et n'apparaît
+  qu'au défilement, afin de rester un landmark `contentinfo` de premier
+  niveau (perdu s'il restait imbriqué dans `<main>`) — signalé par
+  `ScrollHint`, un bouton natif à bascule (nom accessible « Aller au pied de
+  page » ⟷ « Remonter en haut de page », icône qui pivote selon l'état),
+  zéro JavaScript custom en dehors de la détection de visibilité
+  (`IntersectionObserver`). Contrastes vérifiés par calcul (formule de
+  luminance relative WCAG 2.1, pas à l'œil) sur le pire cas de fond de la
+  charte : ≥ 4,65:1 pour tous les textes et l'anneau de focus du pied de
+  page. Voir `docs/accessibilite-rgaa.md`.
+- **Page « Mentions légales » (KAN-45)** : route statique `/mentions-legales`
+  (RSC pur), volontairement hors des groupes `(auth)`/`(app)` pour rester
+  consultable sans session. Éditeur, directeur de la publication, hébergeur
+  (OVHcloud), nature non commerciale du projet, et un volet « Données
+  personnelles » qui documente honnêtement les données collectées, la
+  finalité, les droits d'accès/rectification/suppression (par courriel,
+  traités sous 30 jours) et l'absence de tout cookie hors la session
+  d'authentification (`HttpOnly`, aucun traceur). Voir `TST-SEC-016`
+  (`docs/cahier-recettes.md`).
+- **Canal officiel de retours bêta (KAN-45)** : `contact@storytide.fr`,
+  désormais accessible depuis le pied de page de toute l'application et de
+  la page légale — premier point de contact documenté pour les
+  bêta-testeurs actifs sur `storytide.fr`.
 
 ## [1.2.2] - 2026-07-24
 

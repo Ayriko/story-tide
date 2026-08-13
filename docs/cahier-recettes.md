@@ -425,6 +425,16 @@
 - **Critères d'acceptation** : `src/app/api/health/route.test.ts` (200 nominal, 503 base KO, 503 timeout 2 s, non-fuite du message d'erreur d'origine, SHA masqué en production/affiché hors production) ; vérifié en conditions réelles (stack dev, base coupée — sorties 200 puis 503 montrées, pas supposées).
 - **Type** : sécurité · **Statut** : ✅ `src/app/api/health/route.test.ts` — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : volet nominal `curl -i https://staging.storytide.fr/api/health` → `200 OK` confirmé. Volet panne base/non-fuite : non rejoué (base staging partagée, coupure non souhaitée) — preuve = `route.test.ts` (503 base KO, 503 timeout, non-fuite d'erreur, SHA masqué en prod), décision Aymeric.
 
+## TST-SEC-016 — Mentions légales et canal de contact accessibles sans session (KAN-45)
+
+- **Description** : `/mentions-legales` est une page publique (éditeur, hébergeur, données personnelles, contact) — un visiteur non connecté doit pouvoir la consulter, et le seul lien externe du pied de page (« Statut du service ») doit s'ouvrir sans exposer l'application à un reverse tabnabbing.
+- **Objectif** : vérifier que la route n'est pas passée sous la garde de session par erreur (régression silencieuse et crédible : un `requireSessionOrRedirect` hérité renverrait un visiteur non connecté vers `/login` sans que rien ne le signale), et que le lien externe porte bien `rel="noopener noreferrer"`.
+- **Préconditions** : aucune session active (navigation privée ou déconnecté).
+- **Étapes** : 1) Se déconnecter (ou ouvrir une fenêtre de navigation privée). 2) Naviguer directement vers `/mentions-legales`. 3) Inspecter l'attribut `rel` du lien « Statut du service » dans le pied de page.
+- **Résultat attendu** : la page s'affiche intégralement (pas de redirection vers `/login`) ; le lien « Statut du service » porte `target="_blank"` et `rel` contenant `noopener` et `noreferrer`.
+- **Critères d'acceptation** : `src/app/mentions-legales/page.test.tsx` (rendu, `<h1>` unique, navigation clavier) ; `src/app/footer.test.tsx` (`rel` du lien externe) ; vérifié en conditions réelles en navigation privée.
+- **Type** : fonctionnel / sécurité · **Statut** : ⬜ (à passer à la recette staging de la 1.3.0-rc.1).
+
 ## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
 
 - **Description** : depuis le dialog « Insérer une image » de l'éditeur (KAN-39, remplace l'ancienne popover maison), un utilisateur importe un fichier (au lieu de saisir une URL), l'insère avec une légende (texte alternatif RGAA), sauvegarde, puis recharge la page.
