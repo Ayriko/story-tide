@@ -50,10 +50,22 @@ export default async function WorldsPage() {
           scroll-smooth : defilement fluide au clic sur ScrollHint.
           no-scrollbar (retour Aymeric) : scrollbar visuelle masquee, le
           defilement reste fonctionnel. data-scroll-container : ancre reperee
-          par ScrollHint (closest()) pour cibler CE conteneur precis. */}
+          par ScrollHint (closest()) pour cibler CE conteneur precis.
+          relative (BUG-014) : OBLIGATOIRE. Un conteneur defilant ne clippe que
+          les descendants dont il est le bloc conteneur ; un descendant en
+          position:absolute se rattache a l'ancetre positionne le plus proche.
+          Sans "relative" ici, le <span class="sr-only"> du lien externe du
+          pied de page (footer.tsx - sr-only vaut position:absolute) se
+          rattachait au shell h-dvh, s'echappait de ce conteneur et etirait le
+          scrollHeight du shell. Le shell devenait alors defilable : le
+          scrollIntoView du caret le faisait glisser d'un ecran entier, sans
+          retour possible (ni molette ni barre). Les conteneurs equivalents de
+          (auth)/layout.tsx et mentions-legales/page.tsx portaient deja
+          "relative" - c'est precisement pourquoi ils n'ont jamais montre le
+          defaut. */}
       <div
         data-scroll-container
-        className="no-scrollbar min-h-0 flex-1 scroll-smooth overflow-y-auto"
+        className="relative no-scrollbar min-h-0 flex-1 scroll-smooth overflow-y-auto"
       >
         <main id="main-content" className="flex min-h-full items-center justify-center px-4 py-12">
           <Card className="w-full max-w-2xl border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">

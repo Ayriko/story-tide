@@ -5,6 +5,28 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Corrigé
+
+- **Perte d'écran à l'édition d'une entrée longue (KAN-53, BUG-014)** — première
+  anomalie signalée par une utilisatrice. Dès que le contenu d'une entrée
+  dépassait la hauteur de l'écran, l'édition devenait très dégradée : un « bloc »
+  irrémovible occupait le bas de l'écran, le texte saisi partait hors de vue, et
+  une zone morte de la hauteur d'un écran s'installait sous le pied de page.
+  Régression de la restructuration du conteneur défilant de KAN-45 (v1.3.0),
+  jamais exercée sur un contenu supérieur au viewport. Cause établie par mesure :
+  le `<span class="sr-only">` du lien externe du pied de page (`sr-only` vaut
+  `position: absolute`) se rattachait au shell `h-dvh` faute de `relative` sur le
+  conteneur défilant, échappait à son clipping et rendait le shell lui-même
+  défilable ; le `scrollIntoView` du caret le faisait alors glisser d'un écran
+  entier, sans retour possible (ni molette, ni barre — masquée par `no-scrollbar`).
+  Les trois symptômes n'en faisaient qu'un. Correctif : `relative` sur les
+  conteneurs défilants de `worlds/page.tsx` et `world-shell.tsx` — les conteneurs
+  équivalents de `(auth)/layout.tsx` et `mentions-legales/page.tsx` le portaient
+  déjà, ce qui explique que ces pages n'aient jamais montré le défaut. Comble le
+  trou de couverture au passage : `e2e/long-content.spec.ts` verrouille
+  l'invariant « une seule zone défile par page » sur contenu long, et la
+  non-régression du pied de page sur page courte (TST-ENT-013).
+
 ## [1.3.0] - 2026-08-13
 
 ### Ajouté
