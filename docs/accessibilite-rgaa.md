@@ -8,8 +8,9 @@
 
 **RGAA** retenu (vs OPQUAST) : référentiel officiel français, aligné WCAG, déjà
 introduit au Bloc 1 — continuité assumée plutôt que de changer de référentiel en
-cours de route. Pages/écrans audités à ce jour : `/login`, `/register`, `/worlds`,
-`/worlds/[slug]`, `/worlds/[slug]/entities/[entityId]`, `/mentions-legales`.
+cours de route. Pages/écrans audités à ce jour : `/login`, `/register`,
+`/forgot-password`, `/reset-password`, `/worlds`, `/worlds/[slug]`,
+`/worlds/[slug]/entities/[entityId]`, `/mentions-legales`.
 
 ## Actions mises en œuvre
 
@@ -247,6 +248,50 @@ Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
     `plan-correction-bogues.md` BUG-001.
 - **Redirection annoncée** : `/login` et `/register` redirigent immédiatement vers
   `/` si une session est déjà active (pas de contenu inutile affiché puis retiré).
+
+Sur `ForgotPasswordForm` / `ResetPasswordForm`
+(`src/app/(auth)/{forgot-password,reset-password}/`, KAN-52) — mêmes conventions
+que ci-dessus (labels natifs, `aria-invalid`/`aria-describedby`, erreur en
+`role="alert"`, `autoComplete="email"` / `new-password`, focus visible,
+redirection si session active), plus les points propres à ce parcours :
+
+- **Confirmation d'envoi annoncée** en `role="status"` (`aria-live="polite"`) :
+  l'information arrive sans interrompre, contrairement à une erreur — le
+  formulaire est alors remplacé par la confirmation, ce qui sert aussi la
+  non-énumération (OWASP A07).
+- **Contrainte de saisie annoncée avant l'erreur** : le champ de nouveau mot de
+  passe porte `aria-describedby="password-aide"` pointant vers « 8 caractères
+  minimum. », remplacé par le message d'erreur (`password-error`) en cas
+  d'échec — la règle n'est pas découverte seulement après un refus.
+- **Aucune impasse** : quand le lien est expiré ou déjà utilisé, le message
+  d'erreur est systématiquement accompagné d'un lien « Demander un nouveau
+  lien » — une page morte sans issue est un défaut d'accessibilité autant que
+  d'utilisabilité.
+- **Jeton jamais affiché** : il transite par un champ caché, il n'est ni lu par
+  un lecteur d'écran ni sélectionnable.
+- **Onglets Connexion/Inscription masqués** sur ces deux pages (`AuthCard` sans
+  `active`) : afficher une navigation à onglets dont aucun n'est courant
+  obligerait `aria-current` à mentir sur l'état de la page.
+- **Confirmation du mot de passe** (`/reset-password` uniquement) : l'erreur de
+  correspondance est portée par le champ **de confirmation**, pas par le premier
+  champ — c'est celui-là que l'utilisateur doit corriger, et le lecteur d'écran
+  l'annonce au bon endroit via `aria-describedby`.
+
+Sur les trois formulaires (`PasswordInput`, `src/app/(auth)/password-input.tsx`,
+KAN-52) :
+
+- **Bascule afficher/masquer le mot de passe** : `<button type="button">` natif
+  (jamais un `<div>` cliquable), atteignable au Tab juste après le champ et
+  activable à l'Entrée comme à l'Espace. Le **libellé change** avec l'état
+  (« Afficher le mot de passe » / « Masquer le mot de passe ») plutôt qu'un
+  libellé fixe doublé d'`aria-pressed` : un lecteur d'écran annonce ainsi
+  directement l'action disponible, sans avoir à interpréter un état. Le bouton
+  déclare `aria-controls` vers l'id du champ piloté, l'icône est `aria-hidden`,
+  et l'anneau de focus est conservé. `type="button"` est indispensable : sans
+  lui, la bascule soumettrait le formulaire.
+- Bénéfice au-delà du confort : afficher sa saisie est le seul moyen, pour
+  beaucoup d'utilisateurs, de vérifier un mot de passe long ou complexe avant
+  de valider — en particulier sur un clavier tactile.
 
 Pas encore construit (n'existe pas dans le code) : alternatives textuelles sur
 images **uploadées** (l'insertion se fait par URL en attendant le service d'upload,

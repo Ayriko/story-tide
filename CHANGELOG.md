@@ -5,8 +5,47 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- **Réinitialisation de mot de passe en autonomie (KAN-52)** — deux bêta-testeurs
+  s'étaient retrouvés bloqués hors de leur compte, débloqués à la main faute de
+  parcours prévu. Un lien « Mot de passe oublié ? » sur `/login` mène à
+  `/forgot-password` ; le message reçu contient un lien valable **une heure et à
+  usage unique** qui ouvre `/reset-password`, où le nouveau mot de passe est
+  choisi. Pas de connexion automatique : le parcours se termine sur `/login` avec
+  une confirmation, un lien reçu par courrier n'ouvrant pas de session.
+  Non-énumération stricte : la réponse est identique que l'adresse corresponde ou
+  non à un compte, **y compris si l'envoi échoue** — sans quoi une panne
+  deviendrait un moyen de deviner quelles adresses ont un compte.
+- **Première brique de messagerie du produit (KAN-52)** : port `Mailer`
+  (`src/lib/mail/`) avec adaptateur SMTP `nodemailer` sur le serveur OVH existant
+  et double en mémoire pour les tests, sur le même patron ports & adapters que
+  `Storage` et `JobQueue`. L'expéditeur est une donnée de configuration
+  (`MAIL_FROM`), jamais un paramètre d'appel : aucun code appelant ne peut
+  usurper l'adresse d'envoi. Message en texte + HTML sobre, sans aucune ressource
+  distante. Nouvelles variables d'environnement `SMTP_*`, `MAIL_FROM` et
+  `MAIL_TRANSPORT` (à poser sur le VPS, voir `docs/manuels/deploiement.md`).
+  Voir ADR-0025.
+- **Confirmation du mot de passe et bascule afficher/masquer (KAN-52)** : la page
+  de réinitialisation demande désormais une **seconde saisie** du nouveau mot de
+  passe — une faute de frappe y rebloque l'utilisateur, qui devrait sinon refaire
+  toute la demande ; le jeton n'est d'ailleurs pas consommé tant que la saisie est
+  invalide, donc le même lien reste utilisable. Une bascule œil afficher/masquer
+  est ajoutée aux champs mot de passe des **trois** formulaires (connexion,
+  inscription, réinitialisation) : bouton natif, libellé qui change avec l'état,
+  `aria-controls` vers le champ piloté.
+
 ### Corrigé
 
+- **Erreurs réelles avalées derrière les messages génériques d'authentification** —
+  `registerAction` et `loginAction` renvoyaient « Inscription/Connexion impossible
+  pour le moment » sans laisser la moindre trace serveur, contrairement à la règle
+  du projet. Le défaut s'est payé comptant le 17/08 : une base de développement
+  sans migrations produisait ce message sans un seul log, et il a fallu interroger
+  l'endpoint Better Auth à la main pour découvrir que la table `user` n'existait
+  pas. La cause réelle est désormais journalisée dans les replis génériques —
+  et uniquement là, jamais dans les cas métier attendus (compte déjà existant,
+  mot de passe incorrect), qui ne sont pas des incidents.
 - **Perte d'écran à l'édition d'une entrée longue (KAN-53, BUG-014)** — première
   anomalie signalée par une utilisatrice. Dès que le contenu d'une entrée
   dépassait la hauteur de l'écran, l'édition devenait très dégradée : un « bloc »

@@ -27,11 +27,13 @@ export default defineConfig({
         // pas par unit test - mocker tout le SDK n'apporterait rien.
         "src/lib/queue/pg-boss-adapter.ts",
         "src/lib/storage/s3-adapter.ts",
+        "src/lib/mail/smtp-adapter.ts",
         "src/lib/auth.ts",
         // Composition root (une seule ligne : instancier l'adaptateur reel
         // depuis les env vars) - meme justification que ci-dessus.
         "src/lib/queue/index.ts",
         "src/lib/storage/index.ts",
+        "src/lib/mail/index.ts",
       ],
       thresholds: {
         lines: 80,
