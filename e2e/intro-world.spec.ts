@@ -16,7 +16,7 @@ test("inscription cree le monde d'introduction Atheraus (peuple, hors quota, MAN
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Intro World Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-intro-1234");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-intro-1234");
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
 

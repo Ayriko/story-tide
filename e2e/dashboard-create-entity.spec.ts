@@ -21,7 +21,7 @@ test("creer une entree depuis le dashboard met a jour la Sidebar sans rechargeme
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Dashboard Create Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-dashcreate-1234");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-dashcreate-1234");
   // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts
   // (file de liaison partagee).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loginSchema, registerSchema } from "./auth-schemas";
+import { loginSchema, registerSchema, resetPasswordSchema } from "./auth-schemas";
 
 describe("registerSchema", () => {
   it("accepte des donnees valides et nettoie le nom/e-mail (trim)", () => {
@@ -70,5 +70,41 @@ describe("loginSchema", () => {
     const result = loginSchema.safeParse({ email: "a@b.com", password: "" });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("resetPasswordSchema", () => {
+  it("accepte deux saisies identiques d'au moins 8 caracteres", () => {
+    const resultat = resetPasswordSchema.safeParse({
+      password: "nouveau-mot-de-passe",
+      passwordConfirm: "nouveau-mot-de-passe",
+    });
+
+    expect(resultat.success).toBe(true);
+  });
+
+  it("rejette deux saisies differentes en pointant la confirmation", () => {
+    const resultat = resetPasswordSchema.safeParse({
+      password: "nouveau-mot-de-passe",
+      passwordConfirm: "pas-le-meme-mot-de-passe",
+    });
+
+    expect(resultat.success).toBe(false);
+    if (!resultat.success) {
+      const probleme = resultat.error.issues[0];
+      expect(probleme?.path).toEqual(["passwordConfirm"]);
+      expect(probleme?.message).toBe("Les mots de passe ne correspondent pas.");
+    }
+  });
+
+  it("applique les memes bornes de longueur qu'a l'inscription", () => {
+    // Une regle plus laxiste ici serait un contournement de celle de registerSchema.
+    expect(
+      resetPasswordSchema.safeParse({ password: "court", passwordConfirm: "court" }).success,
+    ).toBe(false);
+    const trop_long = "x".repeat(129);
+    expect(
+      resetPasswordSchema.safeParse({ password: trop_long, passwordConfirm: trop_long }).success,
+    ).toBe(false);
   });
 });

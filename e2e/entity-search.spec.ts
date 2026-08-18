@@ -14,7 +14,7 @@ test("la recherche filtre les fiches par nom et par alias, insensible a la casse
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Entity Search Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-recherche-1234");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-recherche-1234");
   // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts
   // (file de liaison partagee).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();

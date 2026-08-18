@@ -14,7 +14,7 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Link Highlight Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-highlight-1234");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-highlight-1234");
   // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts -
   // cause reelle d'un flake observe ici (job noye parmi 25 jobs de seed).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();

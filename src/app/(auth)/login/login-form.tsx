@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { loginAction, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "../password-input";
 import { Label } from "@/components/ui/label";
 
 const initialState: AuthActionState = {};
@@ -50,10 +52,9 @@ export function LoginForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Mot de passe</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
           aria-invalid={state.errors?.password ? true : undefined}
@@ -64,6 +65,12 @@ export function LoginForm() {
             {state.errors.password}
           </p>
         ) : null}
+        <Link
+          href="/forgot-password"
+          className="self-start rounded-sm text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Mot de passe oublié ?
+        </Link>
       </div>
 
       <SubmitButton />

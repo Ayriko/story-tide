@@ -25,7 +25,7 @@ async function inscrire(page: Page, prefixe: string) {
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Testeur contenu long");
   await page.getByLabel("E-mail").fill(`${prefixe}-${Date.now()}@story-tide.test`);
-  await page.getByLabel("Mot de passe").fill(MOT_DE_PASSE);
+  await page.getByLabel("Mot de passe", { exact: true }).fill(MOT_DE_PASSE);
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
   await page.getByRole("button", { name: "Créer mon compte" }).click();
   await page.waitForURL("**/worlds");
