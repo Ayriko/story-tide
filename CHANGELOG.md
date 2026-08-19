@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-08-19
+
 ### Ajouté
 
 - **Réinitialisation de mot de passe en autonomie (KAN-52)** — deux bêta-testeurs
