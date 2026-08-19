@@ -47,6 +47,8 @@
 
 Deux bêta-testeurs bloqués, même cause : **aucune réinitialisation autonome** (l'application n'envoie pas d'e-mails). Traitement : geste de support manuel (aligné sur le régime « manuel assumé » des mentions légales) + **KAN-52 priorisé** (flux Better Auth + première brique e-mail SMTP) — deux utilisateurs bloqués = signal de priorisation maximal. À canaliser vers contact@ pour la traçabilité des prochains cas.
 
+> **Note du 19/08** : les deux cas correspondent aux testeurs des retours des 17 et 18/08 — chacun avait **recréé un compte par lui-même** avant le déblocage manuel envisagé (aucun geste manuel n'a finalement été nécessaire). Bilan consolidé : **2 utilisateurs touchés** par l'absence de réinitialisation, pas 3. KAN-52 livré en v1.3.1 le 19/08 ; les deux testeurs informés via contact@, avec proposition de récupération de leur compte d'origine.
+
 ## 2026-08-18 — Tristan M. (canal contact@, « Retours Story Tide », PDF joint, 3 annexes)
 
 **Sentiment** : très positif — site « fonctionnel », interactions « très fluides », aucun ralentissement.
@@ -61,7 +63,7 @@ uBlock Origin) — qualité de signalement exemplaire.
 
 | Signalement | Qualification | Renvoi |
 |---|---|---|
-| Pas de récupération de mot de passe → premier compte perdu (mdp aléatoire créé sur un autre poste), **compte recréé** | 3ᵉ utilisateur touché — confirme la priorité maximale du flux autonome | **KAN-52** — livré en v1.3.1 |
+| Pas de récupération de mot de passe → premier compte perdu (mdp aléatoire créé sur un autre poste), **compte recréé** | ~~3ᵉ utilisateur touché~~ **Rectifié le 19/08** : même cas que la section du 16-17/08 (il était l'un des deux) — 2 utilisateurs touchés au total | **KAN-52** — livré en v1.3.1 |
 | « Immense fenêtre vide » bloquante après collage d'un long texte (Ctrl+V comme clic droit), F5 inefficace, retour au menu de monde nécessaire (annexe 1) | Recoupement plausible de BUG-014 (contenu > viewport) — arbitré le 18/08 : retest après v1.3.1, entrée dédiée si persistance | **BUG-014** (note du 18/08) |
 | Image téléversée **dupliquée** quand on la déplace à la souris dans la zone de texte | P2 provisoire — à reproduire, geste exact demandé | **BUG-016** |
 | Liens hypertextes sans effet sur le site **mais présents une fois collés dans Word** | 2ᵉ signalement indépendant + indice fort : mark posée et persistée → défaut côté rendu/activation | **BUG-015** (note du 18/08, KAN-54) |
