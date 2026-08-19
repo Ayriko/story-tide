@@ -58,6 +58,16 @@ services:
       S3_ACCESS_KEY: ${MINIO_ROOT_USER}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       S3_BUCKET: ${S3_BUCKET}
+      # Envoi de messages (KAN-52) : passthrough depuis .env.<env>. Rappel :
+      # --env-file ne sert qu'a l'interpolation de CE fichier, il n'injecte
+      # rien dans les conteneurs - seul ce bloc environment fait foi.
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-smtp}
     # Pas de `ports:` — seul Traefik (reseau `web`) expose l'app a l'exterieur.
     networks:
       - internal
@@ -112,6 +122,16 @@ services:
       S3_ACCESS_KEY: ${MINIO_ROOT_USER}
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       S3_BUCKET: ${S3_BUCKET}
+      # Envoi de messages (KAN-52) : passthrough depuis .env.<env>. Rappel :
+      # --env-file ne sert qu'a l'interpolation de CE fichier, il n'injecte
+      # rien dans les conteneurs - seul ce bloc environment fait foi.
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-smtp}
     networks:
       - internal
     logging:
