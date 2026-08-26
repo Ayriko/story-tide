@@ -31,6 +31,9 @@ RUN DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public" \
     S3_ENDPOINT="localhost" S3_PORT="9000" S3_USE_SSL="false" \
     S3_REGION="us-east-1" S3_ACCESS_KEY="build" S3_SECRET_KEY="build-placeholder" \
     S3_BUCKET="build" \
+    SMTP_HOST="localhost" SMTP_PORT="465" SMTP_SECURE="true" \
+    SMTP_USER="build" SMTP_PASSWORD="build-placeholder" \
+    MAIL_FROM="build@localhost" MAIL_TRANSPORT="memory" \
     npm run build
 
 # --- Dependances de production seules (pour l'image worker) ---

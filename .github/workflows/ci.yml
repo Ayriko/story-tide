@@ -30,6 +30,18 @@ env:
   S3_ACCESS_KEY: "ci-access-key"
   S3_SECRET_KEY: "ci-secret-placeholder"
   S3_BUCKET: "story-tide-ci"
+  # MAIL_* (KAN-52) : obligatoires au demarrage (src/env.ts), donc necessaires
+  # aux 3 jobs - sans elles, `next build` et les tests echouent avant meme de
+  # commencer. MAIL_TRANSPORT=memory garantit qu'aucun message ne peut partir
+  # depuis la CI : l'adaptateur SMTP n'est jamais instancie, les valeurs
+  # SMTP_* ci-dessous ne sont donc jamais utilisees pour se connecter.
+  MAIL_TRANSPORT: "memory"
+  SMTP_HOST: "localhost"
+  SMTP_PORT: "1025"
+  SMTP_SECURE: "false"
+  SMTP_USER: "ci-placeholder@example.test"
+  SMTP_PASSWORD: "ci-placeholder"
+  MAIL_FROM: "Story Tide <ci-placeholder@example.test>"
 
 jobs:
   # Garde statique rapide. Independant du job test : un echec ici ne doit

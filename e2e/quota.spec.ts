@@ -10,7 +10,7 @@ test("le quota de mondes bloque la creation au-dela de 3 mondes gratuits", async
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Quota Worlds Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-quota-1234");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-quota-1234");
   // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts
   // (file de liaison partagee).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();
@@ -43,7 +43,7 @@ test("le quota d'entites bloque la creation au-dela de 50 fiches gratuites par m
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill("Quota Entities Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-quota-5678");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-quota-5678");
   // Saute le monde d'introduction "Atheraus" (KAN-35), cf. smoke.spec.ts
   // (file de liaison partagee).
   await page.getByLabel(/Ne pas créer le monde d'exemple/).check();

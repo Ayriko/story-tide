@@ -22,6 +22,26 @@ générique unique s'affiche (« E-mail ou mot de passe incorrect. ») — aucun
 information ne permet de deviner si l'e-mail existe. La déconnexion se fait via
 le bouton **« Se déconnecter »** du header.
 
+### 1.1 bis Mot de passe oublié
+
+1. Sur `/login`, cliquer **« Mot de passe oublié ? »** sous le champ mot de passe.
+2. Saisir l'adresse e-mail du compte et valider. Le message affiché est le même
+   que l'adresse ait un compte ou non : c'est volontaire — cela évite que ce
+   formulaire serve à découvrir quelles adresses sont inscrites.
+3. Ouvrir le message reçu (expéditeur `contact@storytide.fr`) et cliquer sur
+   **« Choisir un nouveau mot de passe »**. Le lien est **valable une heure** et
+   ne fonctionne **qu'une seule fois**. Si rien n'arrive, penser aux courriers
+   indésirables.
+4. Saisir le nouveau mot de passe (≥ 8 caractères) et valider.
+5. La page de connexion se rouvre avec la confirmation « Mot de passe modifié. » :
+   se connecter avec le nouveau mot de passe. La session n'est **pas** ouverte
+   automatiquement — un lien reçu par courrier ne suffit jamais à ouvrir une
+   session.
+
+Si le lien a expiré ou a déjà servi, la page l'indique et propose
+**« Demander un nouveau lien »**. L'ancien mot de passe reste valable tant qu'un
+nouveau n'a pas été enregistré.
+
 ### 1.2 Créer un monde
 
 Sur `/worlds`, saisir un nom dans **« Nouveau monde »** puis valider. Le *slug*

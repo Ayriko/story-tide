@@ -24,6 +24,69 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   fond du pied de page sous l'artwork (`bg-black/80`) pour rester conforme au
   contraste RGAA une fois le voile de protection générique retiré pour cet
   écran (ADR-0025, ratios mesurés dans `docs/accessibilite-rgaa.md`).
+  
+## [1.3.1] - 2026-08-19
+
+### Ajouté
+
+- **Réinitialisation de mot de passe en autonomie (KAN-52)** — deux bêta-testeurs
+  s'étaient retrouvés bloqués hors de leur compte, débloqués à la main faute de
+  parcours prévu. Un lien « Mot de passe oublié ? » sur `/login` mène à
+  `/forgot-password` ; le message reçu contient un lien valable **une heure et à
+  usage unique** qui ouvre `/reset-password`, où le nouveau mot de passe est
+  choisi. Pas de connexion automatique : le parcours se termine sur `/login` avec
+  une confirmation, un lien reçu par courrier n'ouvrant pas de session.
+  Non-énumération stricte : la réponse est identique que l'adresse corresponde ou
+  non à un compte, **y compris si l'envoi échoue** — sans quoi une panne
+  deviendrait un moyen de deviner quelles adresses ont un compte.
+- **Première brique de messagerie du produit (KAN-52)** : port `Mailer`
+  (`src/lib/mail/`) avec adaptateur SMTP `nodemailer` sur le serveur OVH existant
+  et double en mémoire pour les tests, sur le même patron ports & adapters que
+  `Storage` et `JobQueue`. L'expéditeur est une donnée de configuration
+  (`MAIL_FROM`), jamais un paramètre d'appel : aucun code appelant ne peut
+  usurper l'adresse d'envoi. Message en texte + HTML sobre, sans aucune ressource
+  distante. Nouvelles variables d'environnement `SMTP_*`, `MAIL_FROM` et
+  `MAIL_TRANSPORT` (à poser sur le VPS, voir `docs/manuels/deploiement.md`).
+  Voir ADR-0025.
+- **Confirmation du mot de passe et bascule afficher/masquer (KAN-52)** : la page
+  de réinitialisation demande désormais une **seconde saisie** du nouveau mot de
+  passe — une faute de frappe y rebloque l'utilisateur, qui devrait sinon refaire
+  toute la demande ; le jeton n'est d'ailleurs pas consommé tant que la saisie est
+  invalide, donc le même lien reste utilisable. Une bascule œil afficher/masquer
+  est ajoutée aux champs mot de passe des **trois** formulaires (connexion,
+  inscription, réinitialisation) : bouton natif, libellé qui change avec l'état,
+  `aria-controls` vers le champ piloté.
+
+### Corrigé
+
+- **Erreurs réelles avalées derrière les messages génériques d'authentification** —
+  `registerAction` et `loginAction` renvoyaient « Inscription/Connexion impossible
+  pour le moment » sans laisser la moindre trace serveur, contrairement à la règle
+  du projet. Le défaut s'est payé comptant le 17/08 : une base de développement
+  sans migrations produisait ce message sans un seul log, et il a fallu interroger
+  l'endpoint Better Auth à la main pour découvrir que la table `user` n'existait
+  pas. La cause réelle est désormais journalisée dans les replis génériques —
+  et uniquement là, jamais dans les cas métier attendus (compte déjà existant,
+  mot de passe incorrect), qui ne sont pas des incidents.
+- **Perte d'écran à l'édition d'une entrée longue (KAN-53, BUG-014)** — première
+  anomalie signalée par une utilisatrice. Dès que le contenu d'une entrée
+  dépassait la hauteur de l'écran, l'édition devenait très dégradée : un « bloc »
+  irrémovible occupait le bas de l'écran, le texte saisi partait hors de vue, et
+  une zone morte de la hauteur d'un écran s'installait sous le pied de page.
+  Régression de la restructuration du conteneur défilant de KAN-45 (v1.3.0),
+  jamais exercée sur un contenu supérieur au viewport. Cause établie par mesure :
+  le `<span class="sr-only">` du lien externe du pied de page (`sr-only` vaut
+  `position: absolute`) se rattachait au shell `h-dvh` faute de `relative` sur le
+  conteneur défilant, échappait à son clipping et rendait le shell lui-même
+  défilable ; le `scrollIntoView` du caret le faisait alors glisser d'un écran
+  entier, sans retour possible (ni molette, ni barre — masquée par `no-scrollbar`).
+  Les trois symptômes n'en faisaient qu'un. Correctif : `relative` sur les
+  conteneurs défilants de `worlds/page.tsx` et `world-shell.tsx` — les conteneurs
+  équivalents de `(auth)/layout.tsx` et `mentions-legales/page.tsx` le portaient
+  déjà, ce qui explique que ces pages n'aient jamais montré le défaut. Comble le
+  trou de couverture au passage : `e2e/long-content.spec.ts` verrouille
+  l'invariant « une seule zone défile par page » sur contenu long, et la
+  non-régression du pied de page sur page courte (TST-ENT-013).
 
 ## [1.3.0] - 2026-08-13
 

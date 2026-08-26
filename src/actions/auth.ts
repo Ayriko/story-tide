@@ -3,8 +3,14 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { APIError } from "better-auth";
+import { env } from "@/env";
 import { auth } from "@/lib/auth";
-import { loginSchema, registerSchema } from "@/lib/auth-schemas";
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "@/lib/auth-schemas";
 import { seedIntroWorld } from "@/services/intro-world-service";
 import type { ZodError } from "zod";
 
@@ -57,6 +63,13 @@ export async function registerAction(
     if (error instanceof APIError && error.body?.code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") {
       return { errors: { email: "Un compte existe déjà avec cette adresse e-mail." }, values };
     }
+    // Repli generique : la cause reelle est loguee, jamais avalee (regle
+    // CLAUDE.md). Un "impossible pour le moment" sans trace serveur a deja
+    // coute un diagnostic complet (dev-log 2026-07-14), et de nouveau le
+    // 2026-08-17 - une base de dev sans migrations produisait ce message sans
+    // la moindre ligne de log. Uniquement ici, dans la branche inattendue :
+    // surtout pas dans le cas metier "compte deja existant" traite au-dessus.
+    console.error("[auth] Inscription échouée :", error);
     return { formError: "Inscription impossible pour le moment. Réessayez.", values };
   }
 
@@ -114,8 +127,103 @@ export async function loginAction(
       // passe qui est incorrect (OWASP A07 - pas d'enumeration de comptes).
       return { formError: "E-mail ou mot de passe incorrect.", values };
     }
+    // Repli generique (panne reelle : base injoignable, etc.) - cause loguee,
+    // jamais avalee. Pas de log dans la branche APIError ci-dessus : un
+    // mauvais mot de passe est un cas metier attendu, pas un incident.
+    console.error("[auth] Connexion échouée :", error);
     return { formError: "Connexion impossible pour le moment. Réessayez.", values };
   }
 
   redirect("/");
+}
+
+export type ForgotPasswordActionState = {
+  errors?: Partial<Record<"email", string>>;
+  formError?: string;
+  values?: Partial<Record<"email", string>>;
+  sent?: boolean;
+};
+
+export async function requestPasswordResetAction(
+  _prevState: ForgotPasswordActionState,
+  formData: FormData,
+): Promise<ForgotPasswordActionState> {
+  const values = { email: stringField(formData, "email") };
+
+  const parsed = forgotPasswordSchema.safeParse({ email: formData.get("email") });
+
+  if (!parsed.success) {
+    const emailIssue = parsed.error.issues.find((issue) => issue.path[0] === "email");
+    return { errors: { email: emailIssue?.message ?? "Adresse e-mail invalide." }, values };
+  }
+
+  try {
+    await auth.api.requestPasswordReset({
+      body: {
+        email: parsed.data.email,
+        // Page qui recevra le jeton valide (Better Auth y redirige apres
+        // verification) ou `?error=INVALID_TOKEN` si le lien est perime.
+        redirectTo: `${env.BETTER_AUTH_URL}/reset-password`,
+      },
+    });
+  } catch (error) {
+    // Cause reelle loguee (SMTP injoignable, identifiants refuses...), mais le
+    // message rendu reste le meme que dans le cas nominal : un echec d'envoi ne
+    // doit pas devenir un oracle permettant de distinguer une adresse connue
+    // d'une adresse inconnue.
+    console.error("[auth] Demande de réinitialisation échouée :", error);
+    return { sent: true, values };
+  }
+
+  return { sent: true, values };
+}
+
+export type ResetPasswordActionState = {
+  errors?: Partial<Record<"password" | "passwordConfirm", string>>;
+  formError?: string;
+};
+
+export async function resetPasswordAction(
+  _prevState: ResetPasswordActionState,
+  formData: FormData,
+): Promise<ResetPasswordActionState> {
+  const token = stringField(formData, "token");
+
+  if (!token) {
+    return { formError: "Ce lien de réinitialisation est invalide ou a expiré." };
+  }
+
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get("password"),
+    passwordConfirm: formData.get("passwordConfirm"),
+  });
+
+  if (!parsed.success) {
+    // Le jeton n'est PAS consomme tant que la saisie est invalide : l'utilisateur
+    // peut corriger sans avoir a redemander un lien.
+    const errors: ResetPasswordActionState["errors"] = {};
+    for (const issue of parsed.error.issues) {
+      const champ = issue.path[0];
+      if (champ === "password" || champ === "passwordConfirm") {
+        errors[champ] ??= issue.message;
+      }
+    }
+    return { errors };
+  }
+
+  try {
+    await auth.api.resetPassword({ body: { newPassword: parsed.data.password, token } });
+  } catch (error) {
+    if (error instanceof APIError) {
+      // Cas metier attendu : jeton expire, deja consomme, ou fabrique.
+      return { formError: "Ce lien de réinitialisation est invalide ou a expiré." };
+    }
+    console.error("[auth] Réinitialisation du mot de passe échouée :", error);
+    return { formError: "Réinitialisation impossible pour le moment. Réessayez." };
+  }
+
+  // Pas de connexion automatique : un lien recu par courrier ne doit pas
+  // suffire a ouvrir une session (convention GitHub/GitLab, arbitrage du
+  // 2026-08-17). L'utilisateur ressaisit le mot de passe qu'il vient de choisir.
+  redirect("/login?reinitialise=1");
 }

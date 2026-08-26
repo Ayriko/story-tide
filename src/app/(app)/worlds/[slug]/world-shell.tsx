@@ -177,10 +177,24 @@ export function WorldShell({
             defilement fluide au clic sur ScrollHint. no-scrollbar (retour
             Aymeric) : scrollbar visuelle masquee, le defilement reste
             fonctionnel. data-scroll-container : ancre reperee par
-            ScrollHint (closest()) pour cibler CE conteneur precis. */}
+            ScrollHint (closest()) pour cibler CE conteneur precis.
+            relative (BUG-014) : OBLIGATOIRE. Un conteneur defilant ne clippe
+            que les descendants dont il est le bloc conteneur ; un descendant
+            en position:absolute se rattache a l'ancetre positionne le plus
+            proche. Sans "relative" ici, le <span class="sr-only"> du lien
+            externe du pied de page (footer.tsx - sr-only vaut
+            position:absolute) se rattachait au shell h-dvh, s'echappait de ce
+            conteneur et etirait le scrollHeight du shell. Le shell devenait
+            alors defilable : le scrollIntoView du caret le faisait glisser
+            d'un ecran entier, sans retour possible (ni molette ni barre) - les
+            trois symptomes signales ("bloc" en bas, texte hors de vue, zone
+            morte sous le pied de page) sont ce seul defaut. Les conteneurs
+            equivalents de (auth)/layout.tsx et mentions-legales/page.tsx
+            portaient deja "relative" - d'ou l'absence de defaut sur ces
+            pages. */}
         <div
           data-scroll-container
-          className="no-scrollbar min-h-0 flex-1 scroll-smooth overflow-y-auto"
+          className="relative no-scrollbar min-h-0 flex-1 scroll-smooth overflow-y-auto"
         >
           <main id="main-content" className="min-h-full overflow-visible px-4 pb-10 lg:px-6">
             {/* min-h-full (retour Aymeric, capture-footer.PNG) : sans

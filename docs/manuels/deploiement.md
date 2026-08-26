@@ -54,6 +54,71 @@ valeur. Ces trois fichiers **restent sur le VPS uniquement** — le workflow CD
 ne les transfère jamais (`scp -r deploy/.` ne touche pas les fichiers absents
 du repo).
 
+#### Envoi de messages (KAN-52, à partir de v1.3.1)
+
+Depuis v1.3.1, l'application envoie des messages (réinitialisation de mot de
+passe). Les variables suivantes sont **obligatoires** : leur absence fait
+échouer la validation Zod au démarrage, donc le conteneur ne démarre pas. À
+ajouter dans `deploy/.env.staging` **et** `deploy/.env.prod` avant de déployer
+le tag :
+
+| Variable | Valeur | Remarque |
+|---|---|---|
+| `SMTP_HOST` | `ssl0.ovh.net` | serveur mutualisé OVH du domaine |
+| `SMTP_PORT` | `465` | `587` si l'on préfère STARTTLS |
+| `SMTP_SECURE` | `true` | TLS immédiat sur 465 ; `false` sur 587 |
+| `SMTP_USER` | `admin@storytide.fr` | adresse complète de la **boîte réelle** — voir l'encadré ci-dessous, ce n'est **pas** l'expéditeur affiché |
+| `SMTP_PASSWORD` | *(secret)* | mot de passe de la boîte `admin@` — jamais dans le dépôt |
+| `MAIL_FROM` | `Story Tide <contact@storytide.fr>` | adresse publique du produit, volontairement différente de `SMTP_USER` |
+| `MAIL_TRANSPORT` | `smtp` | **ne jamais poser `memory` ici** : les messages seraient silencieusement jetés, sans la moindre erreur visible |
+
+> **Le compte authentifié n'est pas l'expéditeur affiché.**
+> `contact@storytide.fr` est un **alias sans boîte** : il n'a pas de mot de passe et
+> ne peut donc pas s'authentifier — toute tentative répond `535 5.7.1 Authentication
+> failed` (constaté le 2026-08-17, sur les ports 465 et 587). On authentifie donc sur
+> `admin@storytide.fr`, seule boîte réelle du domaine, tout en gardant `contact@`
+> comme adresse visible par les utilisateurs. Montage validé le 2026-08-13 par le
+> « Envoyer en tant que » de Gmail, qui utilise exactement les mêmes réglages.
+> Ne pas « corriger » `SMTP_USER` en `contact@` : cela casserait tous les envois.
+>
+> Bascule possible plus tard vers une vraie boîte `contact@` (il faut d'abord
+> supprimer l'alias pour libérer l'adresse) : cela ne coûte que deux variables
+> — `SMTP_USER` et `SMTP_PASSWORD` — et un redéploiement.
+
+Vérifier l'interpolation avant de déployer :
+
+```bash
+docker compose -p storytide-staging --env-file ~/story-tide/deploy/.env.staging \
+  -f ~/story-tide/deploy/compose.staging.yml config | grep -A1 SMTP_HOST
+```
+
+Après déploiement, valider par un envoi réel (parcours « Mot de passe oublié »
+sur un compte de test **qui existe réellement en base** — une adresse inconnue
+ne déclenche aucun envoi, c'est voulu). La configuration SMTP n'est pas couverte
+par les tests automatisés, et un échec d'envoi reste **invisible côté
+utilisateur** — par construction, pour ne pas révéler quelles adresses ont un
+compte (OWASP A07). Le seul témoin d'une panne est donc la trace serveur.
+
+**Attention à l'endroit où regarder** : Better Auth exécute `sendResetPassword`
+en tâche de fond (`runInBackgroundOrAwait`), si bien qu'une erreur d'envoi
+**n'atteint pas** le `catch` de `requestPasswordResetAction` et n'apparaît pas
+sous le préfixe `[auth]`. Elle est journalisée par Better Auth :
+
+```bash
+# Panne d'envoi (identifiants SMTP, TLS, quota, DNS...)
+docker logs storytide-prod-app-1 2>&1 | grep -A5 "Failed to run background task"
+
+# Adresse sans compte : aucun envoi, message d'information seulement
+docker logs storytide-prod-app-1 2>&1 | grep "Reset Password: User not found"
+```
+
+Erreurs déjà rencontrées et leur signification :
+
+| Trace | Cause |
+|---|---|
+| `535 5.7.1 Authentication failed` (`EAUTH`) | `SMTP_PASSWORD` faux ou resté au placeholder, **ou** `SMTP_USER` pointant sur `contact@` (alias sans boîte). Le mot de passe attendu est celui de la boîte `admin@storytide.fr` — celui du webmail OVH, jamais celui du compte client OVH |
+| `Reset Password: User not found` | l'adresse testée n'a pas de compte — comportement normal, aucun envoi |
+
 ### GitHub Environments (une fois, dans les Settings du repo)
 
 - `staging` : aucun reviewer requis (déploiement automatique sur tag `-rc.N`).
