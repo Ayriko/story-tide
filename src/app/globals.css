@@ -115,7 +115,7 @@
 
   /* Voile pose par ShellBackground par-dessus le fond (art. + repli), pour
      garder l'UI lisible au-dessus d'un artwork QUELCONQUE (monde uploade en
-     (app), artwork de marque en (auth)). Parametre par variables (ADR-0025)
+     (app), artwork de marque en (auth)). Parametre par variables (ADR-0026)
      pour permettre a (auth) de le surcharger sans toucher (app) ni
      mentions-legales : valeurs par defaut = equivalent exact de l'ancien
      bg-black/45 backdrop-blur-md, donc aucun changement de rendu tant que

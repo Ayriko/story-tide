@@ -4,7 +4,7 @@
 // l'artwork futur (--bg-image, par monde) restera en background-image,
 // jamais en <img> porteur de sens. Le voile (--shell-scrim/-blur) et le
 // cadrage (--shell-bg-position) sont parametrables par variable CSS
-// (ADR-0025) : valeurs par defaut dans :root (globals.css), surchargeables
+// (ADR-0026) : valeurs par defaut dans :root (globals.css), surchargeables
 // par le layout qui l'englobe (ex. .auth-artwork).
 export function ShellBackground() {
   return (

@@ -6,7 +6,7 @@
 - Mesure de contraste RGAA sur rendu réel (méthode texte-transparent + capture + calcul WCAG 2.1), pas de simulation.
 - Itérations visuelles à la demande d'Aymeric : cadrage de l'image, retrait du flou/voile, couleur des boutons, encart de crédit de l'artiste.
 - Deux diagnostics de cache Turbopack HMR périmé (CSS servi non conforme au source).
-- Documentation (ADR-0025, `accessibilite-rgaa.md`, cahier de recettes, CHANGELOG) et gates complets.
+- Documentation (ADR-0026, `accessibilite-rgaa.md`, cahier de recettes, CHANGELOG) et gates complets.
 
 **Décisions prises :**
 - Portée de l'artwork : une seule déclaration sur `(auth)/layout.tsx`, couvre `/login` et `/register` (les pages `/forgot-password`/`/reset-password` du brief n'existent pas) — Aymeric.
@@ -17,7 +17,7 @@
 - Couleur des boutons primaires : `#667EC7` retenu contre `#081484` (les deux mesurés à 4,72:1 / 12,87:1) — Aymeric, override local à `(auth)` uniquement.
 - Encart de crédit `@Dvkin` (lien externe vers vgen.co) placé en bas à gauche, hors du conteneur défilant — Aymeric.
 - Voile `--shell-scrim` retiré **entièrement** (pas de valeur intermédiaire) — Aymeric, après qu'une valeur à 20 % ait été mesurée encore non conforme sur deux zones (pied de page, sous-titre en 2x) : itérer sur des paliers intermédiaires n'apportait rien, compensation locale ciblée retenue à la place.
-- Écart de contraste résiduel (sous-titre du panneau, variante 2880/DPR2, 3,55:1) accepté sans correction supplémentaire — Aymeric, priorité donnée à la fidélité visuelle de l'artwork ; documenté plutôt que masqué (ADR-0025).
+- Écart de contraste résiduel (sous-titre du panneau, variante 2880/DPR2, 3,55:1) accepté sans correction supplémentaire — Aymeric, priorité donnée à la fidélité visuelle de l'artwork ; documenté plutôt que masqué (ADR-0026).
 
 **Éléments notables / appris (gotchas) :**
 - **Cache HMR Turbopack périmé, deux fois dans la même session** : après une édition confirmée sur le disque de `globals.css`, le rendu (capture d'écran, `getComputedStyle`) restait identique à l'état précédent — aucune erreur, juste un CSS silencieusement pas à jour. Confirmé en grepant la propriété attendue dans `.next/dev/static/chunks/src_app_globals_css_*.css` : absente malgré le fichier source correct. Seule solution fiable : arrêt complet du serveur (`taskkill` sur les PID `node.exe` dont la `CommandLine` matche `next`, via `Get-CimInstance Win32_Process`) + `rm -rf .next` + relance. **Candidat skill** : vérifier systématiquement le CSS compilé après tout changement de variable/classe CSS, avant de faire confiance à un rendu visuel ou à une mesure de contraste — ce projet a un Turbopack dev particulièrement sujet à ce cache périmé.
@@ -25,6 +25,7 @@
 - **Mesure automatisée de contraste sur l'anneau de focus abandonnée** : `focus-visible:ring-3` (box-shadow semi-transparent) contamine son propre échantillon de « fond » quel que soit le padding de la zone mesurée (le pire pixel trouvé est l'anneau lui-même). Vérifié visuellement à la place plutôt que produire un chiffre auquel se fier à tort.
 - **`npm run test:coverage` et le `webServer` Playwright plantent sous pression mémoire système, sans rapport avec le code** : `Error: Worker exited unexpectedly` côté Vitest (35/44 fichiers exécutés, coverage faussement bas) puis `FATAL ERROR: ... JavaScript heap out of memory` côté `next dev` (exit code `3221226505`) au lancement des e2e. `Get-CimInstance Win32_Process | Sort-Object WorkingSetSize -Descending` a identifié la cause réelle : une application tierce (Overwatch) consommant 13,4 Go de RAM, ne laissant que ~4 Go libres sur 32. Après fermeture de l'appli (18,8 Go libres), tout repasse au vert sans aucun changement de code. **Candidat skill** : avant de suspecter une régression sur un crash « worker exited »/« out of memory » côté tests, vérifier la RAM disponible et les gros consommateurs plutôt que le code.
 - Une des 4 dérivées artwork produites en amont (par Pillow, hors du repo, environnement Linux) divergeait de ±9,7 % en poids du résultat de `scripts/build-artwork.mjs` (jamais exécuté avant cette session) — dans la tolérance ±15 % acceptée ; script confirmé fidèle, aucune modification nécessaire.
+- **Collision de numérotation ADR/cahier-recettes à l'ouverture de la MR** : la branche `feat/artwork-login` a été créée depuis un `main` qui a ensuite reçu KAN-52 (mot de passe oublié, mergé + `v1.3.1` taguée) avant que cette branche ne soit poussée en revue. KAN-52 a lui aussi pris le numéro **ADR-0025** (`0025-transport-email-smtp-port-mailer.md`, jamais indexé dans `docs/adr/README.md` — oubli de cette PR, signalé à Aymeric) et les entrées **TST-AUT-010/011** du cahier de recettes. Conflit sur 3 fichiers (`CHANGELOG.md`, `docs/accessibilite-rgaa.md`, `docs/cahier-recettes.md`) détecté seulement à l'ouverture de la MR — diagnostiqué sans risque via `git merge-tree --write-tree <branche> origin/main` (calcule le résultat d'un merge hypothétique sans toucher HEAD, l'index ni le répertoire de travail). Mon ADR renommé en **0026**, mon entrée en **TST-AUT-012** ; les conflits `CHANGELOG.md`/`accessibilite-rgaa.md` restent de vrais conflits de position (les deux branches insèrent au même point d'ancrage) à résoudre à la main. **Candidat skill** : sur une branche longue, `git merge-tree --write-tree <ma-branche> origin/main` avant de pousser une MR pour détecter ce genre de collision (ADR/TST numérotés, section `[Unreleased]`) sans avoir à réellement merger.
 
 **Commandes utiles de la session :**
 - `Get-CimInstance Win32_Process | Sort-Object WorkingSetSize -Descending | Select-Object -First 8 Name,ProcessId,@{n='MB';e={[math]::Round($_.WorkingSetSize/1MB,0)}}` — identifier les gros consommateurs de RAM avant de diagnostiquer un crash « out of memory » comme un bug de code.
@@ -32,17 +33,17 @@
 - `grep -n "<propriété>" .next/dev/static/chunks/src_app_globals_css_*.css` — vérifier qu'une variable/classe CSS a bien été recompilée par Turbopack avant de faire confiance à un rendu visuel.
 
 **Livrables produits :**
-- Créés : `public/artwork/login-hero-{1920,2880}.{avif,webp}`, `scripts/build-artwork.mjs`, `src/app/(auth)/artist-credit.tsx` + `.test.tsx`, `src/app/(auth)/layout.test.tsx`, `src/app/shell-background.test.tsx`, `docs/adr/0025-shell-background-parametrable-artwork-marque.md`.
+- Créés : `public/artwork/login-hero-{1920,2880}.{avif,webp}`, `scripts/build-artwork.mjs`, `src/app/(auth)/artist-credit.tsx` + `.test.tsx`, `src/app/(auth)/layout.test.tsx`, `src/app/shell-background.test.tsx`, `docs/adr/0026-shell-background-parametrable-artwork-marque.md`.
 - Modifiés : `src/app/globals.css`, `src/app/shell-background.tsx`, `src/app/(auth)/layout.tsx`, `src/app/(auth)/auth-card.tsx`, `.gitignore`, `docs/adr/README.md`, `docs/accessibilite-rgaa.md`, `docs/cahier-recettes.md`, `CHANGELOG.md`.
 - Supprimé : `src/assets/login-hero.jpg` (jamais commité).
 - Gates : lint ✅ · typecheck ✅ · format:check ✅ · tests ✅ (436/436, couverture 98,34 % lignes / 95,31 % branches / 94,82 % fonctions / 98,25 % statements — seuil bloquant 80 % largement dépassé) · e2e ✅ (11/11) · build ✅.
 
 **Avancement certification :**
-- C2.2.1 : contrat de `ShellBackground` étendu proprement par 3 nouvelles variables CSS (`--shell-scrim`, `--shell-scrim-blur`, `--shell-bg-position`, en plus de `--bg-image` déjà existante KAN-36), zéro régression sur `(app)`/`mentions-legales` prouvée par diff du CSS compilé — ADR-0025.
+- C2.2.1 : contrat de `ShellBackground` étendu proprement par 3 nouvelles variables CSS (`--shell-scrim`, `--shell-scrim-blur`, `--shell-bg-position`, en plus de `--bg-image` déjà existante KAN-36), zéro régression sur `(app)`/`mentions-legales` prouvée par diff du CSS compilé — ADR-0026.
 - C2.2.2 : 3 nouveaux fichiers de tests colocalisés, couverture globale du projet à 98 %+ (largement au-dessus du seuil 80 % bloquant).
-- C2.2.3 : mesure de contraste RGAA sur rendu réel documentée dans `accessibilite-rgaa.md`, limite explicite d'axe-core sur `background-image` consignée, écart résiduel connu documenté plutôt que masqué (ADR-0025, TST-AUT-010).
-- C2.3.1 : `TST-AUT-010` ajouté au cahier de recettes (format 6 champs + type/statut).
-- C2.4.1 : ADR-0025 rédigé, décisions horodatées avec justification et alternatives écartées.
+- C2.2.3 : mesure de contraste RGAA sur rendu réel documentée dans `accessibilite-rgaa.md`, limite explicite d'axe-core sur `background-image` consignée, écart résiduel connu documenté plutôt que masqué (ADR-0026, TST-AUT-012).
+- C2.3.1 : `TST-AUT-012` ajouté au cahier de recettes (format 6 champs + type/statut).
+- C2.4.1 : ADR-0026 rédigé, décisions horodatées avec justification et alternatives écartées.
 
 **À faire / suite :**
 - Créer le ticket KAN-xx (Aymeric) — type Story, libellé hors 4e mur.

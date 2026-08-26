@@ -12,7 +12,7 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   `(auth)/layout.tsx`, script de dérivation `scripts/build-artwork.mjs`.
   Contrat de `ShellBackground` étendu par variables CSS pour permettre à
   `(auth)` de personnaliser le voile et le cadrage sans affecter `(app)` ni
-  `/mentions-legales` (ADR-0025). Encart de crédit de l'artiste (`@Dvkin`,
+  `/mentions-legales` (ADR-0026). Encart de crédit de l'artiste (`@Dvkin`,
   lien externe) en bas à gauche des pages `(auth)`.
 
 ### Modifié
@@ -23,7 +23,7 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 - Opacité de la carte de connexion/inscription (`bg-card/45` → `/55`) et du
   fond du pied de page sous l'artwork (`bg-black/80`) pour rester conforme au
   contraste RGAA une fois le voile de protection générique retiré pour cet
-  écran (ADR-0025, ratios mesurés dans `docs/accessibilite-rgaa.md`).
+  écran (ADR-0026, ratios mesurés dans `docs/accessibilite-rgaa.md`).
 
 ## [1.3.0] - 2026-08-13
 

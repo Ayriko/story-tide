@@ -248,7 +248,7 @@ Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 - **Redirection annoncée** : `/login` et `/register` redirigent immédiatement vers
   `/` si une session est déjà active (pas de contenu inutile affiché puis retiré).
 
-**Artwork de marque en fond (2026-08-26, KAN-xx, ADR-0025)** — branché sur
+**Artwork de marque en fond (2026-08-26, KAN-xx, ADR-0026)** — branché sur
 `(auth)/layout.tsx` via `--bg-image` (`image-set()`, AVIF/WebP, 1x/2x),
 purement décoratif (`aria-hidden`, `ShellBackground`) : aucune information n'y
 est portée, `alt` non applicable (fond CSS, pas `<img>`).
@@ -279,9 +279,9 @@ est portée, `alt` non applicable (fond CSS, pas `<img>`).
   recompilé (comparer le CSS servi au fichier source).
 - **Résultat** : tous les éléments de texte conformes (≥ 4,5:1) après
   correctifs locaux (`bg-black/80` sur le pied de page, `bg-card/55` sur la
-  carte — voir ADR-0025), **sauf** le sous-titre du panneau en variante 2880
+  carte — voir ADR-0026), **sauf** le sous-titre du panneau en variante 2880
   (DPR 2 uniquement) : 3,55:1, sous le seuil. Écart connu et assumé (voir
-  ADR-0025 « Conséquences ») plutôt que corrigé en aveugle — candidat
+  ADR-0026 « Conséquences ») plutôt que corrigé en aveugle — candidat
   `plan-correction-bogues.md` si l'audit RGAA formel l'exige.
 - **Anneau de focus / bordure `Input`** : tenté par la même méthode
   (couleur de bordure calculée contre le pixel de fond adjacent), **abandonné
