@@ -112,6 +112,71 @@
   --shell-bg-fallback:
     radial-gradient(ellipse 70% 60% at 15% 85%, oklch(0.78 0.13 170 / 8%), transparent 60%),
     linear-gradient(165deg, #122a3a 0%, #15394a 100%);
+
+  /* Voile pose par ShellBackground par-dessus le fond (art. + repli), pour
+     garder l'UI lisible au-dessus d'un artwork QUELCONQUE (monde uploade en
+     (app), artwork de marque en (auth)). Parametre par variables (ADR-0025)
+     pour permettre a (auth) de le surcharger sans toucher (app) ni
+     mentions-legales : valeurs par defaut = equivalent exact de l'ancien
+     bg-black/45 backdrop-blur-md, donc aucun changement de rendu tant que
+     rien ne les surcharge. */
+  --shell-scrim: #00000073; /* = bg-black/45 */
+  --shell-scrim-blur: 12px; /* = backdrop-blur-md */
+  --shell-bg-position: center; /* = bg-center */
+}
+
+/* Artwork de marque (auth) - KAN-xx. Ecrase --bg-image uniquement, herite
+   par ShellBackground via var(--bg-image, var(--shell-bg-fallback)). Classe
+   CSS plutot qu'un utilitaire Tailwind arbitraire : la valeur contient des
+   espaces/virgules/guillemets qu'il faudrait echapper en underscores dans
+   la notation entre crochets - illisible et fragile. Le 2880 sert de
+   variante 2x (pas de 3840) : au-dela, le gain de nettete ne paierait pas
+   les ~500 Ko supplementaires.
+   --shell-scrim-blur a 0 (retour Aymeric) : le flou de ShellBackground
+   couvre tout l'ecran, or cette composition reserve deliberement le tiers
+   droit a la carte - flouter l'artwork en entier allait a l'encontre de ce
+   pour quoi il a ete commande. Le flou "vitre depolie" reste porte par la
+   carte elle-meme (auth-card.tsx, backdrop-blur-xl), pas par le fond.
+   --shell-bg-position en haut a gauche (retour Aymeric) : bg-cover rogne
+   l'image sur toute fenetre non exactement 16:9 (ultrawide, fenetre non
+   maximisee) - centre, le rognage lateral peut couper le lettrage "STORY
+   TIDE" en haut a gauche de la composition. Ancrer haut-gauche protege le
+   titre en sacrifiant plutot les etoiles/le personnage a droite, deja
+   recouverts par la carte sur la plupart des largeurs. Leger decalage
+   vertical (8%, retour Aymeric) : un axe purement "top" laisse une marge de
+   ciel vide au-dessus du lettrage - redescend le cadrage pour rogner cette
+   marge plutot que de la montrer, sans entamer les lettres.
+   --shell-scrim retire (retour Aymeric : le voile assombrissait l'artwork
+   entier compare a l'original, meme en dehors de la carte). Compense
+   localement : bg-black/80 sur le pied de page (layout.tsx, hors carte,
+   sans protection sinon) et bg-card/45->/55 (auth-card.tsx). Ratios mesures
+   sur le rendu reel apres retrait, cf. accessibilite-rgaa.md : conforme
+   partout SAUF le sous-titre en 2x/2880 (3,55:1, sous le seuil 4,5:1) - une
+   zone claire de cette seule variante traverse le coin de la carte a cet
+   endroit precis ; ni bg-card/55 ni un residu de scrim n'ont suffi a la
+   corriger sans re-assombrir le reste. Ecart connu, non corrige a la
+   demande d'Aymeric (priorite a la fidelite visuelle) - a rouvrir si
+   l'audit RGAA formel l'exige (voir plan-correction-bogues.md). */
+.auth-artwork {
+  --bg-image: image-set(
+    url("/artwork/login-hero-1920.avif") type("image/avif") 1x,
+    url("/artwork/login-hero-2880.avif") type("image/avif") 2x,
+    url("/artwork/login-hero-1920.webp") type("image/webp") 1x,
+    url("/artwork/login-hero-2880.webp") type("image/webp") 2x
+  );
+  --shell-scrim-blur: 0px;
+  --shell-bg-position: left 8%;
+  --shell-scrim: transparent;
+  /* Surcharge locale de --primary/--primary-foreground (retour Aymeric,
+     "on ne touche pas au reste du site") : bg-primary/text-primary-foreground
+     ne sont consommes dans (auth) QUE par AuthTabs (onglet actif) et Button
+     (variante par defaut, "Se connecter"/"Creer mon compte") - la surcharge
+     ici les couvre tous les deux sans toucher au token global ni a aucun
+     autre ecran. Foreground recalcule pour la teinte retenue (contraste
+     WCAG >= 4,5:1, formule de luminance relative) - deux candidats testes
+     (#667ec7 retenu, #081484 ecarte). */
+  --primary: #667ec7;
+  --primary-foreground: #0d1420; /* 4,72:1 sur #667ec7 */
 }
 
 @layer base {
