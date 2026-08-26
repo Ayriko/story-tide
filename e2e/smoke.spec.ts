@@ -27,7 +27,7 @@ test("login -> monde -> fiche -> editeur -> reload", async ({ page }) => {
   // defaut en sous-chaine, pas en nom accessible exact.
   await page.getByLabel("Nom", { exact: true }).fill("Smoke Test");
   await page.getByLabel("E-mail").fill(uniqueEmail);
-  await page.getByLabel("Mot de passe").fill("mot-de-passe-smoke-1234");
+  await page.getByLabel("Mot de passe", { exact: true }).fill("mot-de-passe-smoke-1234");
   // Saute le monde d'introduction "Atheraus" (KAN-35) : ce test ne le
   // concerne pas, et son seed (25 entites + enfilage de jobs) ferait
   // concourir la file de liaison partagee avec les autres jobs e2e

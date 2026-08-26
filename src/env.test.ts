@@ -13,6 +13,12 @@ const validSource = {
   S3_ACCESS_KEY: "key",
   S3_SECRET_KEY: "secret",
   S3_BUCKET: "bucket",
+  SMTP_HOST: "ssl0.ovh.net",
+  SMTP_PORT: "465",
+  SMTP_SECURE: "true",
+  SMTP_USER: "admin@example.test",
+  SMTP_PASSWORD: "secret",
+  MAIL_FROM: "Story Tide <contact@example.test>",
 };
 
 describe("loadEnv", () => {
@@ -56,5 +62,35 @@ describe("loadEnv", () => {
     const env = loadEnv({ ...validSource, COMMIT_SHA: "abc1234" });
 
     expect(env.COMMIT_SHA).toBe("abc1234");
+  });
+
+  it("convertit SMTP_PORT en nombre et SMTP_SECURE en booleen", () => {
+    const env = loadEnv(validSource);
+
+    expect(env.SMTP_PORT).toBe(465);
+    expect(env.SMTP_SECURE).toBe(true);
+  });
+
+  it("applique MAIL_TRANSPORT=smtp par defaut", () => {
+    // Defaut volontaire : un oubli de configuration doit echouer bruyamment a
+    // l'envoi, jamais avaler silencieusement les messages (ADR-0025).
+    const env = loadEnv(validSource);
+
+    expect(env.MAIL_TRANSPORT).toBe("smtp");
+  });
+
+  it("accepte MAIL_TRANSPORT=memory (runs e2e)", () => {
+    const env = loadEnv({ ...validSource, MAIL_TRANSPORT: "memory" });
+
+    expect(env.MAIL_TRANSPORT).toBe("memory");
+  });
+
+  it("rejette un MAIL_TRANSPORT inconnu", () => {
+    expect(() => loadEnv({ ...validSource, MAIL_TRANSPORT: "sendgrid" })).toThrow(/MAIL_TRANSPORT/);
+  });
+
+  it("rejette un SMTP_PASSWORD absent", () => {
+    // Aucun defaut possible sur un secret : mieux vaut refuser de demarrer.
+    expect(() => loadEnv({ ...validSource, SMTP_PASSWORD: undefined })).toThrow(/SMTP_PASSWORD/);
   });
 });

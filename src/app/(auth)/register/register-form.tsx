@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { registerAction, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "../password-input";
 import { Label } from "@/components/ui/label";
 
 const initialState: AuthActionState = {};
@@ -69,10 +70,9 @@ export function RegisterForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Mot de passe</Label>
-        <Input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="new-password"
           required
           aria-invalid={state.errors?.password ? true : undefined}
