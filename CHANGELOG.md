@@ -5,6 +5,29 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Artwork de marque en fond des écrans de connexion et d'inscription (KAN-xx),
+  branché via `--bg-image`/`image-set()` (AVIF puis WebP, 1x/2x) sur
+  `(auth)/layout.tsx`, script de dérivation `scripts/build-artwork.mjs`.
+  Contrat de `ShellBackground` étendu par variables CSS pour permettre à
+  `(auth)` de personnaliser le voile et le cadrage sans affecter `(app)` ni
+  `/mentions-legales` (ADR-0026). Encart de crédit de l'artiste (`@Dvkin`,
+  lien externe) en bas à gauche des pages `(auth)`.
+
+### Modifié
+
+- Boutons primaires (`Connexion`/`Inscription`, `Se connecter`,
+  `Créer mon compte`) : teinte locale à `(auth)` (`#667ec7`), sans effet sur
+  le reste du site.
+- Opacité de la carte de connexion/inscription (`bg-card/45` → `/55`) et du
+  fond du pied de page sous l'artwork (`bg-black/80`) pour rester conforme au
+  contraste RGAA une fois le voile de protection générique retiré pour cet
+<<<<<<< HEAD
+  écran (ADR-0026, ratios mesurés dans `docs/accessibilite-rgaa.md`).
+=======
+  écran (ADR-0025, ratios mesurés dans `docs/accessibilite-rgaa.md`).
+  
 ## [1.3.1] - 2026-08-19
 
 ### Ajouté
@@ -67,6 +90,7 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   trou de couverture au passage : `e2e/long-content.spec.ts` verrouille
   l'invariant « une seule zone défile par page » sur contenu long, et la
   non-régression du pied de page sur page courte (TST-ENT-013).
+>>>>>>> 1a4a52a2bb82cf56f7a494d577728829c8e54fd4
 
 ## [1.3.0] - 2026-08-13
 

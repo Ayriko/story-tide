@@ -53,3 +53,6 @@ next-env.d.ts
 
 # prisma (client genere par le generateur prisma-client, v7+)
 /src/generated
+
+artwork-master.png
+artwork-master-srgb.png

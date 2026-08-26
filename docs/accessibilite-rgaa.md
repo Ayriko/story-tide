@@ -249,6 +249,49 @@ Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 - **Redirection annoncée** : `/login` et `/register` redirigent immédiatement vers
   `/` si une session est déjà active (pas de contenu inutile affiché puis retiré).
 
+**Artwork de marque en fond (2026-08-26, KAN-xx, ADR-0026)** — branché sur
+`(auth)/layout.tsx` via `--bg-image` (`image-set()`, AVIF/WebP, 1x/2x),
+purement décoratif (`aria-hidden`, `ShellBackground`) : aucune information n'y
+est portée, `alt` non applicable (fond CSS, pas `<img>`).
+
+- **Méthode de mesure du contraste sur fond image, pas à l'œil** : un fond
+  photographique invalide le calcul « couleur de texte contre un unique token
+  de fond » utilisé jusqu'ici (shadcn/ui, 2026-07-20) — le fond varie pixel
+  par pixel. Protocole retenu (script Playwright + sharp, jetable, non
+  commité) : pour chaque élément de texte réel de la page (titre, sous-titre,
+  onglet, erreur de champ, pied de page), (1) lire sa couleur de texte
+  calculée, (2) rendre tout le texte de la page transparent
+  (`color: transparent`, `text-shadow: none`) pour obtenir une capture du
+  fond composite pur sous cette zone exacte, sans contamination par
+  l'anti-crénelage des glyphes, (3) prendre le pixel le plus clair de la
+  zone (pire cas), (4) ratio WCAG 2.1 (luminance relative) entre les deux
+  couleurs réelles. Vérifié à 1920×1080 (DPR 1, variante 1920) **et**
+  2880×1620 (DPR 2, variante 2880) — les deux variantes livrent des pixels
+  différents à la même position d'écran, un contrôle limité au DPR 1 aurait
+  manqué le pire cas.
+- **Un vrai bug de méthode débusqué en cours de route** : un cache HMR
+  Turbopack périmé a fait tourner une première série de mesures contre
+  l'ancien dégradé de repli (artwork jamais réellement chargé côté rendu),
+  produisant des ratios qui semblaient contredire la simulation initiale du
+  brief. Un redémarrage propre (`.next` vidé) a révélé le rendu réel, qui
+  confirmait au contraire le chiffre initial (pied de page à 3,60:1 en 1x,
+  jusqu'à 2,06:1 en 2x) — leçon retenue : sur ce projet, ne jamais faire
+  confiance à une mesure sans confirmer d'abord que Turbopack a bien
+  recompilé (comparer le CSS servi au fichier source).
+- **Résultat** : tous les éléments de texte conformes (≥ 4,5:1) après
+  correctifs locaux (`bg-black/80` sur le pied de page, `bg-card/55` sur la
+  carte — voir ADR-0026), **sauf** le sous-titre du panneau en variante 2880
+  (DPR 2 uniquement) : 3,55:1, sous le seuil. Écart connu et assumé (voir
+  ADR-0026 « Conséquences ») plutôt que corrigé en aveugle — candidat
+  `plan-correction-bogues.md` si l'audit RGAA formel l'exige.
+- **Anneau de focus / bordure `Input`** : tenté par la même méthode
+  (couleur de bordure calculée contre le pixel de fond adjacent), **abandonné
+  comme non fiable** — l'anneau `focus-visible:ring-3` (`box-shadow`, semi-
+  transparent) contamine son propre échantillon de fond quel que soit le
+  padding de la zone mesurée. Vérifié visuellement à la place (captures
+  d'écran, états focus/erreur réels) plutôt que de produire un chiffre
+  auquel se fier à tort.
+  
 Sur `ForgotPasswordForm` / `ResetPasswordForm`
 (`src/app/(auth)/{forgot-password,reset-password}/`, KAN-52) — mêmes conventions
 que ci-dessus (labels natifs, `aria-invalid`/`aria-describedby`, erreur en
@@ -321,6 +364,17 @@ d'assertion a11y dédiée, voir ci-dessous).
   <!-- TODO, pas encore fait -->. Note : jsdom ne calcule de toute façon pas les
   contrastes (axe les ignore en environnement jsdom), donc le contrôle contraste
   restera de toute façon manuel ou Playwright.
+- **Limite d'outillage confirmée sur l'artwork de marque (2026-08-26)** :
+  même une fois `@axe-core/playwright` en place, il ne saura pas calculer un
+  ratio de contraste pour du texte posé au-dessus d'un `background-image`
+  CSS — axe lit la couleur de fond calculée de l'élément, qui vaut
+  `transparent` dès que le fond vient d'un ancêtre en `background-image`
+  (cas de `(auth)/layout.tsx` depuis cette session). Un futur audit
+  pleine-page verrait donc ces zones passer en vert **sans les avoir
+  réellement vérifiées** — limite documentée consciemment plutôt que
+  découverte plus tard sur un vert qui ne veut rien dire. La vérification
+  manuelle sur rendu réel (méthode ci-dessus, `LoginForm`/`RegisterForm`)
+  reste donc la source de vérité pour ces pages, pas un futur passage axe.
 - **Passage manuel Ara + NVDA** : à planifier avant la recette sur staging
   (spec §6) — <!-- TODO, pas encore fait -->.
 - **Surlignage des liaisons** (`e2e/link-highlight.spec.ts`, 2026-07-16) : le
