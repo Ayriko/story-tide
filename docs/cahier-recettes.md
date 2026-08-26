@@ -105,8 +105,6 @@
 - **Critères d'acceptation** : `auth.test.ts` (`registerAction` : seed appelé par défaut ; case cochée → `seedIntroWorld` jamais appelé ; échec du seed loggué mais redirection inchangée ; validation Zod ou `USER_ALREADY_EXISTS` → ni `signUpEmail` ni `seedIntroWorld` appelés) ; `intro-world-service.test.ts` (`seedIntroWorld` : deux passes création/résolution de mentions, `reconcileManualMentions` appelé avec les bons id résolus, un job de liaison enfilé par entité) ; `world-service.test.ts` (`createIntroWorld` : idempotent, jamais de requête de comptage de quota) ; `entity-service.test.ts` (`createSeedEntity` : upsert par `seedRef`, jamais le slug, NFC, `AliasSource.SEED`) ; vérifié en conditions réelles bout en bout (`e2e/intro-world.spec.ts`, vrai navigateur Chromium, vrai worker, vraie base Postgres isolée — latence mesurée du seed ~300 ms, bien sous le seuil d'arbitrage de 2 s fixé avant câblage).
 - **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`auth.test.ts`, `intro-world-service.test.ts`, `world-service.test.ts`, `entity-service.test.ts`, `e2e/intro-world.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : compte A (case décochée) → monde Atheraus présent, lien MANUAL « Selvenn » visible immédiatement dans Renvois de « Ordre du Verbe Clos » (pas d'attente worker) ; compte B (case cochée) → inscription réussie, aucun monde Atheraus. Capture prise (parcours inscription→Atheraus).
 
-<<<<<<< HEAD
-=======
 ## TST-AUT-010 — Réinitialisation de mot de passe : parcours complet (KAN-52)
 
 - **Description** : un utilisateur ayant oublié son mot de passe le réinitialise seul, depuis le lien « Mot de passe oublié ? » de `/login` jusqu'à la reconnexion avec le nouveau mot de passe, en passant par le lien reçu par courrier électronique.
@@ -127,7 +125,6 @@
 - **Critères d'acceptation** : `e2e/password-reset.spec.ts` (rejeu d'un jeton consommé refusé, lien de secours visible) ; `src/actions/password-reset.test.ts` (absence de jeton refusée sans appeler Better Auth, `APIError` traitée comme cas métier **sans** trace d'incident, panne inattendue journalisée derrière un message générique distinct) ; `reset-password-form.test.tsx` (lien « Demander un nouveau lien » présent avec l'erreur).
 - **Type** : cas d'échec / sécurité · **Statut** : ⬜ (e2e vert en local ; recette staging v1.3.1-rc.1 à passer). L'expiration par écoulement du temps (1 h) n'est pas exercée automatiquement — vérifiée par lecture de `resetPasswordTokenExpiresIn` et test de la durée annoncée dans le message.
 
->>>>>>> 1a4a52a2bb82cf56f7a494d577728829c8e54fd4
 ## TST-AUT-012 — Lisibilité du panneau de connexion/inscription au-dessus de l'artwork de marque (KAN-xx)
 
 - **Description** : l'artwork de marque (`--bg-image`, `(auth)/layout.tsx`) est branché en fond plein écran de `/login` et `/register`, sans le voile de protection utilisé pour un artwork de monde quelconque (retiré, ADR-0026) — la lisibilité du panneau et du pied de page repose sur leurs propres calques (`bg-card/55` + `backdrop-blur-xl`, `bg-black/80`).

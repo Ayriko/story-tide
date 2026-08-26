@@ -23,11 +23,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 - Opacité de la carte de connexion/inscription (`bg-card/45` → `/55`) et du
   fond du pied de page sous l'artwork (`bg-black/80`) pour rester conforme au
   contraste RGAA une fois le voile de protection générique retiré pour cet
-<<<<<<< HEAD
   écran (ADR-0026, ratios mesurés dans `docs/accessibilite-rgaa.md`).
-=======
-  écran (ADR-0025, ratios mesurés dans `docs/accessibilite-rgaa.md`).
-  
+
 ## [1.3.1] - 2026-08-19
 
 ### Ajouté
@@ -90,7 +87,6 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   trou de couverture au passage : `e2e/long-content.spec.ts` verrouille
   l'invariant « une seule zone défile par page » sur contenu long, et la
   non-régression du pied de page sur page courte (TST-ENT-013).
->>>>>>> 1a4a52a2bb82cf56f7a494d577728829c8e54fd4
 
 ## [1.3.0] - 2026-08-13
 
