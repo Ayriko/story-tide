@@ -56,3 +56,5 @@ next-env.d.ts
 
 artwork-master.png
 artwork-master-srgb.png
+
+.claude/settings.local.json
