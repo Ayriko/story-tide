@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-27
+
 ### Ajouté
 
 - Artwork de marque en fond des écrans de connexion et d'inscription (KAN-xx),
