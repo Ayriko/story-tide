@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 
-// Credit de l'artiste de l'artwork de marque (KAN-xx, retour Aymeric).
+// Credit de l'artiste de l'artwork de marque (KAN-56, retour Aymeric).
 // Encart "vitre depolie" (memes ingredients que auth-card.tsx : fond
 // translucide + backdrop-blur) pose en coin, hors du conteneur defilant -
 // reste visible quelle que soit la position de defilement, comme un

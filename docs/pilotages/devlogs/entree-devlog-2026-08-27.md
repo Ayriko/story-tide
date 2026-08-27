@@ -50,7 +50,7 @@
 - C2.4.1 : ADR-0026 rédigé, décisions horodatées avec justification et alternatives écartées.
 
 **À faire / suite :**
-- Créer le ticket KAN-xx (Aymeric) — type Story, libellé hors 4e mur.
+- ~~Créer le ticket~~ **fait : KAN-56** (Story, clôturée le 27/08 avec commentaire de livraison). Le numéro a été propagé au CHANGELOG, à l'ADR-0026, au cahier de recettes, à `accessibilite-rgaa.md` et aux commentaires de code — mais **après** le tag `v1.4.0`, qui garde donc le placeholder. Réflexe à retenir : créer le ticket avant de rédiger l'entrée de CHANGELOG.
 - Passage manuel Ara/NVDA sur `/login` et `/register` — toujours TODO (pré-existant, pas propre à cette session).
 - Écart de contraste résiduel (sous-titre du panneau, variante 2880/DPR2, 3,55:1) à rouvrir si l'audit RGAA formel l'exige — candidat `plan-correction-bogues.md`.
 - Vérifier `/forgot-password` et `/reset-password` (KAN-52, héritées de `(auth)/layout.tsx`) avec l'artwork/la couleur de bouton/l'encart de crédit : mêmes changements que `/login`/`/register` par construction (même layout), mais jamais vérifiées visuellement dans cette session — apparues dans le repo après le merge.

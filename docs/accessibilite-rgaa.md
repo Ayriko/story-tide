@@ -249,7 +249,7 @@ Sur `LoginForm` / `RegisterForm` (`src/app/(auth)/{login,register}/`) :
 - **Redirection annoncée** : `/login` et `/register` redirigent immédiatement vers
   `/` si une session est déjà active (pas de contenu inutile affiché puis retiré).
 
-**Artwork de marque en fond (2026-08-26, KAN-xx, ADR-0026)** — branché sur
+**Artwork de marque en fond (2026-08-26, KAN-56, ADR-0026)** — branché sur
 `(auth)/layout.tsx` via `--bg-image` (`image-set()`, AVIF/WebP, 1x/2x),
 purement décoratif (`aria-hidden`, `ShellBackground`) : aucune information n'y
 est portée, `alt` non applicable (fond CSS, pas `<img>`).

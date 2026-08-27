@@ -125,7 +125,7 @@
   --shell-bg-position: center; /* = bg-center */
 }
 
-/* Artwork de marque (auth) - KAN-xx. Ecrase --bg-image uniquement, herite
+/* Artwork de marque (auth) - KAN-56. Ecrase --bg-image uniquement, herite
    par ShellBackground via var(--bg-image, var(--shell-bg-fallback)). Classe
    CSS plutot qu'un utilitaire Tailwind arbitraire : la valeur contient des
    espaces/virgules/guillemets qu'il faudrait echapper en underscores dans

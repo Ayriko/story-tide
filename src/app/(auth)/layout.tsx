@@ -10,7 +10,7 @@ import { ShellBackground } from "../shell-background";
 // (app)/layout.tsx et worlds/page.tsx, pour que le footer reste hors du
 // cadre par defaut ici aussi, atteint en defilant ou via ScrollHint.
 //
-// auth-artwork (KAN-xx, globals.css) : seule surcharge de --bg-image du
+// auth-artwork (KAN-56, globals.css) : seule surcharge de --bg-image du
 // depot, partagee par /login ET /register (racine du groupe, pas la page)
 // pour que le fond ne change pas quand AuthTabs navigue entre les deux.
 export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {

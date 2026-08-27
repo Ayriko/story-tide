@@ -125,7 +125,7 @@
 - **Critères d'acceptation** : `e2e/password-reset.spec.ts` (rejeu d'un jeton consommé refusé, lien de secours visible) ; `src/actions/password-reset.test.ts` (absence de jeton refusée sans appeler Better Auth, `APIError` traitée comme cas métier **sans** trace d'incident, panne inattendue journalisée derrière un message générique distinct) ; `reset-password-form.test.tsx` (lien « Demander un nouveau lien » présent avec l'erreur).
 - **Type** : cas d'échec / sécurité · **Statut** : ⬜ (e2e vert en local ; recette staging v1.3.1-rc.1 à passer). L'expiration par écoulement du temps (1 h) n'est pas exercée automatiquement — vérifiée par lecture de `resetPasswordTokenExpiresIn` et test de la durée annoncée dans le message.
 
-## TST-AUT-012 — Lisibilité du panneau de connexion/inscription au-dessus de l'artwork de marque (KAN-xx)
+## TST-AUT-012 — Lisibilité du panneau de connexion/inscription au-dessus de l'artwork de marque (KAN-56)
 
 - **Description** : l'artwork de marque (`--bg-image`, `(auth)/layout.tsx`) est branché en fond plein écran de `/login` et `/register`, sans le voile de protection utilisé pour un artwork de monde quelconque (retiré, ADR-0026) — la lisibilité du panneau et du pied de page repose sur leurs propres calques (`bg-card/55` + `backdrop-blur-xl`, `bg-black/80`).
 - **Objectif** : vérifier que tout le texte du panneau et du pied de page reste conforme au contraste RGAA (≥ 4,5:1 texte, ≥ 3:1 non-texte) au-dessus de l'artwork réel, y compris les états qui ne sont visibles qu'en interaction (erreur de champ, alerte de formulaire, focus).

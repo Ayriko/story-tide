@@ -6,7 +6,7 @@
 
 ## Contexte et problème
 
-KAN-xx. L'artiste a livré l'artwork de la page de connexion (composition 16:9 :
+KAN-56. L'artiste a livré l'artwork de la page de connexion (composition 16:9 :
 lettrage constellations en haut-gauche, personnage centre-gauche, tiers droit
 volontairement dégagé pour le panneau de formulaire). `ShellBackground`
 (partagé par `(auth)`, `(app)` et `mentions-legales` depuis KAN-36) expose déjà

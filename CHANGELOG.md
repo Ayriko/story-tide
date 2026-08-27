@@ -9,7 +9,7 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- Artwork de marque en fond des écrans de connexion et d'inscription (KAN-xx),
+- Artwork de marque en fond des écrans de connexion et d'inscription (KAN-56),
   branché via `--bg-image`/`image-set()` (AVIF puis WebP, 1x/2x) sur
   `(auth)/layout.tsx`, script de dérivation `scripts/build-artwork.mjs`.
   Contrat de `ShellBackground` étendu par variables CSS pour permettre à
