@@ -82,6 +82,18 @@ l'artwork de marque, avec les valeurs retenues après mesure sur le rendu réel
   locales (`/80`, `/55`) sont calées sur CET artwork précis — un
   remplacement d'artwork exigerait de re-mesurer.
 
+## Note additive (2026-09-08)
+
+L'écart de contraste résiduel ci-dessus (sous-titre, 3,55:1 en variante 2880/DPR2)
+a été remesuré à l'occasion de KAN-58 (ADR-0027) : `bg-card/55` → `/70` l'améliore à
+4,37–4,49:1 sans le fermer complètement (seuil 4,5:1). Deux nouveaux écarts du même
+ordre ont été trouvés à cette occasion (liens secondaires en position
+d'atterrissage, 4,20–4,21:1) — voir ADR-0027 et `docs/accessibilite-rgaa.md` pour
+le détail des mesures. La surcharge locale de `--primary`/`--primary-foreground`
+que cet ADR décrivait dans `.auth-artwork` a été retirée (ADR-0027) : la teinte
+est désormais portée par le thème global, pas par une surcharge du groupe
+`(auth)`.
+
 ## Compétence(s) servie(s)
 
 C2.2.1 (architecture — extension propre du contrat d'un composant partagé,

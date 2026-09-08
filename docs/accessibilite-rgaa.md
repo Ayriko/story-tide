@@ -292,6 +292,58 @@ est portée, `alt` non applicable (fond CSS, pas `<img>`).
   d'écran, états focus/erreur réels) plutôt que de produire un chiffre
   auquel se fier à tort.
   
+**Remontée de l'accent au thème global (2026-09-08, KAN-58, ADR-0027)** —
+`--ring` et `--accent` devenant partagés entre `(auth)` et `(app)`, toute la
+vérification de contraste des 4 écrans `(auth)` a été refaite, pas seulement les
+éléments visuellement modifiés — périmètre élargi par rapport à la mesure du
+26/08, qui ne couvrait que les éléments au repos.
+
+- **Méthode reconduite** (compositing réel fond→scrim→surface→texte, protocole du
+  26/08 ci-dessus) via un script Playwright + sharp jetable, non commité :
+  pour chaque élément de texte réellement visible dans le viewport, couleur
+  calculée + capture avec tout le texte de la page rendu transparent
+  (`color: transparent`, `text-shadow: none`) pour obtenir le fond composite
+  pur, pixel le plus clair de la zone (pire cas), ratio WCAG 2.1. Vérifié à
+  1920×1080 (DPR1) et 1440×810/DPR2 (physique 2880×1620), à la position
+  d'atterrissage **et** après défilement jusqu'au pied de page — les deux sont
+  des états réellement atteignables, pas seulement le premier.
+- **Un bug de méthode débusqué en cours de route, de la même famille que celui
+  du 26/08** : le conteneur défilant `(auth)` porte `scroll-smooth` — régler
+  `scrollTop` par script anime le défilement au lieu de sauter instantanément.
+  Sans forcer `scroll-behavior: auto` avant le saut, la lecture de position
+  (`getBoundingClientRect`) et la capture d'écran pouvaient tomber à des
+  instants différents de l'animation, produisant une correspondance
+  élément↔pixel fausse (un ratio à 1,53:1 ne correspondant à aucun état réel de
+  la page — repéré par recadrage visuel isolé de la zone avant d'être
+  diagnostiqué et corrigé). Leçon retenue : sur ce projet, toujours désactiver
+  `scroll-behavior: smooth` avant un scroll programmatique de mesure/test.
+- **Un faux positif identifié et écarté** : le libellé accessible de
+  `ScrollHint` (« Aller au pied de page » / « Remonter en haut de page ») est
+  un `<span className="sr-only">`, jamais peint à l'écran — mesurer son
+  contraste visuel n'a pas de sens et ne doit pas être compté comme un défaut.
+- **Un vrai défaut trouvé et corrigé** : le libellé de la case « Ne pas créer
+  le monde d'exemple « Atheraus » » (`/register`) en `text-muted-foreground`
+  mesurait 4,09–4,35:1 selon variante/état de défilement — sous le seuil texte
+  4,5:1. Un vrai libellé de champ, pas un texte secondaire : passé en
+  `text-foreground` (~9,3:1 mesuré après correctif).
+- **Deux écarts résiduels sur `text-muted-foreground`, documentés en l'état,
+  non corrigés** (arbitrage Aymeric, cohérent avec la priorité à la fidélité
+  visuelle déjà actée le 26/08 — proches du seuil, pas aggravés par cette
+  session) :
+  - Sous-titre du panneau (`/login`, `/forgot-password`, `/reset-password`,
+    variante 2880 uniquement, en position d'atterrissage) : 4,37–4,49:1.
+    Améliore l'écart connu de l'ADR-0026 (3,55:1, `bg-card/55`) grâce au
+    passage à `bg-card/70`, sans le fermer complètement. `/register` passe
+    (4,69:1) — formulaire plus long, sous-titre positionné différemment sur
+    l'artwork.
+  - Liens secondaires « Mot de passe oublié ? » (`/login`) et « Retour à la
+    connexion » (`/forgot-password`) en position d'atterrissage (avant tout
+    défilement), variante 1920 : 4,20–4,21:1. Les deux passent une fois la
+    page défilée (le contenu se déplace sur un fond fixe, donc change de pixel
+    composite derrière lui).
+  - À rouvrir si l'audit RGAA formel l'exige (candidat
+    `plan-correction-bogues.md`).
+
 Sur `ForgotPasswordForm` / `ResetPasswordForm`
 (`src/app/(auth)/{forgot-password,reset-password}/`, KAN-52) — mêmes conventions
 que ci-dessus (labels natifs, `aria-invalid`/`aria-describedby`, erreur en

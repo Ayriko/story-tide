@@ -34,3 +34,4 @@
 | 0024 | Automatisation de la release au tag : script local + garde-fou CD | accepté | 2026-08-11 |
 | 0025 | Envoi d'e-mails : SMTP OVH via nodemailer, derrière un port `Mailer` | accepté | 2026-08-17 |
 | 0026 | Contrat de `ShellBackground` étendu par variables CSS pour l'artwork de marque | accepté | 2026-08-26 |
+| 0027 | Accent périwinkle de l'artwork remonté au thème global, séparé en deux tokens | accepté | 2026-09-08 |

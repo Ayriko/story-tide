@@ -32,7 +32,12 @@ export function Sidebar({
     <Card className="flex h-full w-72 flex-col gap-4 border-none bg-card/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
       <nav
         aria-label="Entrées du monde"
-        className="min-h-0 flex-1 overflow-y-auto themed-scrollbar"
+        // -mx-1 px-1 : overflow-y-auto force overflow-x a "auto" aussi (regle
+        // CSS overflow-x/-y), qui coupe l'anneau de focus (outline-offset-2,
+        // 4px de debord) des elements pleine largeur (bouton de groupe, Link
+        // d'entree) - la marge compense exactement le debord sans decaler le
+        // contenu visuellement.
+        className="min-h-0 flex-1 -mx-1 overflow-y-auto px-1 themed-scrollbar"
       >
         <EntitySearch worldId={worldId} worldSlug={worldSlug} initialEntities={entities} />
       </nav>

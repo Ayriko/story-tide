@@ -60,11 +60,12 @@ const INACTIVE_STATE: ActiveState = {
 
 // Boutons ghost (KAN-36 P4) : plus de pill bordee claire, sur INK la bordure
 // alourdissait chaque bouton - inactif = transparent + hover discret, actif =
-// fond MINT plein + texte primary-foreground (meme paire que Button variant
-// "default", contraste 5.62:1 deja documente dans globals.css) plutot qu'un
-// simple text-primary/tinte : verifie qu'un text-primary sur un fond MINT a
-// 15% d'opacite tombe a ~3.6:1 sur INK, sous le seuil RGAA 4,5:1. Aucune
-// modif des commandes/handlers, seul le style change.
+// fond --primary plein + texte --primary-foreground (meme paire que Button
+// variant "default", contraste 4,72:1 deja documente dans globals.css depuis
+// ADR-0027) plutot qu'un simple text-primary/tinte : verifie qu'un
+// text-primary sur un fond --primary a 15% d'opacite tombe sous le seuil
+// RGAA 4,5:1 (cf. ADR-0027, meme constat sur le chip de filtre du graphe).
+// Aucune modif des commandes/handlers, seul le style change.
 const toolbarButtonBase =
   "rounded-md px-2 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50";
 const toolbarButtonActive = "bg-primary text-primary-foreground";

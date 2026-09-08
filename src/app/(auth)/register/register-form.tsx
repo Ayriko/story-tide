@@ -96,7 +96,11 @@ export function RegisterForm() {
           type="checkbox"
           className="mt-0.5 size-4 rounded border-input"
         />
-        <Label htmlFor="skipIntroWorld" className="text-sm font-normal text-muted-foreground">
+        {/* text-foreground plutot que text-muted-foreground (2026-09-08,
+            RGAA) : mesure sur rendu reel sur l'artwork, 4,09-4,35:1 selon
+            variante/etat - sous le seuil 4,5:1. Vrai libelle de champ, pas
+            un texte secondaire - text-foreground tient ~10:1. */}
+        <Label htmlFor="skipIntroWorld" className="text-sm font-normal text-foreground">
           Ne pas créer le monde d&apos;exemple « Atheraus » (démonstration de la liaison automatique
           d&apos;entités)
         </Label>

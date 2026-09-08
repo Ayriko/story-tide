@@ -36,10 +36,13 @@ const NODE_COLOR_BY_GROUP: Record<string, string> = {
   Divers: "#e66767",
 };
 const DEFAULT_NODE_COLOR = "#a1a1aa";
-// Accent MINT (--primary, reference-vvd.md §2) : survol de noeud uniquement -
+// Accent periwinkle (--primary, ADR-0027) : survol de noeud uniquement -
 // le tap navigue deja (pas d'etat "selectionne" persistant a distinguer du
-// hover, cf. commentaire sur cy.on("tap", ...) plus bas).
-const HOVER_COLOR = "#1fb39a";
+// hover, cf. commentaire sur cy.on("tap", ...) plus bas). Cytoscape ne lit
+// pas les variables CSS (tableau `style:` reserve par ADR-0012) - constante
+// dupliquee depuis --primary, a resynchroniser manuellement si le token
+// change encore.
+const HOVER_COLOR = "#667ec7";
 // Halo sombre (--background, NAVY) derriere le libelle : lisibilite du texte
 // quel que soit le noeud/fond survole, sans dependre de la couleur du noeud.
 const LABEL_HALO_COLOR = "#122a3a";
@@ -258,7 +261,7 @@ export function GraphView({
                       <button
                         type="button"
                         onClick={() => setGroupHidden(types, false)}
-                        className="text-muted-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="text-muted-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         Tout
                       </button>
@@ -268,7 +271,7 @@ export function GraphView({
                       <button
                         type="button"
                         onClick={() => setGroupHidden(types, true)}
-                        className="text-muted-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                        className="text-muted-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         Rien
                       </button>
@@ -287,7 +290,12 @@ export function GraphView({
                             "rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                             hidden
                               ? "border-border bg-transparent text-muted-foreground hover:bg-accent"
-                              : "border-primary/40 bg-primary/15 text-primary",
+                              : // text-foreground plutot que text-primary (ADR-0027) : text-primary
+                                // sur bg-primary/15 mesure 3,89:1 sur ce fond, sous le seuil RGAA
+                                // 4,5:1 - la distinction pressee/non-pressee reste portee par le
+                                // fond teinte + la bordure (visuel) et aria-pressed (AT), jamais
+                                // par la couleur du texte seule.
+                                "border-primary/40 bg-primary/15 text-foreground",
                           )}
                         >
                           {entityTypeLabel(type)}

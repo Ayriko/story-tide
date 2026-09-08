@@ -5,6 +5,23 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Accent périwinkle de l'artwork de connexion remonté au thème global (KAN-58,
+  ADR-0027) : une seule palette d'accent pour `(auth)` et `(app)`, dérivée par
+  mesure de la teinte réelle de l'illustration. `--primary` (`#667EC7`) garde
+  exactement la teinte choisie le 26/08 pour les remplissages (boutons, onglet
+  actif) ; un nouveau token `--link` (`#94a5d8`) sert les textes et liens
+  interactifs, qui n'ont pas le même seuil de contraste. Teinte de survol des
+  cartes cliquables (`--accent`) alignée sur la même famille de couleur.
+- Anneau de focus clavier (`--ring`) passé au blanc cassé sur tout le site,
+  et structure de l'indicateur simplifiée (bouton, champs de saisie) pour
+  rester net sur un remplissage coloré plutôt que se fondre en halo flou.
+- Correctif de mise en page : l'anneau de focus n'est plus tronqué sur les
+  côtés dans la liste d'entrées du panneau de gauche.
+- Contraste insuffisant corrigé sur le libellé de la case « Ne pas créer le
+  monde d'exemple » de l'écran d'inscription.
+
 ## [1.4.0] - 2026-08-27
 
 ### Ajouté

@@ -29,7 +29,7 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
           <main className="w-full max-w-md md:w-[32rem]">{children}</main>
         </div>
         <ScrollHint />
-        {/* Le Footer est hors carte, pose a meme le scrim (pas de bg-card/55
+        {/* Le Footer est hors carte, pose a meme le scrim (pas de bg-card/70
             derriere lui). --shell-scrim est retire pour (auth) (retour
             Aymeric : le voile assombrissait l'artwork entier compare a
             l'original) - le footer perd donc sa seule protection en amont et
