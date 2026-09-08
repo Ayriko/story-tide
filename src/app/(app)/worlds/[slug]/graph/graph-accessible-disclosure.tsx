@@ -30,7 +30,7 @@ export function GraphAccessibleDisclosure({
         aria-expanded={open}
         aria-controls="graph-accessible-body"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-fit items-center gap-2 text-sm font-medium text-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="flex w-fit items-center gap-2 text-sm font-medium text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         Observer les fils
         <ChevronDown

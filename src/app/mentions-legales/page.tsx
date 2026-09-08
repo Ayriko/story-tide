@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const CONTACT_LINK_CLASSNAME =
-  "rounded-sm text-foreground underline underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-sm text-foreground underline underline-offset-2 hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 // Route statique volontairement HORS des groupes (auth)/(app) (KAN-45) : sous
 // (app) elle heriterait de requireSessionOrRedirect() et redirigerait un
@@ -126,7 +126,7 @@ export default function MentionsLegalesPage() {
 
             <Link
               href="/"
-              className="w-fit rounded-sm text-sm text-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="w-fit rounded-sm text-sm text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               ← Retour à Story Tide
             </Link>

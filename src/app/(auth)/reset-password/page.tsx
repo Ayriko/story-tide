@@ -34,7 +34,7 @@ export default async function ResetPasswordPage({
         </div>
         <Link
           href="/forgot-password"
-          className="rounded-sm text-sm text-foreground underline underline-offset-4 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="rounded-sm text-sm text-foreground underline underline-offset-4 hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Demander un nouveau lien
         </Link>

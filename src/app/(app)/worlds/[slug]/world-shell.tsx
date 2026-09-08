@@ -143,7 +143,7 @@ export function WorldShell({
               >
                 <Link
                   href="/worlds"
-                  className="text-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   Story Tide
                 </Link>
@@ -152,7 +152,7 @@ export function WorldShell({
                 </span>
                 <Link
                   href={`/worlds/${worldSlug}`}
-                  className="text-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   {worldName}
                 </Link>

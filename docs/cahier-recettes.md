@@ -134,6 +134,19 @@
 - **Résultat attendu** : titre, sous-titre, onglet, erreurs et pied de page lisibles sans effort au-dessus de l'artwork, dans les deux variantes de résolution ; aucun texte n'est visuellement noyé dans une zone claire de l'image.
 - **Critères d'acceptation** : mesuré sur le rendu réel (méthode détaillée dans `docs/accessibilite-rgaa.md`, capture + texte transparent + calcul WCAG 2.1) : titre, sous-titre, onglet, erreur de champ et pied de page ≥ 4,5:1 en DPR 1 et DPR 2 — **sauf** le sous-titre en variante 2880/DPR 2 (3,55:1, écart connu et assumé, voir ADR-0026). Anneau de focus vérifié visuellement (méthode automatisée jugée non fiable, l'anneau contamine son propre échantillon de mesure).
 - **Type** : accessibilité · **Statut** : ✅ (mesure automatisée sur rendu réel, méthode détaillée dans `docs/accessibilite-rgaa.md`) — ✅ Recette staging v1.4.0-rc.1 (2026-08-27) : scénario complet passé sur `/login` et `/register`, en DPR 1 **et** DPR 2 — titre, sous-titre, onglet inactif, erreur de champ, alerte `role="alert"`, anneau de focus et pied de page lisibles au-dessus de l'artwork ; encart de crédit conforme. Artwork également confirmé sur `/reset-password`, atteinte par le lien du courriel. Écart connu maintenu tel qu'assumé : sous-titre en variante 2880/DPR 2 à 3,55:1 (ADR-0026).
+- **Note additive (2026-09-08, KAN-58)** : remesuré après `bg-card/55` → `/70`
+  (ADR-0027) — sous-titre amélioré à 4,37–4,49:1 selon écran (toujours sous le
+  seuil 4,5:1, écart réduit mais non fermé), voir TST-AUT-013.
+
+## TST-AUT-013 — Accent visuel unifié entre connexion et application, anneau de focus lisible (KAN-58)
+
+- **Description** : la teinte périwinkle introduite pour l'artwork de connexion (KAN-56) est remontée au thème global (ADR-0027) — `(auth)` et `(app)` partagent désormais le même accent, le même anneau de focus clavier et la même teinte de survol des cartes.
+- **Objectif** : vérifier qu'un utilisateur qui passe de la connexion aux mondes ne voit plus deux identités visuelles différentes, et que l'anneau de focus reste net (pas de halo flou) sur les remplissages colorés.
+- **Préconditions** : un compte existant, un monde avec au moins une entrée.
+- **Étapes** : 1) Ouvrir `/login`, relever la teinte du bouton « Se connecter ». 2) Se connecter, ouvrir `/worlds`. 3) Tabuler jusqu'au bouton « + Nouveau monde » et jusqu'au menu utilisateur — observer l'anneau de focus. 4) Ouvrir un monde, tabuler dans la liste d'entrées du panneau de gauche jusqu'au bord des cartes. 5) Ouvrir la Constellation, activer un chip de filtre par type, survoler un nœud. 6) Revenir à `/login` et `/register`, comparer la teinte du bouton à celle observée en (2).
+- **Résultat attendu** : même famille de couleur d'accent perçue sur `(auth)` et `(app)` ; anneau de focus nettement visible et non tronqué sur les cartes du panneau de gauche (bord gauche et droit) ; survol des nœuds du graphe et remplissage des chips de filtre dans la même teinte que le bouton de connexion.
+- **Critères d'acceptation** : aucun halo flou autour de l'anneau de focus (bordure nette) ; l'anneau n'est jamais coupé par le bord du panneau défilant ; le bouton « Se connecter »/« Créer mon compte » et le bouton « + Nouveau monde » sont visuellement de la même teinte.
+- **Type** : accessibilité/cohérence visuelle · **Statut** : ✅ (vérifié en local par Aymeric, 2026-09-08, écran par écran — mondes, fiche + éditeur, Constellation, mentions légales, `(auth)`) — recette staging à programmer avant le prochain tag.
 
 ## TST-SEC-001 — Le mot de passe n'est jamais stocké en clair
 

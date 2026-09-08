@@ -16,7 +16,7 @@ export function ArtistCredit() {
       target="_blank"
       rel="noopener noreferrer"
       title="Illustration par @Dvkin"
-      className="absolute bottom-4 left-4 z-20 inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-foreground/90 shadow-lg backdrop-blur-md transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="absolute bottom-4 left-4 z-20 inline-flex items-center gap-1 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-foreground/90 shadow-lg backdrop-blur-md transition-colors hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       @Dvkin
       <ExternalLink aria-hidden="true" className="size-3" />

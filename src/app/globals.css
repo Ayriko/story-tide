@@ -40,6 +40,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-link: var(--link);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -66,7 +67,24 @@
    l'equivalent "red-300" (#FCA5A5, le grain que le code existant reservait
    deja a `dark:text-red-400` sans jamais l'appliquer par defaut) : 6.30:1 sur
    INK, 5.23:1 meme tinte a 10% - AMBER reste reserve aux alertes uniquement,
-   pas au destructive. */
+   pas au destructive.
+
+   --primary / --link (2026-09-08, ADR-0027) : l'accent periwinkle de
+   l'artwork de marque (KAN-56, ex-surcharge locale .auth-artwork) est
+   remonte au theme global - un seul accent pour (auth) et (app), teinte
+   verifiee par echantillonnage de l'artwork (H225-235 sur les dominantes,
+   contre H170 pour l'ex-MINT). #667EC7 sert DEUX roles avec DEUX seuils
+   WCAG differents (remplissage de bouton = 3:1, texte/lien = 4.5:1) et ne
+   passe que le premier (4.72:1 avec #0d1420 dessus ; 3.07:1 en texte sur
+   card/70) - d'ou deux tokens plutot qu'un seul reutilise pour les deux
+   roles. --link (#94a5d8) reprend EXACTEMENT la teinte/saturation de
+   --primary (H225 S46->47), seule la clarte monte (59->71) : 4.93:1 sur
+   card/70, 5.03:1 sur NAVY2. --ring bascule sur --foreground (#edf2f2) :
+   aucune valeur de la famille periwinkle ne tient 3:1 contre un remplissage
+   #667ec7 (1.00:1 en #667ec7 lui-meme, 1.61:1 en --link, 1.48:1 avec
+   l'ancien MINT) - --foreground est le seul candidat conforme partout
+   (3.46:1 contre le bouton, 10.61:1 sur card/70, 15.17:1 sur le canvas du
+   graphe), et n'introduit aucune couleur nouvelle. */
 :root {
   --background: #122a3a; /* NAVY */
   --foreground: #edf2f2;
@@ -74,18 +92,19 @@
   --card-foreground: #edf2f2;
   --popover: #1c3a4b; /* INK */
   --popover-foreground: #edf2f2;
-  --primary: #1fb39a; /* MINT */
-  --primary-foreground: #122a3a; /* NAVY, contraste 5.62:1 */
+  --primary: #667ec7; /* periwinkle artwork - remplissages (boutons, onglet actif) */
+  --primary-foreground: #0d1420; /* 4.72:1 sur #667ec7 */
+  --link: #94a5d8; /* meme teinte/saturation que --primary, texte/liens (4.93:1 sur card/70) */
   --secondary: #15394a; /* NAVY2 - "Surface 2" */
   --secondary-foreground: #edf2f2;
   --muted: #15394a; /* NAVY2 */
   --muted-foreground: #8fa6af;
-  --accent: #175160; /* 35% TEAL sur INK, cf. commentaire ci-dessus */
+  --accent: #203a57; /* 35% periwinkle (H225 S46, ADR-0027) sur INK - meme recette et meme clarte (L29) que l'ex-#175160 (35% TEAL #0e7c86), teinte alignee sur --primary/--link. Corrige au passage un ecart preexistant : text-muted-foreground sur ce fond (chip desactive du graphe au survol) etait a 3,46:1 avec le teal, sous le seuil RGAA 4,5:1 - 4,57:1 avec le periwinkle. */
   --accent-foreground: #edf2f2;
   --destructive: #fca5a5;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: #1fb39a; /* MINT - focus */
+  --ring: var(--foreground); /* #edf2f2 - focus, cf. commentaire --primary/--link ci-dessus */
   --chart-1: #1fb39a;
   --chart-2: #0e7c86;
   --chart-3: #15394a;
@@ -167,16 +186,10 @@
   --shell-scrim-blur: 0px;
   --shell-bg-position: left 8%;
   --shell-scrim: transparent;
-  /* Surcharge locale de --primary/--primary-foreground (retour Aymeric,
-     "on ne touche pas au reste du site") : bg-primary/text-primary-foreground
-     ne sont consommes dans (auth) QUE par AuthTabs (onglet actif) et Button
-     (variante par defaut, "Se connecter"/"Creer mon compte") - la surcharge
-     ici les couvre tous les deux sans toucher au token global ni a aucun
-     autre ecran. Foreground recalcule pour la teinte retenue (contraste
-     WCAG >= 4,5:1, formule de luminance relative) - deux candidats testes
-     (#667ec7 retenu, #081484 ecarte). */
-  --primary: #667ec7;
-  --primary-foreground: #0d1420; /* 4,72:1 sur #667ec7 */
+  /* --primary/--primary-foreground surchargeaient ici jusqu'au 2026-09-08
+     (ADR-0026) : la teinte periwinkle est remontee au theme global depuis
+     (ADR-0027, cf. commentaire :root ci-dessus) - (auth) n'a plus besoin de
+     surcharger l'accent, il herite du meme accent que (app). */
 }
 
 @layer base {

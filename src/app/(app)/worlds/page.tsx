@@ -30,7 +30,7 @@ export default async function WorldsPage() {
         left={
           <Link
             href="/worlds"
-            className="rounded-md font-heading text-base font-semibold text-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="rounded-md font-heading text-base font-semibold text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Story Tide
           </Link>

@@ -13,7 +13,7 @@ import { ExternalLink } from "lucide-react";
 // visuellement pour etre annonce par un lecteur d'ecran (RGAA : un lien
 // externe doit etre identifiable avant activation).
 const LINK_CLASSNAME =
-  "rounded-sm text-foreground hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "rounded-sm text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 // Repere par ScrollHint (scroll-hint.tsx, document.getElementById) pour
 // savoir si le pied de page est visible et le faire defiler - id partage
