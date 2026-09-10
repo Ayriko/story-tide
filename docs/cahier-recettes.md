@@ -558,6 +558,16 @@
 - **Critères d'acceptation** : mesure sur rendu réel (pas estimée) — `getComputedStyle` de la poignée sélectionnée + couleurs de fond connues (images de test unies), calcul du ratio WCAG sur chaque liseret composité : sombre 15,52:1, clair 4,6:1, pire cas (`--primary` sur `--primary`) 3,49:1 — tous ≥ 3:1. `resizable-image-view.test.tsx` inchangé et toujours vert (assertions de rôle/attributs, pas de rendu de fond réel en jsdom).
 - **Type** : accessibilité · **Statut** : ✅ (mesuré manuellement en navigateur sur 3 fonds réels, 2026-09-10) — ⬜ à repasser à la recette staging.
 
+## TST-ENT-014 — Insertion et ouverture d'un lien dans l'éditeur (BUG-015, KAN-54)
+
+- **Description** : le bouton « Lien » de la barre d'outils de l'éditeur reste muet quand aucun texte n'est sélectionné ou quand l'URL saisie est invalide — deux cas où l'action ne produisait auparavant ni effet ni explication. Un lien correctement appliqué doit en outre rester visuellement identifiable et s'ouvrir au Ctrl/Cmd+clic.
+- **Objectif** : vérifier que chaque état (indisponible, erreur, succès) est annoncé de façon perceptible et accessible, jamais silencieux, et qu'un lien appliqué est utilisable (visible, ouvrable).
+- **Préconditions** : un compte et une fiche (entrée) existent, avec du texte dans le contenu.
+- **Étapes** : 1) Sans sélectionner de texte, ouvrir le contrôle « Lien ». 2) Sélectionner du texte, ouvrir « Lien », saisir une URL sans schéma (ex. `example.com`), cliquer « Appliquer ». 3) Corriger l'URL avec un schéma `http(s)://` valide, cliquer « Appliquer ». 4) Ctrl/Cmd+clic sur le lien appliqué dans le texte.
+- **Résultat attendu** : 1) le bouton « Appliquer » est indisponible et une explication est visible et lisible au lecteur d'écran (`aria-describedby`) ; 2) un message d'erreur (`role="alert"`) apparaît, le dialogue reste ouvert, aucune marque n'est appliquée ; 3) le lien est appliqué, visuellement distinct du texte environnant (souligné, couleur dédiée), le dialogue se ferme ; 4) le lien s'ouvre dans un nouvel onglet.
+- **Critères d'acceptation** : `entity-editor.test.tsx` — 6 tests unitaires (`LinkControl` : indisponibilité sans sélection, erreur sur URL invalide, application sur URL valide ; `resolveEditorClickTarget` : aucune cible, mention, lien) ; vérification manuelle en navigateur (contraste du lien mesuré à 4,93:1 sur `bg-card/70`, cf. ADR-0027).
+- **Type** : fonctionnel / accessibilité · **Statut** : ✅ (6 tests unitaires verts ; vérifié manuellement en navigateur, 2026-09-10) — ⬜ à repasser à la recette staging.
+
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
 - **Description** : le texte d'une fiche (entrée) mentionne le nom (ou un alias) d'une autre entité du même monde.
