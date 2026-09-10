@@ -528,6 +528,16 @@
 - **Critères d'acceptation** : `e2e/long-content.spec.ts` — aucun ancêtre du conteneur défilant n'a un `scrollTop` non nul **et** aucun n'est même défilable (`scrollHeight == clientHeight`, sans quoi un descendant `position:absolute` s'en échapperait à nouveau), caret dans la zone visible après frappe, titre et `role="toolbar"` dans le viewport après remontée, écart nul entre le bas du pied de page et le bas du conteneur, pied de page hors viewport au premier écran sur `/worlds` avec landmark `contentinfo` préservé ; garde-fou interne au test vérifiant que le contenu dépasse réellement le viewport (sans quoi le scénario passerait sans rien prouver).
 - **Type** : fonctionnel (bout en bout) / non-régression · **Statut** : ✅ (e2e vert en local, 13/13 ; correctif validé manuellement par Aymeric sur la repro locale) — ⬜ à repasser à la recette staging de la 1.3.1-rc.1.
 
+## TST-ENT-014 — Insertion et ouverture d'un lien dans l'éditeur (BUG-015, KAN-54)
+
+- **Description** : le bouton « Lien » de la barre d'outils de l'éditeur reste muet quand aucun texte n'est sélectionné ou quand l'URL saisie est invalide — deux cas où l'action ne produisait auparavant ni effet ni explication. Un lien correctement appliqué doit en outre rester visuellement identifiable et s'ouvrir au Ctrl/Cmd+clic.
+- **Objectif** : vérifier que chaque état (indisponible, erreur, succès) est annoncé de façon perceptible et accessible, jamais silencieux, et qu'un lien appliqué est utilisable (visible, ouvrable).
+- **Préconditions** : un compte et une fiche (entrée) existent, avec du texte dans le contenu.
+- **Étapes** : 1) Sans sélectionner de texte, ouvrir le contrôle « Lien ». 2) Sélectionner du texte, ouvrir « Lien », saisir une URL sans schéma (ex. `example.com`), cliquer « Appliquer ». 3) Corriger l'URL avec un schéma `http(s)://` valide, cliquer « Appliquer ». 4) Ctrl/Cmd+clic sur le lien appliqué dans le texte.
+- **Résultat attendu** : 1) le bouton « Appliquer » est indisponible et une explication est visible et lisible au lecteur d'écran (`aria-describedby`) ; 2) un message d'erreur (`role="alert"`) apparaît, le dialogue reste ouvert, aucune marque n'est appliquée ; 3) le lien est appliqué, visuellement distinct du texte environnant (souligné, couleur dédiée), le dialogue se ferme ; 4) le lien s'ouvre dans un nouvel onglet.
+- **Critères d'acceptation** : `entity-editor.test.tsx` — 6 tests unitaires (`LinkControl` : indisponibilité sans sélection, erreur sur URL invalide, application sur URL valide ; `resolveEditorClickTarget` : aucune cible, mention, lien) ; vérification manuelle en navigateur (contraste du lien mesuré à 4,93:1 sur `bg-card/70`, cf. ADR-0027).
+- **Type** : fonctionnel / accessibilité · **Statut** : ✅ (6 tests unitaires verts ; vérifié manuellement en navigateur, 2026-09-10) — ⬜ à repasser à la recette staging.
+
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
 - **Description** : le texte d'une fiche (entrée) mentionne le nom (ou un alias) d'une autre entité du même monde.
