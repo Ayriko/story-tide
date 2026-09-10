@@ -2,6 +2,12 @@
 
 > État au 2026-07-18 (KAN-10). Voir aussi `docs/cd.md` (protocole CD, C2.1.1)
 > et ADR-0013 (décisions de topologie).
+>
+> **Mise à jour 2026-09-09** : les accès SSH du serveur ont été rotationnés à la
+> suite de la compromission d'un poste de travail. Le bloc « État du serveur »
+> du 18/07 est conservé tel quel ; les changements figurent dans le bloc daté
+> qui le suit. Contexte complet : `docs/securite-owasp.md` (A08) et l'entrée de
+> dev-log du 2026-09-09.
 
 ## Prérequis
 
@@ -29,6 +35,66 @@
   Les MX/SPF (Zimbra) existent dans la même zone : ne jamais y toucher.
 - **Secrets GitHub Actions** déjà posés : `VPS_HOST`, `VPS_USER` (= `deploy`),
   `VPS_SSH_KEY` (clé privée ed25519).
+
+### Mise à jour 2026-09-09 — rotation des accès SSH (incident poste de travail)
+
+> Le bloc du 18/07 ci-dessus reste l'état de référence du bring-up initial : il
+> n'est pas réécrit. Ce bloc décrit **ce qui a changé depuis**, et prime en cas
+> de divergence sur les clés SSH.
+
+**Contexte.** Compromission du poste de travail principal (PC fixe) par un
+infostealer le 2026-09-09 à 13:25. **Aucune intrusion sur le VPS** : journaux
+d'authentification vérifiés, aucune connexion inconnue, aucune clé étrangère
+dans les `authorized_keys`, aucun service, cron ou conteneur inattendu. La
+production n'a jamais été atteinte — seuls des moyens d'accès étaient exposés.
+
+**Compte `deploy`** (groupe `docker`, cible de `VPS_USER`)
+
+- Clé de déploiement du 18/07 **révoquée**. Motif : elle avait été générée sur
+  le PC fixe, donc sa partie privée résidait sur la machine compromise **en
+  plus** du secret GitHub. L'absence de trace d'exploitation ne vaut pas preuve
+  de non-exfiltration.
+- Nouvelle paire ed25519 générée **sur le VPS lui-même**, commentaire
+  `github-actions-deploy-2026-09-09`. Publique ajoutée à `authorized_keys`,
+  privée déposée dans le secret GitHub `VPS_SSH_KEY` **depuis un poste sain**
+  (jamais depuis la machine compromise : le presse-papier du transport aurait
+  re-compromis la clé neuve), puis effacée du serveur (`shred`).
+- Clés personnelles (PC fixe et portable) **retirées** de ce compte. `deploy`
+  n'accepte désormais **que** la clé du CI.
+
+**Compte `debian`** (admin sudo)
+
+- Clé du PC fixe **retirée** (compromise). Seule la clé du portable subsiste.
+- Après réinstallation du PC fixe : nouvelle clé personnelle à ajouter
+  **uniquement ici**, jamais sur `deploy`.
+
+**Règle qui en découle (à ne pas re-mélanger)** : une clé personnelle n'est
+jamais autorisée sur `deploy`, une clé de CI n'est jamais autorisée sur
+`debian`. C'est cette séparation, posée le 18/07, qui a contenu l'incident au
+périmètre du poste de travail.
+
+**Inchangé** : secrets `VPS_HOST` et `VPS_USER`, fichiers `deploy/.env.prod`,
+`deploy/.env.staging` et `deploy/traefik/.env` sur le serveur, identifiants
+PostgreSQL et MinIO, `BETTER_AUTH_SECRET` de production. Ces valeurs n'ont
+jamais existé sur le poste — vérifié : le `.env` de développement ne contient
+qu'un secret local (base `localhost`) et des placeholders, `MAIL_TRANSPORT` y
+vaut `memory` et les `SMTP_*` sont des valeurs factices.
+
+**Vérifié après rotation** : workflow de déploiement relancé, étape SSH OK,
+déploiement fonctionnel.
+
+**Vérifier une révocation** (depuis `debian`, ou connecté en `deploy`) :
+
+```bash
+ssh-keygen -lf ~/.ssh/authorized_keys   # empreintes + commentaires des clés réellement autorisées
+```
+
+**Limite assumée, à connaître avant toute intervention** : `deploy` appartient
+au groupe `docker`, ce qui équivaut en pratique à un accès root (montage de `/`
+dans un conteneur). La clé du CI n'est donc pas « à privilèges réduits » au
+sens strict. Parade identifiée, non encore appliquée : restriction
+`command="<script de déploiement figé>",no-port-forwarding,no-agent-forwarding,no-pty`
+dans l'`authorized_keys` de `deploy`.
 
 ### À poser avant le premier déploiement (Aymeric, à la main sur le VPS)
 
