@@ -22,6 +22,18 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 - Contraste insuffisant corrigé sur le libellé de la case « Ne pas créer le
   monde d'exemple » de l'écran d'inscription.
 
+### Corrigé
+
+- Insertion de lien dans l'éditeur (BUG-015, KAN-54) : le bouton « Lien »
+  restait muet dans deux cas — sans texte sélectionné (rien ne se passait),
+  et avec une URL rejetée par la validation (fermeture silencieuse du
+  dialogue sans rien appliquer). Le bouton « Appliquer » explique maintenant
+  pourquoi il est indisponible sans sélection, et une URL invalide affiche un
+  message d'erreur au lieu de se refermer sans effet. Un lien appliqué est
+  désormais visuellement distinct du texte environnant (`text-link`,
+  souligné) — il ne l'était pas non plus auparavant. Ctrl/Cmd+clic ouvre le
+  lien dans un nouvel onglet, comme pour une mention d'entité.
+
 ## [1.4.0] - 2026-08-27
 
 ### Ajouté

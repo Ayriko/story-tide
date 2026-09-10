@@ -97,22 +97,55 @@ function ToolbarButton({
 // re-cliquer le bouton). Radix fournit tout ca gratuitement, meme patron deja
 // en place pour CreateEntityDialog/EntitySettingsDialog. `open` reste un
 // useState local, pilote par Dialog en mode controle (open/onOpenChange).
-function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
+// Exporte uniquement pour entity-editor.test.tsx (BUG-015) - aucun autre
+// consommateur, le composant reste prive au module en usage normal.
+export function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  // Sans texte selectionne (et hors edition d'un lien existant, "active"),
+  // setLink ne touche rien de visible : il pose seulement une marque pour
+  // les *prochains* caracteres tapes (BUG-015). "Appliquer" doit dire
+  // pourquoi il est indisponible plutot que d'accepter un clic sans effet.
+  const selectionEmpty = useEditorState({
+    editor,
+    selector: ({ editor: currentEditor }) => currentEditor?.state.selection.empty ?? true,
+  });
+  const canApply = active || !selectionEmpty;
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setUrl("");
+      setError(null);
+    }
+  }
 
   function apply() {
     if (url.trim() === "") {
       editor.chain().focus().unsetLink().run();
-    } else {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+      handleOpenChange(false);
+      return;
     }
-    setOpen(false);
-    setUrl("");
+    const applied = editor
+      .chain()
+      .focus()
+      .extendMarkRange("link")
+      .setLink({ href: url.trim() })
+      .run();
+    if (!applied) {
+      // setLink renvoie false sans rien appliquer quand isAllowedUri rejette
+      // l'URL (ex. schema manquant) - fermer silencieusement ici serait le
+      // meme defaut de feedback que le cas sans selection (BUG-015).
+      setError("URL invalide : utilisez une adresse commençant par http:// ou https://.");
+      return;
+    }
+    handleOpenChange(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <ToolbarButton label="Lien" active={active} onClick={() => setOpen(true)} />
       </DialogTrigger>
@@ -120,6 +153,11 @@ function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
         <DialogHeader>
           <DialogTitle>Lien</DialogTitle>
         </DialogHeader>
+        {error ? (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="link-url">URL du lien</Label>
           <Input
@@ -131,13 +169,43 @@ function LinkControl({ editor, active }: { editor: Editor; active: boolean }) {
           />
         </div>
         <DialogFooter>
-          <Button type="button" onClick={apply}>
+          {!canApply ? (
+            <p id="link-unavailable-hint" className="text-xs text-muted-foreground sm:mr-auto">
+              Sélectionnez du texte dans l&apos;éditeur avant d&apos;appliquer un lien.
+            </p>
+          ) : null}
+          <Button
+            type="button"
+            onClick={apply}
+            disabled={!canApply}
+            aria-describedby={canApply ? undefined : "link-unavailable-hint"}
+          >
             Appliquer
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
+}
+
+type EditorClickTarget = { type: "mention"; targetId: string } | { type: "link"; href: string };
+
+// Fonction pure (BUG-015) : isole la resolution "sur quoi porte le clic
+// Ctrl/Cmd" de ses effets de bord (router.push/window.open, dans
+// handleMentionClick ci-dessous) - testable sans monter l'editeur/le router.
+// Priorite a la mention si l'element clique cumule les deux (ne devrait pas
+// arriver en pratique, les mentions sont des decorations, pas des <a>).
+export function resolveEditorClickTarget(target: HTMLElement): EditorClickTarget | null {
+  const mentionElement = target.closest(`[${MENTION_TARGET_ATTR}]`);
+  if (mentionElement) {
+    const targetId = mentionElement.getAttribute(MENTION_TARGET_ATTR);
+    return targetId ? { type: "mention", targetId } : null;
+  }
+  const linkElement = target.closest("a[href]");
+  if (linkElement instanceof HTMLAnchorElement) {
+    return { type: "link", href: linkElement.href };
+  }
+  return null;
 }
 
 // Deux facons de fournir l'image : URL manuelle (inchange) OU un fichier
@@ -514,25 +582,31 @@ export function EntityEditor({
   }, []);
 
   // Clic simple = edition normale (placer le curseur dans le contenteditable) ;
-  // Ctrl/Cmd+clic sur une mention surlignee = navigation vers la fiche liee.
-  // Convention deja etablie par les editeurs/IDE (VS Code...), pour ne jamais
-  // gener la correction du texte d'un mot lie. La liste "Entites liees" sous
-  // l'editeur reste le chemin clavier/lecteur d'ecran (RGAA).
+  // Ctrl/Cmd+clic sur une mention surlignee = navigation vers la fiche liee,
+  // Ctrl/Cmd+clic sur un vrai lien <a href> (BUG-015) = ouverture dans un
+  // nouvel onglet. Convention deja etablie par les editeurs/IDE (VS Code...),
+  // pour ne jamais gener la correction du texte d'un mot lie. Necessaire pour
+  // les vrais liens : Chrome (et la plupart des navigateurs) suspend deja la
+  // navigation native d'un <a> a l'interieur d'un contenteditable sur un clic
+  // simple - seul un clic droit "Ouvrir le lien" passait outre jusqu'ici. La
+  // liste "Entites liees" sous l'editeur reste le chemin clavier/lecteur
+  // d'ecran (RGAA) pour les mentions ; un vrai lien reste, lui, ouvrable au
+  // clic droit natif du navigateur si besoin.
   const handleMentionClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (!(event.metaKey || event.ctrlKey)) {
         return;
       }
-      const mentionElement = (event.target as HTMLElement).closest(`[${MENTION_TARGET_ATTR}]`);
-      if (!mentionElement) {
-        return;
-      }
-      const targetId = mentionElement.getAttribute(MENTION_TARGET_ATTR);
-      if (!targetId) {
+      const clickTarget = resolveEditorClickTarget(event.target as HTMLElement);
+      if (!clickTarget) {
         return;
       }
       event.preventDefault();
-      router.push(`/worlds/${worldSlug}/entities/${targetId}`);
+      if (clickTarget.type === "mention") {
+        router.push(`/worlds/${worldSlug}/entities/${clickTarget.targetId}`);
+      } else {
+        window.open(clickTarget.href, "_blank", "noopener,noreferrer");
+      }
     },
     [router, worldSlug],
   );
@@ -555,12 +629,20 @@ export function EntityEditor({
         // pointille discret, jamais du texte plein (ne doit pas se confondre
         // avec un vrai lien "http" du node Link). Ctrl/Cmd+clic navigue
         // (handleMentionClick) ; sans modificateur, clic simple = edition.
+        // Style du lien <a> (BUG-015) : sans regle explicite, Preflight
+        // neutralise la couleur/soulignement par defaut de <a> (color/text-
+        // decoration: inherit) - le mark setLink() s'appliquait deja
+        // correctement (verifie via le JSON sauvegarde) mais restait
+        // visuellement indiscernable du texte autour, silence identique au
+        // reste du bug. text-link (pas text-primary, echoue 4,5:1 texte -
+        // ADR-0027) + soulignement plein, distinct du pointille des mentions
+        // ci-dessus.
         // Placeholder (KAN-36 P4) : l'extension pose une decoration
         // .is-editor-empty + data-placeholder sur le premier noeud vide -
         // recette CSS standard Tiptap (float-left/h-0/pointer-events-none)
         // traduite en variantes Tailwind arbitraires, meme patron que le reste
         // de cette classe (skill headless-editor-tailwind-preflight).
-        className="min-h-[200px] rounded-md border border-input px-3 py-2 text-sm text-foreground focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-lg [&_h3]:font-medium [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-muted-foreground [&_.entity-mention]:underline-offset-2 [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-left [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]"
+        className="min-h-[200px] rounded-md border border-input px-3 py-2 text-sm text-foreground focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring [&_.ProseMirror]:outline-none [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-medium [&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-lg [&_h3]:font-medium [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_blockquote]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-muted-foreground [&_.entity-mention]:cursor-pointer [&_.entity-mention]:underline [&_.entity-mention]:decoration-dotted [&_.entity-mention]:decoration-muted-foreground [&_.entity-mention]:underline-offset-2 [&_a]:text-link [&_a]:underline [&_a]:decoration-solid [&_a]:underline-offset-2 [&_.is-editor-empty:first-child]:before:pointer-events-none [&_.is-editor-empty:first-child]:before:float-left [&_.is-editor-empty:first-child]:before:h-0 [&_.is-editor-empty:first-child]:before:text-muted-foreground [&_.is-editor-empty:first-child]:before:content-[attr(data-placeholder)]"
       />
       <p aria-live="polite" className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>
