@@ -111,6 +111,21 @@ export default function MentionsLegalesPage() {
               </p>
             </section>
 
+            <section aria-labelledby="propriete-heading" className="flex flex-col gap-2">
+              <h2
+                id="propriete-heading"
+                className="font-heading text-sm font-medium text-foreground"
+              >
+                Propriété des créations
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Les mondes, fiches et contenus que vous créez sur Story Tide vous appartiennent. Ils
+                ne sont ni revendus, ni exploités à des fins commerciales par Tidemark Studio, ni
+                utilisés pour entraîner un système d&apos;intelligence artificielle, sans votre
+                accord explicite.
+              </p>
+            </section>
+
             <section aria-labelledby="contact-heading" className="flex flex-col gap-2">
               <h2 id="contact-heading" className="font-heading text-sm font-medium text-foreground">
                 Contact

@@ -12,6 +12,8 @@ import {
   getWorld,
   getWorldBySlug,
   listWorlds,
+  pinWorld,
+  unpinWorld,
   updateWorld,
 } from "./world-service";
 
@@ -61,6 +63,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     name: "Eldoria",
     slug: "eldoria",
     origin: WorldOrigin.USER,
+    pinnedAt: null,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,
@@ -179,7 +182,7 @@ describe("createIntroWorld", () => {
 });
 
 describe("listWorlds", () => {
-  it("liste les mondes du proprietaire tries par date de creation decroissante", async () => {
+  it("interroge par date de creation decroissante", async () => {
     worldFindMany.mockResolvedValueOnce([]);
 
     await listWorlds(OWNER_ID);
@@ -188,6 +191,22 @@ describe("listWorlds", () => {
       where: { ownerId: OWNER_ID },
       orderBy: { createdAt: "desc" },
     });
+  });
+
+  it("remonte les mondes epingles en tete SANS changer l'ordre existant dans chaque groupe (quick win 2.5)", async () => {
+    // createdAt desc tel que renvoye par Prisma : w1 (plus recent) -> w4 (plus
+    // ancien). w2 et w4 sont epingles, a des instants differents - le tri ne
+    // doit PAS les reordonner entre eux par date d'epinglage : w2 reste avant
+    // w4 uniquement parce qu'il l'etait deja dans l'ordre createdAt desc.
+    const w1 = makeWorld({ id: "w1", pinnedAt: null });
+    const w2 = makeWorld({ id: "w2", pinnedAt: new Date("2026-08-01T00:00:00.000Z") });
+    const w3 = makeWorld({ id: "w3", pinnedAt: null });
+    const w4 = makeWorld({ id: "w4", pinnedAt: new Date("2026-09-01T00:00:00.000Z") });
+    worldFindMany.mockResolvedValueOnce([w1, w2, w3, w4]);
+
+    const worlds = await listWorlds(OWNER_ID);
+
+    expect(worlds.map((world) => world.id)).toEqual(["w2", "w4", "w1", "w3"]);
   });
 });
 
@@ -267,6 +286,73 @@ describe("updateWorld", () => {
     worldFindFirst.mockResolvedValueOnce(null);
 
     await expect(updateWorld(OWNER_ID, "w1", { name: "X" })).rejects.toThrow(WorldNotFoundError);
+    expect(worldUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("pinWorld", () => {
+  it("epingle un monde non epingle", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld({ id: "w1", pinnedAt: null }));
+    const pinnedWorld = makeWorld({ id: "w1", pinnedAt: new Date("2026-09-10T00:00:00.000Z") });
+    worldUpdate.mockResolvedValueOnce(pinnedWorld);
+
+    const world = await pinWorld(OWNER_ID, "w1");
+
+    expect(worldUpdate).toHaveBeenCalledWith({
+      where: { id: "w1" },
+      data: { pinnedAt: expect.any(Date) },
+    });
+    expect(world.pinnedAt).not.toBeNull();
+  });
+
+  it("est idempotent : re-epingler un monde deja epingle ne touche pas pinnedAt (aucun update)", async () => {
+    const alreadyPinned = makeWorld({
+      id: "w1",
+      pinnedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    worldFindFirst.mockResolvedValueOnce(alreadyPinned);
+
+    const world = await pinWorld(OWNER_ID, "w1");
+
+    expect(world).toBe(alreadyPinned);
+    expect(worldUpdate).not.toHaveBeenCalled();
+  });
+
+  it("leve WorldNotFoundError et ne modifie rien pour un utilisateur non membre", async () => {
+    worldFindFirst.mockResolvedValueOnce(null);
+
+    await expect(pinWorld(OWNER_ID, "w1")).rejects.toThrow(WorldNotFoundError);
+    expect(worldUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("unpinWorld", () => {
+  it("desepingle un monde epingle", async () => {
+    worldFindFirst.mockResolvedValueOnce(
+      makeWorld({ id: "w1", pinnedAt: new Date("2026-08-01T00:00:00.000Z") }),
+    );
+    worldUpdate.mockResolvedValueOnce(makeWorld({ id: "w1", pinnedAt: null }));
+
+    const world = await unpinWorld(OWNER_ID, "w1");
+
+    expect(worldUpdate).toHaveBeenCalledWith({ where: { id: "w1" }, data: { pinnedAt: null } });
+    expect(world.pinnedAt).toBeNull();
+  });
+
+  it("est idempotent : desepingler un monde deja non epingle ne fait rien (aucun update)", async () => {
+    const alreadyUnpinned = makeWorld({ id: "w1", pinnedAt: null });
+    worldFindFirst.mockResolvedValueOnce(alreadyUnpinned);
+
+    const world = await unpinWorld(OWNER_ID, "w1");
+
+    expect(world).toBe(alreadyUnpinned);
+    expect(worldUpdate).not.toHaveBeenCalled();
+  });
+
+  it("leve WorldNotFoundError et ne modifie rien pour un utilisateur non membre", async () => {
+    worldFindFirst.mockResolvedValueOnce(null);
+
+    await expect(unpinWorld(OWNER_ID, "w1")).rejects.toThrow(WorldNotFoundError);
     expect(worldUpdate).not.toHaveBeenCalled();
   });
 });

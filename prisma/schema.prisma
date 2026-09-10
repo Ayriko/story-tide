@@ -40,6 +40,11 @@ model World {
   ownerId     String
   owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   origin      WorldOrigin  @default(USER)
+  // Epinglage (quick win 2.5) : proprietaire unique par monde pour le moment
+  // (hypothese assumee, cf. commentaire de pinWorld/unpinWorld dans
+  // world-service.ts) - nullable, colonne seule dans sa migration, jamais
+  // fusionnee avec celle de KAN-38.
+  pinnedAt    DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   entities    Entity[]
