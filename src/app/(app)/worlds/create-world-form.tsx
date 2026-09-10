@@ -44,6 +44,7 @@ export function CreateWorldForm() {
           name="name"
           type="text"
           required
+          autoComplete="off"
           placeholder="Nom du monde"
           defaultValue={state.values?.name ?? ""}
           aria-invalid={state.errors?.name ? true : undefined}

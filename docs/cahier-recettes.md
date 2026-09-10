@@ -238,6 +238,26 @@
 - **Critères d'acceptation** : cause réelle prouvée par log (pas par hypothèse) — `entity-search.tsx:36` copiait `initialEntities` dans un `useState` au premier montage, jamais resynchronisé ; corrigé par dérivation directe des props hors recherche active (`const results = isSearching ? (searchResults ?? []) : initialEntities`). Vérifié en conditions réelles bout en bout (`e2e/dashboard-create-entity.spec.ts` : création dashboard **et** sidebar, repli de groupe conservé, recherche active puis effacée) ; `e2e/entity-search.spec.ts` existant (champ vide réaffiche la liste initiale) inchangé et toujours vert ; vérification manuelle Aymeric sur staging (bug initialement détecté là ; deux tentatives serveur précédentes s'étaient révélées sans effet au retest, cf. `docs/plan-correction-bogues.md` BUG-004).
 - **Type** : fonctionnel · **Statut** : ⚠️ Recette staging v1.2.0-rc.1 (2026-07-23) : correctif v3 confirmé pour la fraîcheur des données (3 entrées créées via dashboard/sidebar toutes visibles sans F5, recherche filtre puis réaffiche correctement) — ❌ en revanche l'état de repli des groupes se réinitialise à chaque navigation (même sans création). → `plan-correction-bogues.md` BUG-008, arbitré P2/report, ne bloque pas le tag v1.2.0. Gates automatisés historiques (lint, `tsc`, 341/341 tests, coverage, 10/10 e2e, build) inchangés.
 
+## TST-MND-009 — Paramètres d'un monde depuis l'écran des mondes (renommer, supprimer)
+
+- **Description** : depuis « Mes mondes » (`/worlds`), chaque ligne porte un bouton « Paramètres du monde » qui ouvre le même dialogue que celui de la page du monde (réutilisation directe de `WorldSettingsDialog`, aucune action serveur réécrite).
+- **Objectif** : vérifier que renommer et supprimer sont utilisables sans ouvrir le monde, et que l'autorisation par appartenance au monde s'applique aux actions réutilisées, y compris pour un utilisateur non membre.
+- **Préconditions** : au moins un monde existe pour le compte ; un second compte existe pour le cas de refus.
+- **Étapes** : 1) Sur `/worlds`, cliquer l'icône engrenage d'un monde. 2) Renommer, soumettre. 3) Rouvrir, cliquer « Supprimer ce monde », confirmer.
+- **Résultat attendu** : le nom est mis à jour dans la liste sans quitter `/worlds` ; la suppression retire le monde de la liste après confirmation explicite (jamais sans elle).
+- **Critères d'acceptation** : `updateWorldAction`/`deleteWorldAction` refusent pour un utilisateur non membre (`world-service.test.ts`, `WorldNotFoundError`) ; vérifié manuellement en navigateur (dialogue affiche bien le nom du monde ciblé avant toute confirmation).
+- **Type** : fonctionnel · **Statut** : ✅ (vérifié manuellement en navigateur, 2026-09-10 ; autorisation déjà couverte par les tests existants du service, aucune duplication) — ⬜ à repasser à la recette staging.
+
+## TST-MND-010 — Épingler un monde depuis l'écran des mondes
+
+- **Description** : un bouton bascule (icône punaise) sur chaque ligne de `/worlds` épingle ou désépingle un monde ; les mondes épinglés remontent en tête de liste sans changer l'ordre des autres.
+- **Objectif** : vérifier le tri, l'idempotence de la double bascule, l'autorisation par appartenance au monde, et que l'état épinglé est perceptible sans dépendre de la couleur.
+- **Préconditions** : au moins deux mondes existent pour le compte ; un second compte existe pour le cas de refus.
+- **Étapes** : 1) Sur `/worlds`, épingler un monde qui n'est pas le plus récent. 2) Observer son nouveau rang. 3) Cliquer à nouveau sur « Épingler » (déjà épinglé — no-op attendu). 4) Désépingler.
+- **Résultat attendu** : le monde épinglé passe en tête immédiatement (pas de rechargement manuel) ; les autres mondes gardent leur ordre relatif ; l'icône passe d'un contour à une silhouette pleine (pas seulement un changement de couleur) ; le second clic sur « Épingler » ne change rien ; désépingler renvoie le monde à sa place dans l'ordre normal.
+- **Critères d'acceptation** : `pinWorld`/`unpinWorld`/`listWorlds` testés unitairement (idempotence, refus pour un utilisateur non membre, partition stable de l'ordre existant — `world-service.test.ts`) ; vérifié manuellement en navigateur avec deux mondes réels (capture avant/après, requête SQL directe confirmant `pinnedAt`).
+- **Type** : fonctionnel / accessibilité · **Statut** : ✅ (tests unitaires verts ; vérifié manuellement en navigateur, 2026-09-10) — ⬜ à repasser à la recette staging.
+
 ## TST-SEC-002 — Accès à un monde d'autrui via URL directe
 
 - **Description** : un utilisateur connecté saisit directement l'URL `/worlds/<slug>` d'un monde qui ne lui appartient pas.
@@ -527,6 +547,16 @@
 - **Résultat attendu** : le texte saisi reste visible pendant toute la frappe ; le titre de l'entrée et la barre d'outils sont de nouveau visibles en remontant ; en bas de course le pied de page est visible et **rien** ne subsiste sous lui ; aucun « bloc » ne s'installe en bas de l'écran ; sur page courte le pied de page reste masqué par défaut (acquis KAN-45 préservé).
 - **Critères d'acceptation** : `e2e/long-content.spec.ts` — aucun ancêtre du conteneur défilant n'a un `scrollTop` non nul **et** aucun n'est même défilable (`scrollHeight == clientHeight`, sans quoi un descendant `position:absolute` s'en échapperait à nouveau), caret dans la zone visible après frappe, titre et `role="toolbar"` dans le viewport après remontée, écart nul entre le bas du pied de page et le bas du conteneur, pied de page hors viewport au premier écran sur `/worlds` avec landmark `contentinfo` préservé ; garde-fou interne au test vérifiant que le contenu dépasse réellement le viewport (sans quoi le scénario passerait sans rien prouver).
 - **Type** : fonctionnel (bout en bout) / non-régression · **Statut** : ✅ (e2e vert en local, 13/13 ; correctif validé manuellement par Aymeric sur la repro locale) — ⬜ à repasser à la recette staging de la 1.3.1-rc.1.
+
+## TST-ENT-015 — Poignée de redimensionnement d'image : contraste garanti sur fond arbitraire
+
+- **Description** : la poignée de redimensionnement d'une image sélectionnée dans l'éditeur (retour bêta : « on ne voit pas qu'on peut redimensionner ») repose sur `bg-primary` seul, posé directement sur une image de contenu dont la couleur est arbitraire — aucune garantie de contraste avant correctif.
+- **Objectif** : vérifier que la poignée reste visible (≥ 3:1) quelle que soit la couleur de l'image sous-jacente, y compris le pire cas (image de la même teinte que `--primary`), sans faire reposer l'information sur la seule couleur.
+- **Préconditions** : une entrée avec de l'éditeur ouvert ; une image insérable.
+- **Étapes** : 1) Insérer une image de fond sombre, la sélectionner. 2) Insérer une image de fond clair, la sélectionner. 3) Insérer une image exactement de la teinte `--primary` (`#667EC7`), la sélectionner.
+- **Résultat attendu** : dans les trois cas, au moins un bord de la poignée (liseret clair ou liseret sombre) tranche visiblement sur le fond ; la poignée reste actionnable au clavier (flèches gauche/droite, acquis KAN-39 préservé).
+- **Critères d'acceptation** : mesure sur rendu réel (pas estimée) — `getComputedStyle` de la poignée sélectionnée + couleurs de fond connues (images de test unies), calcul du ratio WCAG sur chaque liseret composité : sombre 15,52:1, clair 4,6:1, pire cas (`--primary` sur `--primary`) 3,49:1 — tous ≥ 3:1. `resizable-image-view.test.tsx` inchangé et toujours vert (assertions de rôle/attributs, pas de rendu de fond réel en jsdom).
+- **Type** : accessibilité · **Statut** : ✅ (mesuré manuellement en navigateur sur 3 fonds réels, 2026-09-10) — ⬜ à repasser à la recette staging.
 
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 

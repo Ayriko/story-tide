@@ -59,6 +59,7 @@ export function EditEntityForm({
           name="name"
           type="text"
           required
+          autoComplete="off"
           defaultValue={state.values?.name ?? name}
           aria-invalid={state.errors?.name ? true : undefined}
           aria-describedby={state.errors?.name ? "entity-name-error" : undefined}

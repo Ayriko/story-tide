@@ -44,6 +44,7 @@ export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worl
           name="name"
           type="text"
           required
+          autoComplete="off"
           defaultValue={state.values?.name ?? ""}
           aria-invalid={state.errors?.name ? true : undefined}
           aria-describedby={state.errors?.name ? "entity-name-error" : undefined}

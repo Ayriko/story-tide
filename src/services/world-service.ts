@@ -80,8 +80,19 @@ export async function createIntroWorld(ownerId: string, name: string): Promise<W
   });
 }
 
+// Partition stable de l'ordre existant (quick win 2.5) : les mondes epingles
+// remontent en tete, mais SANS reordonner ni le groupe des epingles ni celui
+// des autres entre eux - la meme liste createdAt desc, juste coupee en deux.
+// Pas de tri SQL sur pinnedAt (aurait trie les epingles par date d'epinglage,
+// pas par createdAt desc comme demande).
 export async function listWorlds(ownerId: string): Promise<World[]> {
-  return prisma.world.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } });
+  const worlds = await prisma.world.findMany({
+    where: { ownerId },
+    orderBy: { createdAt: "desc" },
+  });
+  const pinned = worlds.filter((world) => world.pinnedAt !== null);
+  const unpinned = worlds.filter((world) => world.pinnedAt === null);
+  return [...pinned, ...unpinned];
 }
 
 // Appartenance verifiee ici (filtre ownerId), jamais seulement en UI (OWASP A01).
@@ -111,6 +122,31 @@ export async function updateWorld(
   const world = await getWorld(ownerId, worldId);
   const slug = await resolveUniqueSlug(ownerId, slugify(input.name), world.id);
   return prisma.world.update({ where: { id: world.id }, data: { name: input.name, slug } });
+}
+
+// Idempotent (quick win 2.5) : re-pin un monde deja epingle ne touche pas
+// pinnedAt (garde le meme instant, pas de "remontee" en tete au sein du
+// groupe epingle a chaque clic repete) ; unpin un monde deja detache est un
+// no-op. Hypothese assumee : un monde a un proprietaire unique pour le moment
+// (getWorld filtre deja par ownerId) - le jour du partage (KAN-27/KAN-29), la
+// bascule vers une table de liaison devra se faire dans la MEME passe que le
+// partage : au-dela d'un seul proprietaire, "qui a epingle" devient ambigu et
+// pinnedAt seul ne le retient pas, alors que tant qu'il n'y a qu'un
+// proprietaire le backfill est trivial (c'est forcement lui).
+export async function pinWorld(ownerId: string, worldId: string): Promise<World> {
+  const world = await getWorld(ownerId, worldId);
+  if (world.pinnedAt) {
+    return world;
+  }
+  return prisma.world.update({ where: { id: world.id }, data: { pinnedAt: new Date() } });
+}
+
+export async function unpinWorld(ownerId: string, worldId: string): Promise<World> {
+  const world = await getWorld(ownerId, worldId);
+  if (!world.pinnedAt) {
+    return world;
+  }
+  return prisma.world.update({ where: { id: world.id }, data: { pinnedAt: null } });
 }
 
 // RGPD ("purge monde + binaires") : les objets MinIO ne sont PAS supprimes par

@@ -57,6 +57,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     name: "Eldoria",
     slug: "eldoria",
     origin: WorldOrigin.USER,
+    pinnedAt: null,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,

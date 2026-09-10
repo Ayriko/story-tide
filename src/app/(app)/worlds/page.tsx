@@ -9,6 +9,8 @@ import { ScrollHint } from "../../scroll-hint";
 import { TopBar } from "../top-bar";
 import { UserMenu } from "../user-menu";
 import { CreateWorldDialog } from "./create-world-dialog";
+import { PinWorldToggle } from "./pin-world-toggle";
+import { WorldSettingsDialog } from "./[slug]/world-settings-dialog";
 
 export const metadata: Metadata = {
   title: "Mes mondes",
@@ -85,17 +87,29 @@ export default async function WorldsPage() {
               ) : (
                 <ul className="flex flex-col gap-3">
                   {worlds.map((world) => (
-                    <li key={world.id}>
+                    // relative + bouton parametres en frere du Link (jamais
+                    // imbrique dedans, KAN-36 quick win 2.4) : un <button> a
+                    // l'interieur d'un <a> est invalide en HTML et le clic sur
+                    // le bouton declencherait aussi la navigation du Link.
+                    <li key={world.id} className="relative">
                       <Link
                         href={`/worlds/${world.slug}`}
                         className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
-                        <Card className="px-4 py-3 transition-colors hover:bg-accent">
+                        <Card className="px-4 py-3 pr-24 transition-colors hover:bg-accent">
                           <span className="font-heading text-sm font-medium text-foreground">
                             {world.name}
                           </span>
                         </Card>
                       </Link>
+                      <div className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-1">
+                        <PinWorldToggle worldId={world.id} pinned={world.pinnedAt !== null} />
+                        <WorldSettingsDialog
+                          worldId={world.id}
+                          worldName={world.name}
+                          stayOnWorldsList
+                        />
+                      </div>
                     </li>
                   ))}
                 </ul>

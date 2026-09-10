@@ -7,6 +7,8 @@ import { createWorldSchema, updateWorldSchema } from "@/lib/world-schemas";
 import {
   createWorld,
   deleteWorld,
+  pinWorld,
+  unpinWorld,
   updateWorld,
   WorldNotFoundError,
   WorldQuotaExceededError,
@@ -22,6 +24,10 @@ export type WorldFormState = {
 };
 
 export type WorldDeleteState = {
+  formError?: string;
+};
+
+export type WorldPinState = {
   formError?: string;
 };
 
@@ -82,6 +88,10 @@ export async function updateWorldAction(
 ): Promise<WorldFormState> {
   const values = { name: stringField(formData, "name") };
   const worldId = stringField(formData, "worldId");
+  // "list" | "world" (defaut) - jamais un chemin brut fourni par le client
+  // (open redirect, OWASP A01) : seule cette enumeration choisit la cible,
+  // calculee ci-dessous par le serveur lui-meme.
+  const staysOnWorldsList = stringField(formData, "afterRename") === "list";
 
   const parsed = updateWorldSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) {
@@ -109,7 +119,7 @@ export async function updateWorldAction(
 
   revalidatePath("/worlds");
   revalidatePath(`/worlds/${slug}`);
-  redirect(`/worlds/${slug}`);
+  redirect(staysOnWorldsList ? "/worlds" : `/worlds/${slug}`);
 }
 
 export async function deleteWorldAction(
@@ -137,4 +147,41 @@ export async function deleteWorldAction(
 
   revalidatePath("/worlds");
   redirect("/worlds");
+}
+
+// Bascule sans redirection (quick win 2.5) : reste sur /worlds, le nouveau tri
+// (pinWorld/unpinWorld -> listWorlds, world-service.ts) arrive via
+// revalidatePath. `pinned` porte l'etat AVANT le clic (case cachee du
+// formulaire, PinWorldToggle) - determine quelle des deux fonctions service
+// appeler, jamais une simple negation cote client.
+export async function pinWorldAction(
+  _prevState: WorldPinState,
+  formData: FormData,
+): Promise<WorldPinState> {
+  const worldId = stringField(formData, "worldId");
+  const wasPinned = stringField(formData, "pinned") === "true";
+
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    redirect("/login");
+  }
+
+  try {
+    if (wasPinned) {
+      await unpinWorld(session.user.id, worldId);
+    } else {
+      await pinWorld(session.user.id, worldId);
+    }
+  } catch (error) {
+    if (error instanceof WorldNotFoundError) {
+      return { formError: "Monde introuvable." };
+    }
+    console.error("[world] Bascule d'épingle échouée :", error);
+    return { formError: "Action impossible pour le moment. Réessayez." };
+  }
+
+  revalidatePath("/worlds");
+  return {};
 }

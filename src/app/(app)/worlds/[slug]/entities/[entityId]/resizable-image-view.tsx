@@ -118,7 +118,14 @@ export function ResizableImageView({ node, updateAttributes, selected, ref }: Re
           tabIndex={0}
           onPointerDown={handlePointerDown}
           onKeyDown={handleKeyDown}
-          className="absolute top-1/2 right-0 h-10 w-3 translate-x-1/2 -translate-y-1/2 touch-none cursor-ew-resize rounded-full bg-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          // Poignee posee sur une image de contenu arbitraire (retour beta) :
+          // bg-primary seul ne garantit pas 3:1 contre tous les fonds
+          // possibles. Double liseret opac (blanc + noir) de part et d'autre
+          // du remplissage - au moins l'un des deux tranche quelle que soit
+          // la couleur sous la poignee, sans dependre de la couleur elle-meme
+          // (forme + position deja distinctives, pas d'info a la seule
+          // couleur). Mesure sur rendu reel : voir dev-log.
+          className="absolute top-1/2 right-0 h-10 w-3 translate-x-1/2 -translate-y-1/2 touch-none cursor-ew-resize rounded-full bg-primary ring-2 ring-white/90 shadow-[0_0_0_1px_rgba(0,0,0,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         />
       ) : null}
     </NodeViewWrapper>
