@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { EntitySearchResult } from "@/services/entity-service";
+import type { FolderTreeNode } from "@/services/folder-service";
 import { Footer } from "../../../footer";
 import { LocalClock } from "../../local-clock";
 import { ScrollHint } from "../../../scroll-hint";
@@ -54,6 +55,8 @@ export function WorldShell({
   worldName,
   worldSlug,
   entities,
+  folderTree,
+  unfiledEntities,
   userName,
   userEmail,
   children,
@@ -62,6 +65,8 @@ export function WorldShell({
   worldName: string;
   worldSlug: string;
   entities: EntitySearchResult[];
+  folderTree: FolderTreeNode[];
+  unfiledEntities: EntitySearchResult[];
   userName: string;
   userEmail: string;
   children: ReactNode;
@@ -112,7 +117,13 @@ export function WorldShell({
           collapsed ? "w-0 pl-0" : "w-72",
         )}
       >
-        <Sidebar worldId={worldId} worldSlug={worldSlug} entities={entities} />
+        <Sidebar
+          worldId={worldId}
+          worldSlug={worldSlug}
+          entities={entities}
+          folderTree={folderTree}
+          unfiledEntities={unfiledEntities}
+        />
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { searchEntitiesAction } from "@/actions/entity";
 import { entityTypeGroup, entityTypeLabel, groupedEntityTypes } from "@/lib/entity-schemas";
@@ -10,10 +10,44 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { EntitySearchResult } from "@/services/entity-service";
+import type { FolderTreeNode } from "@/services/folder-service";
 import { EntityTypeIcon } from "./entity-type-icon";
+import { EntityRow } from "./entity-row";
+import { FolderTree } from "./folder-tree";
+import { buildTreeNodes } from "./folder-tree-utils";
 
 const SEARCH_DEBOUNCE_MS = 300;
+type ViewMode = "types" | "dossiers";
+const VIEW_MODE_STORAGE_KEY = "story-tide:entity-view-mode";
+// Evenement DOM prive, meme patron que COLLAPSE_EVENT dans world-shell.tsx -
+// necessaire meme si ce composant est seul a lire/ecrire cette cle : passer
+// par un effet + setState pour l'hydratation depuis localStorage declenche
+// react-hooks/set-state-in-effect (cascading renders). useSyncExternalStore
+// est le mecanisme React dedie a une valeur pilotee par un systeme externe,
+// sans setState synchrone dans un effet - le callback subscribe ici n'a
+// besoin d'etre notifie que par nos propres ecritures (setViewModePersisted).
+const VIEW_MODE_EVENT = "story-tide:entity-view-mode-change";
+
+function subscribeViewMode(callback: () => void) {
+  window.addEventListener(VIEW_MODE_EVENT, callback);
+  return () => window.removeEventListener(VIEW_MODE_EVENT, callback);
+}
+function getViewModeSnapshot(): ViewMode {
+  const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+  return stored === "types" || stored === "dossiers" ? stored : "types";
+}
+// Toujours "types" au premier rendu serveur (localStorage n'existe pas cote
+// serveur) - evite un hydration mismatch, meme raisonnement que
+// getServerSnapshot dans world-shell.tsx.
+function getViewModeServerSnapshot(): ViewMode {
+  return "types";
+}
+function setViewModePersisted(mode: ViewMode) {
+  window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  window.dispatchEvent(new Event(VIEW_MODE_EVENT));
+}
 // Evenement DOM prive (KAN-36 P3) : le dashboard (chip "Rechercher") demande
 // le focus sur ce champ sans le tenir directement (compose depuis un autre
 // composant, meme patron que COLLAPSE_EVENT dans world-shell.tsx).
@@ -27,12 +61,21 @@ export function EntitySearch({
   worldId,
   worldSlug,
   initialEntities,
+  folderTree,
+  unfiledEntities,
 }: {
   worldId: string;
   worldSlug: string;
   initialEntities: EntitySearchResult[];
+  folderTree: FolderTreeNode[];
+  unfiledEntities: EntitySearchResult[];
 }) {
   const [query, setQuery] = useState("");
+  const viewMode = useSyncExternalStore(
+    subscribeViewMode,
+    getViewModeSnapshot,
+    getViewModeServerSnapshot,
+  );
   // Resultats d'une recherche SERVEUR active (KAN-17, searchEntitiesAction) -
   // null = aucune recherche en cours, la liste affichee derive alors
   // directement de `initialEntities` (props) a CHAQUE rendu (cf. `results`
@@ -126,6 +169,14 @@ export function EntitySearch({
       entities: results.filter((entity) => (entityTypeGroup(entity.type) ?? "Divers") === group),
     }))
     .filter(({ entities }) => entities.length > 0);
+  // Vue Dossiers, hors recherche : jamais filtre par la requete (non
+  // pertinent, isSearching est faux dans cette branche) - unfiledEntities
+  // vient de getUnfiledEntities, jamais d'initialEntities (semantique
+  // distincte : "toutes les entites" vs "entites sans dossier").
+  const tree = useMemo(
+    () => buildTreeNodes(folderTree, unfiledEntities),
+    [folderTree, unfiledEntities],
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -152,6 +203,21 @@ export function EntitySearch({
         </InputGroup>
       </div>
 
+      <ToggleGroup
+        type="single"
+        value={viewMode}
+        onValueChange={(value) => {
+          if (value === "types" || value === "dossiers") {
+            setViewModePersisted(value);
+          }
+        }}
+        aria-label="Mode d'affichage des entrées"
+        className="self-start"
+      >
+        <ToggleGroupItem value="types">Types</ToggleGroupItem>
+        <ToggleGroupItem value="dossiers">Dossiers</ToggleGroupItem>
+      </ToggleGroup>
+
       {errorMessage ? (
         <p role="alert" className="text-sm text-destructive">
           {errorMessage}
@@ -168,6 +234,26 @@ export function EntitySearch({
         <p className="text-sm text-muted-foreground">
           {query.trim().length === 0 ? "Aucune entrée pour le moment." : "Aucune entité trouvée."}
         </p>
+      ) : viewMode === "dossiers" ? (
+        isSearching ? (
+          // Recherche active + vue Dossiers : liste plate, aucun en-tete -
+          // divergence assumee avec la vue Types (qui garde son
+          // regroupement pendant une recherche, comportement inchange).
+          <ul className="flex flex-col gap-2">
+            {results.map((entity) => (
+              <li key={entity.id}>
+                <Link
+                  href={`/worlds/${worldSlug}/entities/${entity.id}`}
+                  className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  <EntityRow entity={entity} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <FolderTree tree={tree} worldSlug={worldSlug} />
+        )
       ) : (
         <div className="flex flex-col gap-3">
           {groupedResults.map(({ group, entities }, index) => {

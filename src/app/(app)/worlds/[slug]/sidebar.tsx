@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import type { EntitySearchResult } from "@/services/entity-service";
+import type { FolderTreeNode } from "@/services/folder-service";
 import { CreateEntityDialog } from "./create-entity-dialog";
 import { EntitySearch } from "./entity-search";
 
@@ -23,10 +24,14 @@ export function Sidebar({
   worldId,
   worldSlug,
   entities,
+  folderTree,
+  unfiledEntities,
 }: {
   worldId: string;
   worldSlug: string;
   entities: EntitySearchResult[];
+  folderTree: FolderTreeNode[];
+  unfiledEntities: EntitySearchResult[];
 }) {
   return (
     <Card className="flex h-full w-72 flex-col gap-4 border-none bg-card/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
@@ -39,7 +44,13 @@ export function Sidebar({
         // contenu visuellement.
         className="min-h-0 flex-1 -mx-1 overflow-y-auto px-1 themed-scrollbar"
       >
-        <EntitySearch worldId={worldId} worldSlug={worldSlug} initialEntities={entities} />
+        <EntitySearch
+          worldId={worldId}
+          worldSlug={worldSlug}
+          initialEntities={entities}
+          folderTree={folderTree}
+          unfiledEntities={unfiledEntities}
+        />
       </nav>
 
       <CreateEntityDialog worldId={worldId} worldSlug={worldSlug} />
