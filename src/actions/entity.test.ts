@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-session";
 import { WorldNotFoundError } from "@/services/world-service";
+import { FolderNotFoundError } from "@/services/folder-service";
 import {
   createEntity,
   deleteEntity,
+  moveEntityToFolder,
   searchEntities,
   updateEntity,
 } from "@/services/entity-service";
 import {
   createEntityAction,
   deleteEntityAction,
+  moveEntityToFolderAction,
   searchEntitiesAction,
   updateEntityAction,
 } from "./entity";
@@ -35,6 +38,7 @@ vi.mock("@/services/entity-service", async (importOriginal) => {
     createEntity: vi.fn(),
     updateEntity: vi.fn(),
     deleteEntity: vi.fn(),
+    moveEntityToFolder: vi.fn(),
   };
 });
 
@@ -43,6 +47,7 @@ const mockedSearchEntities = vi.mocked(searchEntities);
 const mockedCreateEntity = vi.mocked(createEntity);
 const mockedUpdateEntity = vi.mocked(updateEntity);
 const mockedDeleteEntity = vi.mocked(deleteEntity);
+const mockedMoveEntityToFolder = vi.mocked(moveEntityToFolder);
 const mockedRevalidatePath = vi.mocked(revalidatePath);
 
 const SESSION = { user: { id: "owner-1" } } as unknown as Awaited<
@@ -64,13 +69,15 @@ beforeEach(() => {
 describe("searchEntitiesAction", () => {
   it("renvoie les resultats du service quand tout est correct", async () => {
     mockedRequireSession.mockResolvedValueOnce(SESSION);
-    mockedSearchEntities.mockResolvedValueOnce([{ id: "e1", name: "Aeliana", type: "character" }]);
+    mockedSearchEntities.mockResolvedValueOnce([
+      { id: "e1", name: "Aeliana", type: "character", folderId: null },
+    ]);
 
     const result = await searchEntitiesAction("w1", "Aeliana");
 
     expect(result).toEqual({
       ok: true,
-      entities: [{ id: "e1", name: "Aeliana", type: "character" }],
+      entities: [{ id: "e1", name: "Aeliana", type: "character", folderId: null }],
     });
     expect(mockedSearchEntities).toHaveBeenCalledWith("owner-1", "w1", "Aeliana");
   });
@@ -186,5 +193,79 @@ describe("deleteEntityAction", () => {
     expect(mockedDeleteEntity).toHaveBeenCalled();
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/monde-1");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/(app)/worlds/[slug]", "layout");
+  });
+});
+
+describe("moveEntityToFolderAction", () => {
+  it("deplace l'entite vers le dossier indique et revalide uniquement le layout (jamais une navigation)", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedMoveEntityToFolder.mockResolvedValueOnce({
+      id: "e1",
+      worldId: "w1",
+      name: "Aeliana",
+      type: "character",
+      content: {},
+      plainText: "",
+      seedRef: null,
+      folderId: "f1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      aliases: [],
+    });
+
+    const result = await moveEntityToFolderAction(
+      {},
+      formData({ worldId: "w1", entityId: "e1", folderId: "f1" }),
+    );
+
+    expect(result).toEqual({});
+    expect(mockedMoveEntityToFolder).toHaveBeenCalledWith("owner-1", "w1", "e1", "f1");
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/(app)/worlds/[slug]", "layout");
+  });
+
+  it("un champ folderId vide devient null (retire du dossier, jamais une chaine vide)", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedMoveEntityToFolder.mockResolvedValueOnce({
+      id: "e1",
+      worldId: "w1",
+      name: "Aeliana",
+      type: "character",
+      content: {},
+      plainText: "",
+      seedRef: null,
+      folderId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      aliases: [],
+    });
+
+    await moveEntityToFolderAction({}, formData({ worldId: "w1", entityId: "e1", folderId: "" }));
+
+    expect(mockedMoveEntityToFolder).toHaveBeenCalledWith("owner-1", "w1", "e1", null);
+  });
+
+  it("renvoie une erreur generique si l'entite ou le dossier est introuvable, sans rediriger", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedMoveEntityToFolder.mockRejectedValueOnce(new FolderNotFoundError());
+
+    const result = await moveEntityToFolderAction(
+      {},
+      formData({ worldId: "w1", entityId: "e1", folderId: "f1" }),
+    );
+
+    expect(result).toEqual({ formError: "Entrée ou dossier introuvable." });
+    expect(mockedRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("session expiree renvoie une erreur plutot que de rediriger (appel hors formulaire)", async () => {
+    mockedRequireSession.mockRejectedValueOnce(new Error("no session"));
+
+    const result = await moveEntityToFolderAction(
+      {},
+      formData({ worldId: "w1", entityId: "e1", folderId: "f1" }),
+    );
+
+    expect(result).toEqual({ formError: "Session expirée. Reconnectez-vous." });
+    expect(mockedMoveEntityToFolder).not.toHaveBeenCalled();
   });
 });

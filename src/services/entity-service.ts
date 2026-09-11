@@ -7,8 +7,19 @@ import { FREE_ENTITY_LIMIT_PER_WORLD } from "@/lib/quotas";
 import type { Alias, Entity } from "@/generated/prisma/client";
 import { AliasSource, WorldOrigin } from "@/generated/prisma/client";
 import { getWorld } from "./world-service";
+// Import a sens unique deliberement etroit (KAN-60) : seule la classe
+// d'erreur traverse la frontiere, jamais une fonction de folder-service.ts -
+// exception ciblee au principe "deux regroupements independants" (KAN-38),
+// necessaire ici car valider un folderId cible appartient forcement a
+// entity-service.ts (c'est Entity.folderId qui s'ecrit), pas a folder-service.ts.
+import { FolderNotFoundError } from "./folder-service";
 
-export type EntitySearchResult = { id: string; name: string; type: string };
+export type EntitySearchResult = {
+  id: string;
+  name: string;
+  type: string;
+  folderId: string | null;
+};
 
 // Contrat de retour uniforme de toute la couche service : aliases reste un
 // string[] pour les appelants (actions/UI/tests), meme si la persistance
@@ -165,6 +176,7 @@ export async function searchEntities(
       id: true,
       name: true,
       type: true,
+      folderId: true,
       aliases: { select: { normalized: true }, where: { active: true } },
     },
     orderBy: { name: "asc" },
@@ -175,7 +187,7 @@ export async function searchEntities(
         normalizeForMatch(entity.name).includes(needle) ||
         entity.aliases.some((alias) => alias.normalized.includes(needle)),
     )
-    .map(({ id, name, type }) => ({ id, name, type }));
+    .map(({ id, name, type, folderId }) => ({ id, name, type, folderId }));
 }
 
 export async function getEntity(
@@ -247,4 +259,41 @@ export async function deleteEntity(
 ): Promise<void> {
   const entity = await getEntity(ownerId, worldId, entityId);
   await prisma.entity.delete({ where: { id: entity.id } });
+}
+
+// Meme frontiere anti-fuite-d'existence que getFolder/getEntity : un dossier
+// d'un autre monde rend la meme erreur qu'un dossier inexistant. Requete
+// directe (pas d'appel au helper prive getFolder de folder-service.ts) -
+// seule FolderNotFoundError traverse la frontiere, cf. import en tete de
+// fichier.
+async function assertFolderInWorld(worldId: string, folderId: string): Promise<void> {
+  const folder = await prisma.folder.findFirst({
+    where: { id: folderId, worldId },
+    select: { id: true },
+  });
+  if (!folder) {
+    throw new FolderNotFoundError();
+  }
+}
+
+// Deplace une entite dans un dossier, ou la retire de tout dossier
+// (folderId: null -> "Non classe"). KAN-60 : premier chemin d'ecriture de
+// Entity.folderId dans tout le projet (le champ existe depuis KAN-38, rien
+// ne l'ecrivait jusqu'ici).
+export async function moveEntityToFolder(
+  ownerId: string,
+  worldId: string,
+  entityId: string,
+  folderId: string | null,
+): Promise<EntityRecord> {
+  const entity = await getEntity(ownerId, worldId, entityId);
+  if (folderId !== null) {
+    await assertFolderInWorld(worldId, folderId);
+  }
+  const updated = await prisma.entity.update({
+    where: { id: entity.id },
+    data: { folderId },
+    include: { aliases: true },
+  });
+  return toEntityRecord(updated);
 }

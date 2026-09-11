@@ -52,9 +52,14 @@ export default async function WorldLayout({
       worldId={world.id}
       worldName={world.name}
       worldSlug={world.slug}
-      entities={entities.map(({ id, name, type }) => ({ id, name, type }))}
+      entities={entities.map(({ id, name, type, folderId }) => ({ id, name, type, folderId }))}
       folderTree={folderTree}
-      unfiledEntities={unfiledEntities.map(({ id, name, type }) => ({ id, name, type }))}
+      unfiledEntities={unfiledEntities.map(({ id, name, type, folderId }) => ({
+        id,
+        name,
+        type,
+        folderId,
+      }))}
       userName={session.user.name}
       userEmail={session.user.email}
     >

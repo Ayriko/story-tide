@@ -3,16 +3,23 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireSession } from "@/lib/auth-session";
-import { createEntitySchema, searchEntitiesSchema, updateEntitySchema } from "@/lib/entity-schemas";
+import {
+  createEntitySchema,
+  moveEntityToFolderSchema,
+  searchEntitiesSchema,
+  updateEntitySchema,
+} from "@/lib/entity-schemas";
 import {
   EntityNotFoundError,
   EntityQuotaExceededError,
   createEntity,
   deleteEntity,
+  moveEntityToFolder,
   searchEntities,
   updateEntity,
   type EntitySearchResult,
 } from "@/services/entity-service";
+import { FolderNotFoundError } from "@/services/folder-service";
 import { WorldNotFoundError } from "@/services/world-service";
 import type { ZodError } from "zod";
 
@@ -24,6 +31,10 @@ export type EntityFormState = {
 };
 
 export type EntityDeleteState = {
+  formError?: string;
+};
+
+export type MoveEntityState = {
   formError?: string;
 };
 
@@ -191,6 +202,56 @@ export async function deleteEntityAction(
   // ligne de l'entree supprimee des le retour au dashboard.
   revalidatePath("/(app)/worlds/[slug]", "layout");
   redirect(`/worlds/${worldSlug}`);
+}
+
+// Deplace une entite dans/hors d'un dossier (KAN-60 : glisser-deposer et menu
+// "Deplacer vers..."). Contrairement a create/update/delete, aucun redirect -
+// c'est un reglage de position dans la sidebar, pas une navigation ; l'appelant
+// (move-entity-menu.tsx, folder-tree.tsx) reste sur la meme page. folderId
+// vient du client (glisser ou menu) - jamais de confiance directe, revalide
+// entierement en service (moveEntityToFolder : monde+proprietaire de
+// l'entite, puis appartenance du dossier cible au meme monde si non nul).
+export async function moveEntityToFolderAction(
+  _prevState: MoveEntityState,
+  formData: FormData,
+): Promise<MoveEntityState> {
+  const worldId = stringField(formData, "worldId");
+  const entityId = stringField(formData, "entityId");
+  const rawFolderId = stringField(formData, "folderId");
+
+  const parsed = moveEntityToFolderSchema.safeParse({
+    folderId: rawFolderId === "" ? null : rawFolderId,
+  });
+  if (!parsed.success) {
+    return { formError: parsed.error.issues[0]?.message ?? "Dossier invalide." };
+  }
+
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { formError: "Session expirée. Reconnectez-vous." };
+  }
+
+  try {
+    await moveEntityToFolder(session.user.id, worldId, entityId, parsed.data.folderId);
+  } catch (error) {
+    if (
+      error instanceof WorldNotFoundError ||
+      error instanceof EntityNotFoundError ||
+      error instanceof FolderNotFoundError
+    ) {
+      return { formError: "Entrée ou dossier introuvable." };
+    }
+    console.error("[entity] Déplacement de fiche échoué :", error);
+    return { formError: "Déplacement impossible pour le moment. Réessayez." };
+  }
+
+  // Pas de revalidation "page" (le contenu de l'entree ne change pas) - seule
+  // la Sidebar (layout.tsx) doit refleter la nouvelle position (BUG-004, cf.
+  // createEntityAction).
+  revalidatePath("/(app)/worlds/[slug]", "layout");
+  return {};
 }
 
 // Lecture, pas une mutation : appelee directement depuis le client (recherche

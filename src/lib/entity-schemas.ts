@@ -114,6 +114,15 @@ export const searchEntitiesSchema = z.object({
   query: z.string().trim().min(1, "Saisir un terme.").max(100, "100 caractères maximum."),
 });
 
+// null = retire l'entite de tout dossier ("Non classe"). Meme forme que
+// moveFolderSchema (folder-schemas.ts) - duplication deliberee, pas un
+// import : deux regroupements independants (KAN-38). Distinct de
+// updateEntitySchema : deplacer ne touche jamais name/type/aliases dans la
+// meme requete (une action UI = un effet).
+export const moveEntityToFolderSchema = z.object({
+  folderId: z.string().trim().min(1).nullable(),
+});
+
 // Entity.type est un String Prisma libre (donnee, pas schema) : rien ne
 // garantit statiquement qu'une valeur lue en base correspond a une cle connue
 // de ENTITY_TYPE_REFERENCE. Lookup tolerant a une valeur inconnue plutot
@@ -132,3 +141,4 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
 export type CreateEntityInput = z.infer<typeof createEntitySchema>;
 export type UpdateEntityInput = z.infer<typeof updateEntitySchema>;
 export type SearchEntitiesInput = z.infer<typeof searchEntitiesSchema>;
+export type MoveEntityToFolderInput = z.infer<typeof moveEntityToFolderSchema>;
