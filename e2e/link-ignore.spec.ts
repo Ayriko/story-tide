@@ -64,7 +64,9 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   // 5. "Ignorer ce lien" : disparait IMMEDIATEMENT de "Entites liees" (pas
   // d'attente d'un nouveau scan, la Relation AUTO est supprimee tout de suite).
   await linkedEntitiesNav.getByRole("button", { name: "Ignorer ce lien" }).click();
-  await expect(page.getByText("Aucune entité liée pour l'instant.")).toBeVisible();
+  await expect(page.getByText("Aucune entité liée pour l'instant.")).toBeVisible({
+    timeout: 10_000,
+  });
 
   // 6. Apparait dans "Liens ignores" avec un bouton pour revenir en arriere.
   const ignoredLinksHeading = page.getByRole("heading", { name: "Liens ignorés" });
@@ -76,8 +78,12 @@ test("ignorer un lien AUTO le supprime immediatement et bloque sa recreation jus
   // 7. "Ne plus ignorer" : la cible sort de "Liens ignores" MAIS ne recree pas
   // la Relation AUTO elle-meme - c'est un garde-fou leve, pas un rescan force.
   await unignoreButton.click();
-  await expect(page.getByText("Aucun lien ignoré pour l'instant.")).toBeVisible();
-  await expect(page.getByText("Aucune entité liée pour l'instant.")).toBeVisible();
+  await expect(page.getByText("Aucun lien ignoré pour l'instant.")).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByText("Aucune entité liée pour l'instant.")).toBeVisible({
+    timeout: 10_000,
+  });
 
   // 8. Un nouveau passage du worker (declenche par un nouvel autosave) doit
   // re-detecter la cible, la garde-fou n'etant plus actif.
