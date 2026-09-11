@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
+import { getFolderTree, getUnfiledEntities } from "@/services/folder-service";
 import { WorldShell } from "./world-shell";
 
 // Shell propre a UN monde (KAN-36 P1/P1-ter, reference-vvd.md §6) : ce
@@ -38,7 +39,13 @@ export default async function WorldLayout({
     throw error;
   }
 
-  const entities = await listEntities(session.user.id, world.id);
+  // Sans dependance d'ordre entre elles (chacune revalide l'appartenance au
+  // monde via son propre getWorld interne) - KAN-57.
+  const [entities, folderTree, unfiledEntities] = await Promise.all([
+    listEntities(session.user.id, world.id),
+    getFolderTree(session.user.id, world.id),
+    getUnfiledEntities(session.user.id, world.id),
+  ]);
 
   return (
     <WorldShell
@@ -46,6 +53,8 @@ export default async function WorldLayout({
       worldName={world.name}
       worldSlug={world.slug}
       entities={entities.map(({ id, name, type }) => ({ id, name, type }))}
+      folderTree={folderTree}
+      unfiledEntities={unfiledEntities.map(({ id, name, type }) => ({ id, name, type }))}
       userName={session.user.name}
       userEmail={session.user.email}
     >

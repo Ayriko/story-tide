@@ -19,6 +19,12 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   remontent en tête de liste, sans changer l'ordre des autres. État
   perceptible par la forme de l'icône (pleine/contour), pas seulement par la
   couleur ; bascule accessible au clavier.
+- Bascule Dossiers/Types dans le panneau de gauche (KAN-57) : en plus du
+  regroupement par type existant, une arborescence de dossiers pliable est
+  désormais disponible (rôles ARIA, navigation clavier complète — flèches,
+  Début/Fin). Les entrées sans dossier apparaissent sous « Non classé ». Le
+  choix de vue est mémorisé. Aucune création de dossier dans ce lot :
+  l'arborescence existante s'affiche telle quelle.
 
 ### Modifié
 
