@@ -11,7 +11,9 @@ vi.mock("@/actions/entity", () => ({
 
 const mockedSearchEntitiesAction = vi.mocked(searchEntitiesAction);
 
-const ENTITIES: EntitySearchResult[] = [{ id: "e1", name: "Aeliana", type: "character" }];
+const ENTITIES: EntitySearchResult[] = [
+  { id: "e1", name: "Aeliana", type: "character", folderId: null },
+];
 
 function renderSearch(overrides: Partial<React.ComponentProps<typeof EntitySearch>> = {}) {
   return render(

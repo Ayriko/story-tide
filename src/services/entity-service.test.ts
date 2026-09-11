@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
-import type { Alias, Entity, World } from "@/generated/prisma/client";
+import type { Alias, Entity, Folder, World } from "@/generated/prisma/client";
 import { AliasSource, WorldOrigin } from "@/generated/prisma/client";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { normalizeForMatch } from "@/lib/linker/normalize";
 import { WorldNotFoundError } from "./world-service";
+import { FolderNotFoundError } from "./folder-service";
 import {
   EntityNotFoundError,
   EntityQuotaExceededError,
@@ -13,6 +14,7 @@ import {
   deleteEntity,
   getEntity,
   listEntities,
+  moveEntityToFolder,
   searchEntities,
   updateEntity,
   updateEntityContent,
@@ -21,6 +23,9 @@ import {
 // Meme regle que world-service.test.ts : Prisma mocke, aucune connexion reelle.
 // getWorld() (world-service) n'est pas mocke - on verifie la vraie cascade
 // d'autorisation monde -> entite en laissant le mock Prisma piloter les deux.
+// folder.findFirst (KAN-60) : seule methode Prisma touchee par
+// moveEntityToFolder cote dossier (assertFolderInWorld) - aucune autre
+// methode de folder-service.ts n'est jamais appelee depuis ce fichier.
 vi.mock("@/db/client", () => ({
   prisma: {
     world: {
@@ -35,6 +40,9 @@ vi.mock("@/db/client", () => ({
       upsert: vi.fn(),
       delete: vi.fn(),
     },
+    folder: {
+      findFirst: vi.fn(),
+    },
   },
 }));
 
@@ -46,6 +54,7 @@ const entityCreate = vi.mocked(prisma.entity.create);
 const entityUpdate = vi.mocked(prisma.entity.update);
 const entityUpsert = vi.mocked(prisma.entity.upsert);
 const entityDelete = vi.mocked(prisma.entity.delete);
+const folderFindFirst = vi.mocked(prisma.folder.findFirst);
 
 const OWNER_ID = "owner-1";
 const WORLD_ID = "w1";
@@ -95,6 +104,23 @@ function makeEntity(
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...entityOverrides,
     aliases,
+  };
+}
+
+// Objet complet malgre le `select: { id: true }` reel d'assertFolderInWorld
+// (meme convention que makeEntity/makeAlias - le mock Prisma reste type sur
+// le modele complet, jamais de cast `as never`, cf. skill
+// prisma-mock-partial-select).
+function makeFolder(overrides: Partial<Folder> = {}): Folder {
+  return {
+    id: "f1",
+    worldId: WORLD_ID,
+    name: "Royaumes",
+    parentId: null,
+    seedRef: null,
+    createdAt: new Date("2026-09-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-09-01T00:00:00.000Z"),
+    ...overrides,
   };
 }
 
@@ -294,13 +320,14 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "AELIANA");
 
-    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character" }]);
+    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character", folderId: null }]);
     expect(entityFindMany).toHaveBeenCalledWith({
       where: { worldId: WORLD_ID },
       select: {
         id: true,
         name: true,
         type: true,
+        folderId: true,
         aliases: { select: { normalized: true }, where: { active: true } },
       },
       orderBy: { name: "asc" },
@@ -320,7 +347,7 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "TYRAN");
 
-    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character" }]);
+    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character", folderId: null }]);
   });
 
   it("trouve les entites par nom, insensible aux accents", async () => {
@@ -332,7 +359,7 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "neron");
 
-    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character" }]);
+    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character", folderId: null }]);
   });
 
   it("ne renvoie pas aliases dans la projection", async () => {
@@ -343,7 +370,7 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "Aeliana");
 
-    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character" }]);
+    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character", folderId: null }]);
   });
 
   it("renvoie un tableau vide si aucune fiche ne correspond", async () => {
@@ -510,5 +537,66 @@ describe("deleteEntity", () => {
 
     await expect(deleteEntity(OWNER_ID, WORLD_ID, "e1")).rejects.toThrow(EntityNotFoundError);
     expect(entityDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe("moveEntityToFolder", () => {
+  it("leve EntityNotFoundError avant tout acces dossier si l'entite n'existe pas dans ce monde", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(null);
+
+    await expect(moveEntityToFolder(OWNER_ID, WORLD_ID, "e1", "f1")).rejects.toThrow(
+      EntityNotFoundError,
+    );
+    expect(folderFindFirst).not.toHaveBeenCalled();
+    expect(entityUpdate).not.toHaveBeenCalled();
+  });
+
+  it("leve FolderNotFoundError si le dossier cible n'existe pas ou appartient a un autre monde", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity());
+    folderFindFirst.mockResolvedValueOnce(null);
+
+    await expect(moveEntityToFolder(OWNER_ID, WORLD_ID, "e1", "f-autre-monde")).rejects.toThrow(
+      FolderNotFoundError,
+    );
+    expect(folderFindFirst).toHaveBeenCalledWith({
+      where: { id: "f-autre-monde", worldId: WORLD_ID },
+      select: { id: true },
+    });
+    expect(entityUpdate).not.toHaveBeenCalled();
+  });
+
+  it("folderId: null retire l'entite de tout dossier sans jamais interroger la table Folder", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity({ folderId: "f1" }));
+    entityUpdate.mockResolvedValueOnce(makeEntity({ folderId: null }));
+
+    await moveEntityToFolder(OWNER_ID, WORLD_ID, "e1", null);
+
+    expect(folderFindFirst).not.toHaveBeenCalled();
+    expect(entityUpdate).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { folderId: null },
+      include: { aliases: true },
+    });
+  });
+
+  it("deplace l'entite vers un dossier reel du meme monde", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity());
+    folderFindFirst.mockResolvedValueOnce(makeFolder({ id: "f1" }));
+    entityUpdate.mockResolvedValueOnce(
+      makeEntity({ folderId: "f1", aliases: [makeAlias({ value: "La Reine" })] }),
+    );
+
+    const result = await moveEntityToFolder(OWNER_ID, WORLD_ID, "e1", "f1");
+
+    expect(entityUpdate).toHaveBeenCalledWith({
+      where: { id: "e1" },
+      data: { folderId: "f1" },
+      include: { aliases: true },
+    });
+    expect(result.aliases).toEqual(["La Reine"]);
   });
 });

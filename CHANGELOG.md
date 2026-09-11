@@ -25,6 +25,16 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   Début/Fin). Les entrées sans dossier apparaissent sous « Non classé ». Le
   choix de vue est mémorisé. Aucune création de dossier dans ce lot :
   l'arborescence existante s'affiche telle quelle.
+- Créer, renommer et supprimer un dossier directement depuis la vue Dossiers
+  (KAN-60) : bouton d'actions par dossier (toujours atteignable au clavier),
+  suppression toujours soumise à confirmation explicite — les sous-dossiers
+  disparaissent avec lui, mais aucune entrée n'est jamais supprimée, elle
+  repasse dans « Non classé ».
+- Déplacer une entrée dans ou hors d'un dossier (KAN-60) : par glisser-déposer
+  à la souris, ou via le menu « Déplacer vers... » sur chaque entrée —
+  mécanisme principal et entièrement accessible au clavier et au lecteur
+  d'écran (le glisser-déposer n'est qu'un confort en plus, jamais requis,
+  conformément à WCAG 2.5.7).
 
 ### Modifié
 

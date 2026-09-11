@@ -22,7 +22,7 @@ export class FolderCycleError extends Error {
   }
 }
 
-export type FolderTreeNode = Folder & { children: FolderTreeNode[] };
+export type FolderTreeNode = Folder & { children: FolderTreeNode[]; entities: Entity[] };
 
 // Scope worldId (jamais ownerId seul) - un dossier n'a pas de proprietaire
 // direct, il herite de celui du monde deja verifie par l'appelant public via
@@ -124,14 +124,18 @@ export async function deleteFolder(
 // Arbre complet du monde, construit en JS a partir d'une seule requete a
 // plat (meme choix que listWorlds : partition en memoire plutot qu'une
 // requete recursive SQL, plus simple a lire et suffisant au volume d'un
-// monde).
+// monde). include: entities (KAN-60) : un dossier peut desormais contenir
+// des entites (moveEntityToFolder, entity-service.ts) - meme ordre que
+// getUnfiledEntities (createdAt desc), une seule convention de tri pour
+// "entites d'un dossier" quel que soit le dossier (y compris "non classe").
 export async function getFolderTree(ownerId: string, worldId: string): Promise<FolderTreeNode[]> {
   await getWorld(ownerId, worldId);
   const folders = await prisma.folder.findMany({
     where: { worldId },
     orderBy: { createdAt: "asc" },
+    include: { entities: { orderBy: { createdAt: "desc" } } },
   });
-  const byParent = new Map<string | null, Folder[]>();
+  const byParent = new Map<string | null, (typeof folders)[number][]>();
   for (const folder of folders) {
     byParent.set(folder.parentId, [...(byParent.get(folder.parentId) ?? []), folder]);
   }

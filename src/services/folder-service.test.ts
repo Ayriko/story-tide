@@ -71,6 +71,16 @@ function makeFolder(overrides: Partial<Folder> = {}): Folder {
   };
 }
 
+// getFolderTree (KAN-60) selectionne desormais folder.entities via include -
+// le mock folderFindMany doit porter ce champ pour representer fidelement ce
+// que Prisma renvoie reellement (jamais `undefined`, meme au repos).
+function makeFolderWithEntities(
+  overrides: Partial<Folder> = {},
+  entities: Entity[] = [],
+): Folder & { entities: Entity[] } {
+  return { ...makeFolder(overrides), entities };
+}
+
 function makeEntity(overrides: Partial<Entity> = {}): Entity {
   return {
     id: "e1",
@@ -298,9 +308,9 @@ describe("getFolderTree", () => {
   it("construit l'arbre imbrique a partir de la liste a plat", async () => {
     worldFindFirst.mockResolvedValueOnce(makeWorld());
     folderFindMany.mockResolvedValueOnce([
-      makeFolder({ id: "root", parentId: null, name: "Racine" }),
-      makeFolder({ id: "child", parentId: "root", name: "Enfant" }),
-      makeFolder({ id: "other-root", parentId: null, name: "Autre racine" }),
+      makeFolderWithEntities({ id: "root", parentId: null, name: "Racine" }),
+      makeFolderWithEntities({ id: "child", parentId: "root", name: "Enfant" }),
+      makeFolderWithEntities({ id: "other-root", parentId: null, name: "Autre racine" }),
     ]);
 
     const tree = await getFolderTree(OWNER_ID, WORLD_ID);
@@ -319,6 +329,24 @@ describe("getFolderTree", () => {
     const tree = await getFolderTree(OWNER_ID, WORLD_ID);
 
     expect(tree).toEqual([]);
+  });
+
+  it("porte les entites d'un dossier (KAN-60, include: entities) jusque dans le noeud renvoye", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    folderFindMany.mockResolvedValueOnce([
+      makeFolderWithEntities({ id: "root", name: "Royaumes" }, [
+        makeEntity({ id: "e1", folderId: "root" }),
+      ]),
+    ]);
+
+    const tree = await getFolderTree(OWNER_ID, WORLD_ID);
+
+    expect(tree[0]?.entities).toEqual([makeEntity({ id: "e1", folderId: "root" })]);
+    expect(folderFindMany).toHaveBeenCalledWith({
+      where: { worldId: WORLD_ID },
+      orderBy: { createdAt: "asc" },
+      include: { entities: { orderBy: { createdAt: "desc" } } },
+    });
   });
 });
 

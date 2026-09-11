@@ -15,8 +15,10 @@ import type { EntitySearchResult } from "@/services/entity-service";
 import type { FolderTreeNode } from "@/services/folder-service";
 import { EntityTypeIcon } from "./entity-type-icon";
 import { EntityRow } from "./entity-row";
+import { CreateFolderDialog } from "./create-folder-dialog";
 import { FolderTree } from "./folder-tree";
-import { buildTreeNodes } from "./folder-tree-utils";
+import { MoveEntityMenu } from "./move-entity-menu";
+import { buildTreeNodes, flattenFolderOptions } from "./folder-tree-utils";
 
 const SEARCH_DEBOUNCE_MS = 300;
 type ViewMode = "types" | "dossiers";
@@ -177,6 +179,10 @@ export function EntitySearch({
     () => buildTreeNodes(folderTree, unfiledEntities),
     [folderTree, unfiledEntities],
   );
+  // Liste plate et indentee des dossiers reels, partagee par le menu
+  // "Deplacer vers..." de la liste plate de recherche ET des feuilles de
+  // l'arbre (calculee une seule fois ici, jamais par ligne).
+  const folderOptions = useMemo(() => flattenFolderOptions(folderTree), [folderTree]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -241,18 +247,33 @@ export function EntitySearch({
           // regroupement pendant une recherche, comportement inchange).
           <ul className="flex flex-col gap-2">
             {results.map((entity) => (
-              <li key={entity.id}>
+              <li key={entity.id} className="group/row relative flex items-center">
                 <Link
                   href={`/worlds/${worldSlug}/entities/${entity.id}`}
-                  className="block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  className="block min-w-0 flex-1 rounded-xl pr-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
                   <EntityRow entity={entity} />
                 </Link>
+                <MoveEntityMenu
+                  worldId={worldId}
+                  entityId={entity.id}
+                  entityName={entity.name}
+                  currentFolderId={entity.folderId}
+                  folderOptions={folderOptions}
+                />
               </li>
             ))}
           </ul>
         ) : (
-          <FolderTree tree={tree} worldSlug={worldSlug} />
+          <div className="flex flex-col gap-3">
+            <CreateFolderDialog worldId={worldId} parentId={null} />
+            <FolderTree
+              tree={tree}
+              worldId={worldId}
+              worldSlug={worldSlug}
+              folderOptions={folderOptions}
+            />
+          </div>
         )
       ) : (
         <div className="flex flex-col gap-3">
