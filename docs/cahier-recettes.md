@@ -568,6 +568,16 @@
 - **Critères d'acceptation** : `entity-editor.test.tsx` — 6 tests unitaires (`LinkControl` : indisponibilité sans sélection, erreur sur URL invalide, application sur URL valide ; `resolveEditorClickTarget` : aucune cible, mention, lien) ; vérification manuelle en navigateur (contraste du lien mesuré à 4,93:1 sur `bg-card/70`, cf. ADR-0027).
 - **Type** : fonctionnel / accessibilité · **Statut** : ✅ (6 tests unitaires verts ; vérifié manuellement en navigateur, 2026-09-10) — ⬜ à repasser à la recette staging.
 
+## TST-ENT-016 — Dossiers d'organisation des entités : couche service (KAN-38)
+
+- **Description** : couche modèle + service uniquement (`Folder`, `folder-service.ts`) permettant de ranger les entités d'un monde dans une arborescence de dossiers facultative, sans aucune UI (sidebar arbre prévue en KAN-57, hors périmètre ici). Coexiste avec le regroupement existant par type d'entité, qui reste inchangé et n'interroge jamais les dossiers.
+- **Objectif** : vérifier que l'autorisation (appartenance au monde), la détection de cycle au déplacement, et la suppression d'un dossier (sous-dossiers supprimés, entités jamais détruites, repassées « non classé » à toute profondeur) sont correctes — vérifiable via les tests unitaires du service et une vérification manuelle contre une vraie base à ce stade, aucun parcours UI/E2E n'existe encore.
+- **Préconditions** : couverture par tests unitaires avec Prisma mocké (pas de base réelle) ; vérification manuelle complémentaire sur Postgres local (arborescence à 3 niveaux, entités à plusieurs profondeurs, suppression du nœud racine).
+- **Étapes** : n/a côté produit — pas de parcours utilisateur avant KAN-57 ; exécuter `npx vitest run src/services/folder-service.test.ts`.
+- **Résultat attendu** : un utilisateur non membre du monde ne peut ni lire, créer, déplacer ni supprimer un dossier (`FolderNotFoundError`, aucune mutation tentée) ; déplacer un dossier dans lui-même ou l'un de ses descendants est rejeté (`FolderCycleError`) ; supprimer un dossier fait disparaître ses sous-dossiers mais ne supprime jamais une entité, `folderId` repassant à `null` pour toute entité du sous-arbre, à toute profondeur.
+- **Critères d'acceptation** : `folder-service.test.ts` (21 tests : autorisation, cycles, suppression, frontière type/dossier) ; migration dédiée (`prisma/migrations/20260911120000_kan38_folder_model`) avec `Entity.folder` en `onDelete: SetNull` et `Folder.parent` en `onDelete: Cascade` — mécanisme vérifié manuellement contre Postgres local le 2026-09-11 (dossier racine supprimé, 2 sous-dossiers disparus, 2 entités à profondeurs différentes toutes présentes avec `folderId IS NULL`) ; `entity-service.ts` et le regroupement par type (`entity-schemas.ts`) inchangés, aucun import vers/depuis `folder-service.ts`.
+- **Type** : technique (couche service, sans UI) · **Statut** : ✅ (21 tests unitaires verts ; cascade vérifiée manuellement sur Postgres local, 2026-09-11) — ⬜ à repasser à la recette staging quand KAN-57 branchera une interface dessus.
+
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
 - **Description** : le texte d'une fiche (entrée) mentionne le nom (ou un alias) d'une autre entité du même monde.

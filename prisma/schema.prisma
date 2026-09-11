@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -51,6 +50,7 @@ model World {
   relations   Relation[]
   linkIgnores LinkIgnore[]
   images      Image[]
+  folders     Folder[]
 
   @@unique([ownerId, slug])
   @@index([ownerId])
@@ -68,6 +68,13 @@ model Entity {
   // slug (modifiable par l'utilisateur apres clonage) - permet au script de
   // seed de savoir si une entite a deja ete creee lors d'un rejeu.
   seedRef   String?
+  // Rattachement FACULTATIF a un dossier (KAN-38) : nullable, jamais un
+  // second encodage du type - folderId est une position dans un arbre,
+  // "type" reste une donnee (pas d'enum Prisma dessus, invariant du projet).
+  // onDelete: SetNull (jamais Cascade) - supprimer un dossier ne supprime
+  // jamais une entite, seulement sa position (voir folder-service.ts).
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -79,6 +86,38 @@ model Entity {
 
   @@unique([worldId, seedRef])
   @@index([worldId])
+  @@index([folderId])
+}
+
+// Organisation FACULTATIVE des entites d'un monde (KAN-38), en arborescence.
+// Coexiste avec le regroupement existant par type d'entite sans le
+// remplacer : ce fichier n'est jamais importe par entity-service.ts ni par
+// entity-schemas.ts, et reciproquement - deux regroupements independants,
+// ni l'un ni l'autre parent de l'autre.
+model Folder {
+  id        String   @id @default(cuid())
+  worldId   String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  name      String
+  parentId  String?
+  // Auto-relation onDelete: Cascade - un dossier est de la STRUCTURE, pas du
+  // contenu utilisateur : le supprimer supprime ses sous-dossiers en
+  // cascade. Compose avec Entity.folder (SetNull, ci-dessus) via Postgres :
+  // les deux actions FK natives s'appliquent dans la meme instruction
+  // DELETE, quelle que soit la ligne Folder a l'origine (directe ou
+  // cascadee) - voir le raisonnement complet dans folder-service.ts.
+  parent    Folder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[] @relation("FolderChildren")
+  entities  Entity[]
+  // Cle d'idempotence de seed (meme convention qu'Entity.seedRef) - reservee
+  // pour un futur createSeedFolder, aucun seed de dossier livre par KAN-38.
+  seedRef   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([worldId, seedRef])
+  @@index([worldId])
+  @@index([parentId])
 }
 
 // Table dediee (KAN-18, remplace Entity.aliases String[]) : attributs propres
