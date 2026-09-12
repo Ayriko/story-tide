@@ -6,7 +6,13 @@
 # (pg_dump doit matcher la version du serveur cible), busybox (crond inclus)
 # deja present. `mc` (client MinIO) recupere depuis l'image officielle.
 
-FROM minio/mc:latest AS mc
+# `mc` (client MinIO) tire depuis quay.io/minio, le registre officiel du
+# projet : le namespace minio/* de Docker Hub n'est plus accessible en
+# anonyme (echec CD du 2026-09-12, `pull access denied`). Epingle par digest
+# et non par `latest` — c'est un artefact livre, sa mise a jour doit etre un
+# geste deliberer et non un effet de bord d'un rebuild.
+
+FROM quay.io/minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727 AS mc
 
 FROM postgres:16-alpine
 # curl absent de la base alpine — necessaire au heartbeat de fin de
