@@ -7,15 +7,15 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- Mention de propriété des créations dans `/mentions-legales` : les mondes,
-  fiches et contenus créés sur Story Tide appartiennent à leur auteur, ne
-  sont ni revendus ni exploités commercialement, et ne servent jamais à
+- Mention de propriété des créations dans `/mentions-legales` (KAN-62) : les
+  mondes, fiches et contenus créés sur Story Tide appartiennent à leur auteur,
+  ne sont ni revendus ni exploités commercialement, et ne servent jamais à
   entraîner un système d'intelligence artificielle sans accord explicite.
 - Renommer et supprimer un monde directement depuis l'écran « Mes mondes »
-  (réutilise les mêmes formulaires que la page du monde) — plus besoin
+  (KAN-64, réutilise les mêmes formulaires que la page du monde) — plus besoin
   d'ouvrir le monde pour accéder à ses paramètres. Suppression toujours
   soumise à confirmation explicite.
-- Épingler un monde sur l'écran « Mes mondes » : les mondes épinglés
+- Épingler un monde sur l'écran « Mes mondes » (KAN-65) : les mondes épinglés
   remontent en tête de liste, sans changer l'ordre des autres. État
   perceptible par la forme de l'icône (pleine/contour), pas seulement par la
   couleur ; bascule accessible au clavier.
@@ -38,8 +38,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ### Modifié
 
-- `autocomplete="off"` sur les champs de titre (monde, entrée) : évite que le
-  navigateur ne propose d'anciens titres saisis.
+- `autocomplete="off"` sur les champs de titre monde et entrée (KAN-61) : évite
+  que le navigateur ne propose d'anciens titres saisis.
 - Accent périwinkle de l'artwork de connexion remonté au thème global (KAN-58,
   ADR-0027) : une seule palette d'accent pour `(auth)` et `(app)`, dérivée par
   mesure de la teinte réelle de l'illustration. `--primary` (`#667EC7`) garde
@@ -57,10 +57,10 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ### Corrigé
 
-- Poignée de redimensionnement d'image dans l'éditeur : ne garantissait pas
-  un contraste suffisant posée sur une image de contenu arbitraire. Double
-  liseret (clair et sombre) désormais visible quelle que soit la couleur en
-  dessous.
+- Poignée de redimensionnement d'image dans l'éditeur (KAN-63) : ne
+  garantissait pas un contraste suffisant posée sur une image de contenu
+  arbitraire. Double liseret (clair et sombre) désormais visible quelle que
+  soit la couleur en dessous.
 - Insertion de lien dans l'éditeur (BUG-015, KAN-54) : le bouton « Lien »
   restait muet dans deux cas — sans texte sélectionné (rien ne se passait),
   et avec une URL rejetée par la validation (fermeture silencieuse du
