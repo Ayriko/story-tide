@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-12
+
 ### Ajouté
 
 - Mention de propriété des créations dans `/mentions-legales` (KAN-62) : les
