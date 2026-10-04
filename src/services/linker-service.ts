@@ -37,12 +37,23 @@ export async function buildDictionary(worldId: string): Promise<Pattern[]> {
 export async function scanAndLinkEntity(worldId: string, entityId: string): Promise<void> {
   const entity = await prisma.entity.findFirst({
     where: { id: entityId, worldId },
-    select: { plainText: true },
+    select: { plainText: true, contentVersion: true },
   });
   if (!entity) {
     // Fiche supprimee entre l'enfilage et le traitement du job : rien a faire.
     return;
   }
+
+  // Signal de fin de scan (KAN-77) : version lue EN MEME TEMPS que plainText,
+  // ecrite a la fin dans tous les cas (diff vide ou non) - l'editeur attend
+  // scannedVersion >= contentVersion pour rafraichir "Renvois". SQL brut et
+  // non updateMany : Prisma remplit @updatedAt cote client sur tout
+  // update/updateMany, or updatedAt signifie "derniere modification par
+  // l'auteur" (affiche et trie au dashboard) - une ecriture de comptabilite
+  // du worker ne doit pas le deplacer. Garde "<" : jamais de recul si deux
+  // jobs se chevauchent (policy short, un job actif + un en attente).
+  // Template tague = requete parametree (aucune interpolation de chaine).
+  const markScanned = prisma.$executeRaw`UPDATE "Entity" SET "scannedVersion" = ${entity.contentVersion} WHERE "id" = ${entityId} AND "scannedVersion" < ${entity.contentVersion}`;
 
   const patterns = await buildDictionary(worldId);
   const matches = new AhoCorasick(patterns).search(entity.plainText);
@@ -72,6 +83,7 @@ export async function scanAndLinkEntity(worldId: string, entityId: string): Prom
   const toRemove = [...existingTargets].filter((targetId) => !desiredTargets.has(targetId));
 
   if (toAdd.length === 0 && toRemove.length === 0) {
+    await markScanned;
     return;
   }
 
@@ -99,5 +111,6 @@ export async function scanAndLinkEntity(worldId: string, entityId: string): Prom
           }),
         ]
       : []),
+    markScanned,
   ]);
 }

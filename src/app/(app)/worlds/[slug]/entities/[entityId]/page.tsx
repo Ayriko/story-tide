@@ -74,11 +74,16 @@ export default async function EntityPage({
   // client (tiptap-link-highlight.ts) - meme dictionnaire que celui utilise
   // par le worker (buildDictionary), pour que ce qui est surligne soit
   // coherent avec les Relation origin=AUTO reellement ecrites.
-  // La liste "Entites liees" est une vue PERSISTEE (Relation en base, AUTO et
+  // La liste "Renvois" est une vue PERSISTEE (Relation en base, AUTO et
   // MANUAL confondues) tandis que le surlignage dans l'editeur est une vue
-  // LIVE (scan du texte courant) - un leger decalage est possible tant que le
-  // worker n'a pas traite le dernier job d'enfilage (les deux convergent au
-  // repos, spec §4.4).
+  // LIVE (scan du texte courant). 2026-10-04 (KAN-77) : le decalage n'est
+  // plus laisse a la prochaine frappe - chaque save renvoie
+  // Entity.contentVersion, le worker ecrit scannedVersion en fin de job, et
+  // l'editeur interroge getEntityScanStatusAction jusqu'a scannedVersion >=
+  // contentVersion avant de re-rendre cette page (router.refresh, voir
+  // scheduleSave dans entity-editor.tsx). Les deux vues convergent donc sans
+  // action de l'utilisateur, sauf worker indisponible (abandon apres 10 s,
+  // console.warn).
   const [dictionary, ignoredTargetIds, linkedEntities, backlinks, ignoredTargets, worldEntities] =
     await Promise.all([
       buildDictionary(world.id),

@@ -23,6 +23,7 @@ vi.mock("@/db/client", () => ({
       deleteMany: vi.fn(),
     },
     $transaction: vi.fn(),
+    $executeRaw: vi.fn(),
   },
 }));
 
@@ -33,6 +34,27 @@ const relationFindMany = vi.mocked(prisma.relation.findMany);
 const relationCreateMany = vi.mocked(prisma.relation.createMany);
 const relationDeleteMany = vi.mocked(prisma.relation.deleteMany);
 const transaction = vi.mocked(prisma.$transaction);
+const executeRaw = vi.mocked(prisma.$executeRaw);
+
+// Sentinelle identifiable du statement de version (KAN-77), pour verifier
+// qu'il est bien passe DANS le $transaction. Cast : meme raison que
+// health/route.test.ts - $executeRaw type son retour en PrismaPromise (tag
+// interne), qu'une Promise brute ne satisfait pas structurellement.
+const MARK_SCANNED = Promise.resolve(1) as ReturnType<typeof prisma.$executeRaw>;
+
+// SQL du dernier appel a $executeRaw (template tague), placeholders "?" a la
+// place des valeurs parametrees.
+function lastExecutedSql(): { sql: string; values: unknown[] } {
+  const call = executeRaw.mock.lastCall;
+  if (!call) {
+    throw new Error("$executeRaw jamais appele");
+  }
+  const [query, ...values] = call;
+  if (!("raw" in query)) {
+    throw new Error("$executeRaw appele hors template tague");
+  }
+  return { sql: query.join("?"), values };
+}
 
 const WORLD_ID = "w1";
 
@@ -66,6 +88,8 @@ function makeEntity(overrides: Partial<Entity> & { aliases?: Alias[] } = {}): En
     plainText: "",
     seedRef: null,
     folderId: null,
+    contentVersion: 0,
+    scannedVersion: 0,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...entityOverrides,
@@ -168,6 +192,7 @@ describe("scanAndLinkEntity", () => {
     linkIgnoreFindMany.mockResolvedValue([]);
     relationFindMany.mockResolvedValue([]);
     transaction.mockResolvedValue([]);
+    executeRaw.mockReturnValue(MARK_SCANNED);
   });
 
   it("ne fait rien si la fiche a ete supprimee avant le traitement du job", async () => {
@@ -177,6 +202,66 @@ describe("scanAndLinkEntity", () => {
 
     expect(entityFindMany).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+    // KAN-77 : jamais de scannedVersion ecrit pour une fiche disparue.
+    expect(executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("lit contentVersion dans la meme requete que plainText (KAN-77)", async () => {
+    entityFindFirst.mockResolvedValue(makeEntity({ id: SOURCE_ID, contentVersion: 4 }));
+    entityFindMany.mockResolvedValue([]);
+
+    await scanAndLinkEntity(WORLD_ID, SOURCE_ID);
+
+    expect(entityFindFirst).toHaveBeenCalledTimes(1);
+    expect(entityFindFirst).toHaveBeenCalledWith({
+      where: { id: SOURCE_ID, worldId: WORLD_ID },
+      select: { plainText: true, contentVersion: true },
+    });
+  });
+
+  it("diff non vide : ecrit scannedVersion dans la meme transaction que le diff (KAN-77)", async () => {
+    entityFindFirst.mockResolvedValue(
+      makeEntity({ id: SOURCE_ID, plainText: "Aeliana parle.", contentVersion: 4 }),
+    );
+    entityFindMany.mockResolvedValue([makeEntity({ id: "e1", name: "Aeliana", aliases: [] })]);
+
+    await scanAndLinkEntity(WORLD_ID, SOURCE_ID);
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    const operations = transaction.mock.lastCall?.[0];
+    expect(Array.isArray(operations)).toBe(true);
+    expect(operations).toHaveLength(2);
+    expect(operations).toContain(MARK_SCANNED);
+    expect(lastExecutedSql().values).toEqual([4, SOURCE_ID, 4]);
+  });
+
+  it("diff vide : ecrit quand meme scannedVersion, hors transaction (KAN-77)", async () => {
+    entityFindFirst.mockResolvedValue(
+      makeEntity({ id: SOURCE_ID, plainText: "Rien a lier.", contentVersion: 7 }),
+    );
+    entityFindMany.mockResolvedValue([makeEntity({ id: "e1", name: "Aeliana", aliases: [] })]);
+
+    await scanAndLinkEntity(WORLD_ID, SOURCE_ID);
+
+    expect(transaction).not.toHaveBeenCalled();
+    expect(executeRaw).toHaveBeenCalledTimes(1);
+    expect(lastExecutedSql().values).toEqual([7, SOURCE_ID, 7]);
+  });
+
+  // Le "jamais de recul" lui-meme se joue en SQL (deux jobs chevauches, le
+  // plus ancien finit en dernier) : un mock ne peut pas l'executer. Ce test
+  // prouve que le garde est bien dans la requete, parametre par la version
+  // lue - le retirer ou le transformer en "<=" / sans WHERE le fait echouer.
+  it("garde scannedVersion < version : la valeur ne recule jamais (KAN-77)", async () => {
+    entityFindFirst.mockResolvedValue(makeEntity({ id: SOURCE_ID, contentVersion: 2 }));
+    entityFindMany.mockResolvedValue([]);
+
+    await scanAndLinkEntity(WORLD_ID, SOURCE_ID);
+
+    expect(lastExecutedSql()).toEqual({
+      sql: 'UPDATE "Entity" SET "scannedVersion" = ? WHERE "id" = ? AND "scannedVersion" < ?',
+      values: [2, SOURCE_ID, 2],
+    });
   });
 
   it("ajoute une Relation AUTO pour une nouvelle mention detectee", async () => {

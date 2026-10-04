@@ -9,7 +9,7 @@ import { createEditorExtensions, type MentionSuggestionItem } from "@/lib/tiptap
 import { createLinkHighlightExtension, MENTION_TARGET_ATTR } from "@/lib/tiptap-link-highlight";
 import { splitParagraphsOnBreaks } from "@/lib/tiptap-paste";
 import type { Pattern } from "@/lib/linker/aho-corasick";
-import { saveEntityContentAction } from "@/actions/entity-content";
+import { getEntityScanStatusAction, saveEntityContentAction } from "@/actions/entity-content";
 import { uploadImageAction } from "@/actions/image";
 import { checkImageFileSize } from "@/lib/image-validation";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,10 @@ import { createMentionSuggestion } from "./mention-suggestion";
 import { ResizableImageView } from "./resizable-image-view";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
-// Marge au-dessus du polling pg-boss par defaut (~2 s) + traitement du job
-// (KAN-19) : estimation temporelle, pas une preuve que le worker a fini -
-// aucun signal serveur de completion n'existe (hors perimetre). La note
-// disparait par convention, coherent avec le leger decalage deja
-// documente/accepte ailleurs (page.tsx de la fiche).
-const AUTO_PENDING_NOTE_MS = 4_000;
+// Attente du scan de liaison (KAN-77) : une interrogation par seconde, 10 au
+// plus - au-dela, refresh quand meme et console.warn (jamais un echec avale).
+const SCAN_POLL_INTERVAL_MS = 1_000;
+const SCAN_POLL_MAX_ATTEMPTS = 10;
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -458,12 +456,17 @@ export function EntityEditor({
   const router = useRouter();
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // autoPending (KAN-19) : note transitoire "liens en cours" apres un save
-  // reussi - purement indicative (voir AUTO_PENDING_NOTE_MS), pas un etat de
-  // chargement reel du job worker.
+  // autoPending (KAN-19, KAN-77) : note "liens en cours" apres un save
+  // reussi, levee quand le serveur atteste que le worker a scanne la version
+  // sauvegardee (scannedVersion >= contentVersion), ou apres
+  // SCAN_POLL_MAX_ATTEMPTS interrogations sans confirmation.
   const [autoPending, setAutoPending] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoPendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Generation du dernier save lance (KAN-77) : toute reponse (save ou
+  // interrogation) d'une generation depassee est ignoree - le polling se cale
+  // toujours sur le DERNIER save, comme le debounce annule le timer precedent.
+  const generationRef = useRef(0);
 
   const scheduleSave = useCallback(
     (content: JSONContent) => {
@@ -471,34 +474,84 @@ export function EntityEditor({
         clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = setTimeout(() => {
+        generationRef.current += 1;
+        const generation = generationRef.current;
+        if (pollTimeoutRef.current) {
+          clearTimeout(pollTimeoutRef.current);
+          pollTimeoutRef.current = null;
+        }
         setStatus("saving");
         // JSON.stringify avant la frontiere Server Action : voir le
         // commentaire de saveEntityContentAction (erreur de serialisation
         // Next.js sur l'objet imbrique passe en argument positionnel brut).
         void saveEntityContentAction(worldId, entityId, JSON.stringify(content)).then((result) => {
+          if (generation !== generationRef.current) {
+            return;
+          }
           setStatus(result.ok ? "saved" : "error");
           setErrorMessage(result.ok ? null : result.error);
-          if (result.ok) {
-            // Re-execute la page (Server Component) pour rafraichir "Renvois"
-            // (LinkedEntities, relation-service.ts) sans navigation ni perte
-            // d'etat de l'edition en cours : useEditor ci-dessous n'a pas de
-            // tableau de dependances (figee au montage, meme regle que le
-            // dictionnaire de surlignage), donc les nouvelles props ignorees
-            // par ce hook ne recreent jamais l'editeur. Couvre les mentions
-            // MANUAL (deja ecrites en base de facon synchrone par
-            // reconcileManualMentions) immediatement ; une Relation AUTO
-            // ecrite par le worker apres ce point n'apparaitra qu'au refresh
-            // suivant (prochaine frappe) - decalage deja documente/accepte
-            // dans page.tsx, pas aggrave par cet appel.
-            router.refresh();
-            setAutoPending(true);
-            if (autoPendingTimeoutRef.current) {
-              clearTimeout(autoPendingTimeoutRef.current);
-            }
-            autoPendingTimeoutRef.current = setTimeout(() => {
-              setAutoPending(false);
-            }, AUTO_PENDING_NOTE_MS);
+          if (!result.ok) {
+            setAutoPending(false);
+            return;
           }
+          // Re-execute la page (Server Component) pour rafraichir "Renvois"
+          // (LinkedEntities, relation-service.ts) sans navigation ni perte
+          // d'etat de l'edition en cours : useEditor ci-dessous n'a pas de
+          // tableau de dependances (figee au montage, meme regle que le
+          // dictionnaire de surlignage), donc les nouvelles props ignorees
+          // par ce hook ne recreent jamais l'editeur. Ce premier refresh
+          // couvre les mentions MANUAL (deja ecrites en base de facon
+          // synchrone par reconcileManualMentions) ; les Relation AUTO sont
+          // ecrites plus tard par le worker, d'ou le second refresh une fois
+          // le scan de CETTE version atteste (KAN-77).
+          router.refresh();
+          setAutoPending(true);
+          const targetVersion = result.contentVersion;
+          let attempts = 0;
+          const finish = () => {
+            pollTimeoutRef.current = null;
+            router.refresh();
+            setAutoPending(false);
+          };
+          const poll = () => {
+            attempts += 1;
+            getEntityScanStatusAction(worldId, entityId).then(
+              (scan) => {
+                if (generation !== generationRef.current) {
+                  return;
+                }
+                if (!scan.ok) {
+                  console.warn("[entity-editor] Statut de liaison illisible :", scan.error);
+                  finish();
+                  return;
+                }
+                if (scan.scannedVersion >= targetVersion) {
+                  finish();
+                  return;
+                }
+                if (attempts >= SCAN_POLL_MAX_ATTEMPTS) {
+                  console.warn(
+                    `[entity-editor] Scan de liaison non confirmé après ${SCAN_POLL_MAX_ATTEMPTS} interrogations - « Renvois » peut être en retard.`,
+                    { entityId, targetVersion, scannedVersion: scan.scannedVersion },
+                  );
+                  finish();
+                  return;
+                }
+                pollTimeoutRef.current = setTimeout(poll, SCAN_POLL_INTERVAL_MS);
+              },
+              (error: unknown) => {
+                if (generation !== generationRef.current) {
+                  return;
+                }
+                console.error(
+                  "[entity-editor] Interrogation du statut de liaison échouée :",
+                  error,
+                );
+                finish();
+              },
+            );
+          };
+          pollTimeoutRef.current = setTimeout(poll, SCAN_POLL_INTERVAL_MS);
         });
       }, AUTOSAVE_DEBOUNCE_MS);
     },
@@ -575,9 +628,12 @@ export function EntityEditor({
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      if (autoPendingTimeoutRef.current) {
-        clearTimeout(autoPendingTimeoutRef.current);
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
       }
+      // Invalide toute reponse encore en vol (save ou interrogation) : aucun
+      // setState ni refresh apres demontage.
+      generationRef.current += 1;
     };
   }, []);
 
@@ -650,8 +706,8 @@ export function EntityEditor({
           {status === "saved" ? "Enregistré." : null}
           {status === "error" ? (errorMessage ?? "Erreur d'enregistrement.") : null}
         </span>
-        {/* Note transitoire (KAN-19) : purement indicative, voir
-            AUTO_PENDING_NOTE_MS - n'atteste pas que le worker a fini. */}
+        {/* Note transitoire (KAN-19) : levee sur signal serveur de fin de
+            scan (KAN-77, scannedVersion), voir scheduleSave. */}
         {autoPending ? (
           <span className="flex items-center gap-1">
             <Loader2 aria-hidden="true" className="size-3 animate-spin" />

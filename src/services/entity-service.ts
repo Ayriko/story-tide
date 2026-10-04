@@ -236,6 +236,9 @@ export async function updateEntity(
 
 // Contenu + plainText deja valides/extraits en amont (src/lib/tiptap-content.ts)
 // avant d'appeler ce service - ce dernier ne fait que persister.
+// contentVersion (KAN-77) : increment atomique dans la MEME ecriture que le
+// contenu (jamais lecture puis ecriture) - la valeur renvoyee est celle que
+// le client attend de voir dans scannedVersion (ecrite par le worker).
 export async function updateEntityContent(
   ownerId: string,
   worldId: string,
@@ -246,7 +249,7 @@ export async function updateEntityContent(
   const entity = await getEntity(ownerId, worldId, entityId);
   const updated = await prisma.entity.update({
     where: { id: entity.id },
-    data: { content, plainText },
+    data: { content, plainText, contentVersion: { increment: 1 } },
     include: { aliases: true },
   });
   return toEntityRecord(updated);

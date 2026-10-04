@@ -3,10 +3,10 @@ import { requireSession } from "@/lib/auth-session";
 import { jobQueue } from "@/lib/queue";
 import { ENTITY_LINKING_QUEUE } from "@/lib/queue/entity-linking";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
-import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
+import { EntityNotFoundError, getEntity, updateEntityContent } from "@/services/entity-service";
 import { reconcileManualMentions } from "@/services/relation-service";
 import { WorldNotFoundError } from "@/services/world-service";
-import { saveEntityContentAction } from "./entity-content";
+import { getEntityScanStatusAction, saveEntityContentAction } from "./entity-content";
 
 vi.mock("@/lib/auth-session", () => ({
   requireSession: vi.fn(),
@@ -18,7 +18,7 @@ vi.mock("@/lib/queue", () => ({
 
 vi.mock("@/services/entity-service", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/entity-service")>();
-  return { ...actual, updateEntityContent: vi.fn() };
+  return { ...actual, updateEntityContent: vi.fn(), getEntity: vi.fn() };
 });
 
 // Sans ce mock, reconcileManualMentions() appellerait la VRAIE @/db/client -
@@ -32,6 +32,7 @@ vi.mock("@/services/relation-service", () => ({
 
 const mockedRequireSession = vi.mocked(requireSession);
 const mockedUpdateEntityContent = vi.mocked(updateEntityContent);
+const mockedGetEntity = vi.mocked(getEntity);
 const mockedReconcileManualMentions = vi.mocked(reconcileManualMentions);
 const mockedEnqueue = vi.mocked(jobQueue.enqueue);
 
@@ -52,12 +53,14 @@ describe("saveEntityContentAction", () => {
     };
     mockedUpdateEntityContent.mockResolvedValueOnce(
       // @ts-expect-error - seul le retour importe au test, pas la forme Entity complete
-      { id: "e1" },
+      { id: "e1", contentVersion: 5 },
     );
 
     const result = await saveEntityContentAction("w1", "e1", JSON.stringify(content));
 
-    expect(result).toEqual({ ok: true });
+    // contentVersion (KAN-77) : la version que l'editeur attendra dans
+    // scannedVersion avant de rafraichir "Renvois".
+    expect(result).toEqual({ ok: true, contentVersion: 5 });
     expect(mockedUpdateEntityContent).toHaveBeenCalledWith("owner-1", "w1", "e1", content, "Salut");
   });
 
@@ -230,6 +233,59 @@ describe("saveEntityContentAction", () => {
     expect(consoleError).toHaveBeenCalledWith(
       "[entity-content] Réconciliation des mentions manuelles échouée :",
       expect.any(Error),
+    );
+    consoleError.mockRestore();
+  });
+});
+
+describe("getEntityScanStatusAction (KAN-77)", () => {
+  it("refuse sans session et ne lit jamais la fiche", async () => {
+    mockedRequireSession.mockRejectedValueOnce(new Error("no session"));
+
+    const result = await getEntityScanStatusAction("w1", "e1");
+
+    expect(result).toEqual({ ok: false, error: "Session expirée. Reconnectez-vous." });
+    expect(mockedGetEntity).not.toHaveBeenCalled();
+  });
+
+  it("renvoie scannedVersion de la fiche, autorisation portee par getEntity", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    // @ts-expect-error - seul scannedVersion importe au test, pas la forme Entity complete
+    mockedGetEntity.mockResolvedValueOnce({ id: "e1", scannedVersion: 3 });
+
+    const result = await getEntityScanStatusAction("w1", "e1");
+
+    expect(result).toEqual({ ok: true, scannedVersion: 3 });
+    expect(mockedGetEntity).toHaveBeenCalledWith("owner-1", "w1", "e1");
+  });
+
+  // Meme reponse pour "n'existe pas" et "pas a vous" (OWASP A01) : getEntity
+  // leve WorldNotFoundError pour le monde d'un autre utilisateur,
+  // EntityNotFoundError pour une fiche hors de ce monde.
+  it.each([
+    ["monde d'un autre utilisateur", new WorldNotFoundError()],
+    ["fiche hors du monde / inexistante", new EntityNotFoundError()],
+  ])("repond « introuvable » pour %s", async (_label, error) => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedGetEntity.mockRejectedValueOnce(error);
+
+    const result = await getEntityScanStatusAction("w1", "e1");
+
+    expect(result).toEqual({ ok: false, error: "Entrée introuvable." });
+  });
+
+  it("logue l'erreur reelle et renvoie un message generique sur une erreur inattendue", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    const realError = new Error("boom");
+    mockedGetEntity.mockRejectedValueOnce(realError);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await getEntityScanStatusAction("w1", "e1");
+
+    expect(result).toEqual({ ok: false, error: "Statut de liaison indisponible pour le moment." });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[entity-content] Lecture du statut de liaison échouée :",
+      realError,
     );
     consoleError.mockRestore();
   });
