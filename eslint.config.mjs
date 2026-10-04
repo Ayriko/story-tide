@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "coverage/**",
     "src/generated/**",
+    // Sorties locales de sessions Claude (scripts de generation de livrables),
+    // deja ignorees par git (.gitignore "Claude outputs/") : jamais du code
+    // du produit, ne doivent pas faire rougir le lint local.
+    "**/Claude outputs/**",
   ]),
 ]);
 
