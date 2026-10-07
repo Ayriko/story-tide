@@ -18,7 +18,8 @@ services:
       start_period: 10s
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    # Fork maintenu de MinIO (upstream archivé 04/2026) — voir docs/adr/0028-migration-minio-vers-silo.md
+    image: docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -37,7 +38,8 @@ services:
       start_period: 10s
 
   minio-setup:
-    image: quay.io/minio/mc:latest
+    # Fork maintenu de MinIO (upstream archivé 04/2026) — voir docs/adr/0028-migration-minio-vers-silo.md
+    image: docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z
     depends_on:
       minio:
         condition: service_healthy
@@ -47,11 +49,11 @@ services:
     # propre base sur le meme conteneur). Prive par defaut, comme le bucket dev.
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 story_tide change-me-story-tide &&
-      mc mb --ignore-existing local/story-tide-dev &&
-      mc anonymous set none local/story-tide-dev &&
-      mc mb --ignore-existing local/story-tide-e2e &&
-      mc anonymous set none local/story-tide-e2e
+      mcli alias set local http://minio:9000 story_tide change-me-story-tide &&
+      mcli mb --ignore-existing local/story-tide-dev &&
+      mcli anonymous set none local/story-tide-dev &&
+      mcli mb --ignore-existing local/story-tide-e2e &&
+      mcli anonymous set none local/story-tide-e2e
       "
 
 volumes:

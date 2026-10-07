@@ -5,6 +5,17 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Modifié
+
+- Stockage des images servi par **Silo** (`docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z`),
+  fork communautaire maintenu de MinIO, à la place des images
+  `quay.io/minio/*`. Celles-ci ne sont plus tirables en anonyme depuis fin septembre
+  2026, ce qui cassait la CI e2e, le build de l'image de sauvegarde et le
+  `docker compose pull` des déploiements (ADR-0028). Même API S3, mêmes variables
+  `MINIO_*`, même format de données : les volumes existants sont relus sans
+  migration. Le client `mc` devient `mcli` dans `minio-setup`, la sauvegarde et la
+  CI.
+
 ### Corrigé
 
 - Liste « Renvois » sous l'éditeur (KAN-77) : les liens détectés
