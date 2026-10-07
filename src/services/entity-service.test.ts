@@ -100,6 +100,8 @@ function makeEntity(
     plainText: "",
     seedRef: null,
     folderId: null,
+    contentVersion: 0,
+    scannedVersion: 0,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...entityOverrides,
@@ -504,10 +506,27 @@ describe("updateEntityContent", () => {
 
     expect(entityUpdate).toHaveBeenCalledWith({
       where: { id: "e1" },
-      data: { content: newContent, plainText: "Salut" },
+      data: { content: newContent, plainText: "Salut", contentVersion: { increment: 1 } },
       include: { aliases: true },
     });
     expect(entity.plainText).toBe("Salut");
+  });
+
+  it("incremente contentVersion de facon atomique et renvoie la nouvelle valeur (KAN-77)", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity({ contentVersion: 2 }));
+    entityUpdate.mockResolvedValueOnce(makeEntity({ contentVersion: 3 }));
+
+    const entity = await updateEntityContent(OWNER_ID, WORLD_ID, "e1", EMPTY_CONTENT, "");
+
+    // Increment cote base dans la MEME ecriture que le contenu - jamais une
+    // valeur calculee a partir de la lecture (2 + 1), qui perdrait un save
+    // concurrent.
+    expect(entityUpdate).toHaveBeenCalledTimes(1);
+    expect(entityUpdate.mock.lastCall?.[0].data).toEqual(
+      expect.objectContaining({ contentVersion: { increment: 1 } }),
+    );
+    expect(entity.contentVersion).toBe(3);
   });
 
   it("leve EntityNotFoundError et ne met rien a jour si l'entite n'appartient pas a ce monde", async () => {

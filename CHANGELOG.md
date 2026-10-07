@@ -16,6 +16,17 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
   migration. Le client `mc` devient `mcli` dans `minio-setup`, la sauvegarde et la
   CI.
 
+### Corrigé
+
+- Liste « Renvois » sous l'éditeur (KAN-77) : les liens détectés
+  automatiquement n'apparaissaient qu'à la frappe suivante ou au
+  rechargement, et la note « Mise à jour des liens détectés… » disparaissait
+  au bout de 4 s sans preuve que le scan était fini. Chaque sauvegarde porte
+  désormais une version (`Entity.contentVersion`), le worker enregistre la
+  version scannée (`Entity.scannedVersion`), et l'éditeur attend ce signal
+  (au plus 10 s) avant de rafraîchir la liste et de retirer la note.
+  Migration additive (deux colonnes entières, défaut 0).
+
 ## [1.5.0] - 2026-09-12
 
 ### Ajouté

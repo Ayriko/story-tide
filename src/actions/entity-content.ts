@@ -10,11 +10,13 @@ import {
   normalizeContentText,
   parseContent,
 } from "@/lib/tiptap-content";
-import { EntityNotFoundError, updateEntityContent } from "@/services/entity-service";
+import { EntityNotFoundError, getEntity, updateEntityContent } from "@/services/entity-service";
 import { reconcileManualMentions } from "@/services/relation-service";
 import { WorldNotFoundError } from "@/services/world-service";
 
-export type SaveContentResult = { ok: true } | { ok: false; error: string };
+export type SaveContentResult = { ok: true; contentVersion: number } | { ok: false; error: string };
+
+export type ScanStatusResult = { ok: true; scannedVersion: number } | { ok: false; error: string };
 
 // Mitigation DoS (OWASP A04) : borne AVANT JSON.parse, pas apres - un payload
 // arbitrairement gros ne doit jamais atteindre le parseur JSON. 1 Mo est tres
@@ -73,8 +75,16 @@ export async function saveEntityContentAction(
   content = normalizeContentText(content);
   const plainText = extractPlainText(content);
 
+  let contentVersion;
   try {
-    await updateEntityContent(session.user.id, worldId, entityId, content, plainText);
+    const updated = await updateEntityContent(
+      session.user.id,
+      worldId,
+      entityId,
+      content,
+      plainText,
+    );
+    contentVersion = updated.contentVersion;
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
       return { ok: false, error: "Entrée introuvable." };
@@ -106,5 +116,32 @@ export async function saveEntityContentAction(
     console.error("[entity-content] Enfilage du job de liaison échoué :", error);
   }
 
-  return { ok: true };
+  return { ok: true, contentVersion };
+}
+
+// Signal de fin de scan (KAN-77) : interroge par l'editeur apres un save
+// reussi, jusqu'a scannedVersion >= contentVersion renvoye par le save.
+// getEntity porte l'autorisation (monde du proprietaire + fiche de ce monde) :
+// "n'existe pas" et "pas a vous" rendent la meme reponse (OWASP A01).
+export async function getEntityScanStatusAction(
+  worldId: string,
+  entityId: string,
+): Promise<ScanStatusResult> {
+  let session;
+  try {
+    session = await requireSession();
+  } catch {
+    return { ok: false, error: "Session expirée. Reconnectez-vous." };
+  }
+
+  try {
+    const entity = await getEntity(session.user.id, worldId, entityId);
+    return { ok: true, scannedVersion: entity.scannedVersion };
+  } catch (error) {
+    if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
+      return { ok: false, error: "Entrée introuvable." };
+    }
+    console.error("[entity-content] Lecture du statut de liaison échouée :", error);
+    return { ok: false, error: "Statut de liaison indisponible pour le moment." };
+  }
 }

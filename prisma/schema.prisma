@@ -57,26 +57,31 @@ model World {
 }
 
 model Entity {
-  id        String   @id @default(cuid())
-  worldId   String
-  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
-  name      String
-  type      String // "character"|"place"|... - donnee, pas schema
-  content   Json // JSON ProseMirror (Tiptap)
-  plainText String // texte extrait, pour scan + recherche
+  id             String   @id @default(cuid())
+  worldId        String
+  world          World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  name           String
+  type           String // "character"|"place"|... - donnee, pas schema
+  content        Json // JSON ProseMirror (Tiptap)
+  plainText      String // texte extrait, pour scan + recherche
   // Cle d'idempotence de seed (KAN-35, pas encore construit) : distincte du
   // slug (modifiable par l'utilisateur apres clonage) - permet au script de
   // seed de savoir si une entite a deja ete creee lors d'un rejeu.
-  seedRef   String?
+  seedRef        String?
   // Rattachement FACULTATIF a un dossier (KAN-38) : nullable, jamais un
   // second encodage du type - folderId est une position dans un arbre,
   // "type" reste une donnee (pas d'enum Prisma dessus, invariant du projet).
   // onDelete: SetNull (jamais Cascade) - supprimer un dossier ne supprime
   // jamais une entite, seulement sa position (voir folder-service.ts).
-  folderId  String?
-  folder    Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  folderId       String?
+  folder         Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  // Signal de fin de scan (KAN-77) : contentVersion incremente a chaque
+  // sauvegarde de contenu, scannedVersion = version lue par le dernier job de
+  // liaison termine. scannedVersion >= contentVersion => "Renvois" a jour.
+  contentVersion Int      @default(0)
+  scannedVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   aliases         Alias[]
   sourceRelations Relation[]   @relation("RelationSource")
