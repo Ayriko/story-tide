@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-07
+
 ### Modifié
 
 - Stockage des images servi par **Silo** (`docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z`),
