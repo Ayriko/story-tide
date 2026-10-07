@@ -20,7 +20,7 @@ réellement le scan Aho-Corasick (`scanAndLinkEntity`, `src/services/linker-serv
 depuis la v1.0.0. Un seul
 système stateful : **PostgreSQL**, qui porte à la fois les données applicatives
 (Prisma) et la file `pg-boss` (schéma `pgboss`, géré par pg-boss lui-même). **MinIO**
-(S3-compatible) pour les binaires utilisateurs uniquement, buckets privés.
+(S3-compatible, servi par le fork Silo depuis 2026-10 — ADR-0028) pour les binaires utilisateurs uniquement, buckets privés.
 
 Deux images Docker construites depuis le même `Dockerfile` multi-stage (`node:24-slim`,
 non-root) : cible `app` (sortie `next build` standalone) et cible `worker` (exécuté via

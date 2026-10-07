@@ -155,27 +155,28 @@ jobs:
       - run: npx playwright install --with-deps chromium
 
       # KAN-16 : e2e/image-upload.spec.ts fait un vrai aller-retour MinIO.
-      # Pas de bloc `services:` ici : quay.io/minio exige sa commande
-      # (`server /data`) au demarrage, or GitHub Actions ne permet pas de
-      # fournir des arguments de commande a un service (seulement des
+      # Pas de bloc `services:` ici : l'image Silo (fork MinIO, ADR-0028) exige
+      # sa commande (`server /data`) au demarrage, or GitHub Actions ne permet
+      # pas de fournir des arguments de commande a un service (seulement des
       # options docker). Demarrage manuel + attente de sante + creation du
-      # bucket via mc, meme logique que le minio-setup de docker-compose.dev.yml.
+      # bucket via mcli, meme logique que le minio-setup de docker-compose.dev.yml.
       # Identifiants derives de S3_ACCESS_KEY/S3_SECRET_KEY/S3_PORT/S3_BUCKET
       # (env du workflow) - source unique, ne peut pas diverger.
+      # Fork maintenu de MinIO (upstream archivé 04/2026) — voir docs/adr/0028-migration-minio-vers-silo.md
       - name: Démarrer MinIO
         run: |
           docker run -d --name minio-e2e -p "${S3_PORT}:9000" \
             -e MINIO_ROOT_USER="$S3_ACCESS_KEY" \
             -e MINIO_ROOT_PASSWORD="$S3_SECRET_KEY" \
-            quay.io/minio/minio server /data
+            docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z server /data
           timeout 60 sh -c 'until curl -sf "http://localhost:${S3_PORT}/minio/health/live"; do sleep 1; done' \
             || { echo "MinIO n'a pas démarré :"; docker logs minio-e2e; exit 1; }
 
       - name: Créer le bucket MinIO
         run: |
-          docker run --rm --network host \
+          docker run --rm --network host --entrypoint mcli \
             -e MC_HOST_local="http://$S3_ACCESS_KEY:$S3_SECRET_KEY@localhost:$S3_PORT" \
-            quay.io/minio/mc mb --ignore-existing "local/$S3_BUCKET"
+            docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z mb --ignore-existing "local/$S3_BUCKET"
 
       - run: npm run test:e2e
 

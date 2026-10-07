@@ -19,8 +19,8 @@ pg_dump --format=plain | gzip >"/backups/postgres/${PGDATABASE}-${TIMESTAMP}.sql
 echo "[backup] $(date -Iseconds) — pg_dump termine (${PGDATABASE}-${TIMESTAMP}.sql.gz)"
 
 echo "[backup] $(date -Iseconds) — debut miroir MinIO (${S3_BUCKET})"
-mc alias set backup-target "${MINIO_ENDPOINT}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" --api S3v4 >/dev/null
-mc mirror --overwrite --remove "backup-target/${S3_BUCKET}" /backups/minio/
+mcli alias set backup-target "${MINIO_ENDPOINT}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" --api S3v4 >/dev/null
+mcli mirror --overwrite --remove "backup-target/${S3_BUCKET}" /backups/minio/
 echo "[backup] $(date -Iseconds) — miroir MinIO termine"
 
 echo "[backup] $(date -Iseconds) — purge des dumps PostgreSQL > ${RETENTION_DAYS}j"
@@ -28,7 +28,7 @@ find /backups/postgres -name '*.sql.gz' -mtime "+${RETENTION_DAYS}" -delete
 
 echo "[backup] $(date -Iseconds) — sauvegarde terminee"
 
-# Heartbeat (supervision v1, C4.1.2) : ping UNIQUEMENT si pg_dump, mc mirror
+# Heartbeat (supervision v1, C4.1.2) : ping UNIQUEMENT si pg_dump, mcli mirror
 # et la purge se sont tous termines sans erreur (set -e garantit qu'on
 # n'atteint ce point qu'apres leur succes complet). BACKUP_HEARTBEAT_URL est
 # OPTIONNELLE - absente ou vide, le script ne fait rien (utilisable en local

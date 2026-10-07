@@ -4,21 +4,23 @@
 # comme app/worker/migrate — le VPS ne build jamais (voir ADR-0013). Base
 # postgres:16-alpine : meme version majeure que le serveur de compose.*.yml
 # (pg_dump doit matcher la version du serveur cible), busybox (crond inclus)
-# deja present. `mc` (client MinIO) recupere depuis l'image officielle.
+# deja present. `mcli` (client S3 du fork Silo) recupere depuis l'image Silo.
 
-# `mc` (client MinIO) tire depuis quay.io/minio, le registre officiel du
-# projet : le namespace minio/* de Docker Hub n'est plus accessible en
-# anonyme (echec CD du 2026-09-12, `pull access denied`). Epingle par digest
-# et non par `latest` — c'est un artefact livre, sa mise a jour doit etre un
-# geste deliberer et non un effet de bord d'un rebuild.
+# `mcli` tire depuis l'image du fork Silo (pgsty) : MinIO ne distribue plus
+# d'image en anonyme (Docker Hub retire, quay.io en 401 depuis fin 09/2026 -
+# echec CI du 2026-10-07, `unauthorized: access to the requested resource is
+# not authorized`). Meme tag que les composes, epingle EN PLUS par digest
+# — c'est un artefact livre, sa mise a jour doit etre un geste delibere et non
+# un effet de bord d'un rebuild.
 
-FROM quay.io/minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727 AS mc
+# Fork maintenu de MinIO (upstream archivé 04/2026) — voir docs/adr/0028-migration-minio-vers-silo.md
+FROM docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z@sha256:b616a0cf8cb281e7e6bb3c9b1fb53875b4016a2878223925541c18f82d6c5ca3 AS silo
 
 FROM postgres:16-alpine
 # curl absent de la base alpine — necessaire au heartbeat de fin de
 # sauvegarde (supervision v1, C4.1.2 ; voir backup.sh).
 RUN apk add --no-cache curl
-COPY --from=mc /usr/bin/mc /usr/local/bin/mc
+COPY --from=silo /usr/bin/mcli /usr/local/bin/mcli
 COPY backup.sh /usr/local/bin/backup.sh
 COPY crontab /etc/crontabs/root
 RUN chmod +x /usr/local/bin/backup.sh

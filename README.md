@@ -16,7 +16,7 @@ les contraintes d'architecture.
 ## Prérequis
 
 - [Node.js](https://nodejs.org/) 24+ (Active LTS ; requis par pg-boss)
-- [Docker](https://www.docker.com/) + Docker Compose (PostgreSQL + MinIO en local)
+- [Docker](https://www.docker.com/) + Docker Compose (PostgreSQL + MinIO en local, servi par le fork Silo — ADR-0028)
 
 ## Démarrage
 
