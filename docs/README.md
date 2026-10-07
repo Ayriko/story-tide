@@ -20,6 +20,7 @@
 | `manuels/deploiement.md` | C2.4.1 | Manuel de déploiement | non | ⬜ pas commencé |
 | `manuels/utilisation.md` | C2.4.1 | Manuel d'utilisation | non | ⬜ pas commencé |
 | `manuels/mise-a-jour.md` | C2.4.1 | Manuel de mise à jour | non | ⬜ pas commencé |
+| `manuels/exploitation-vps.md` | C2.4.1 | Manuel d'exploitation du VPS (commandes courantes, recette d'une RC, rollback) | non | ✅ rédigé le 2026-10-07 (RC v1.5.1) |
 | `adr/` | C2.4.1 | Justification des choix (technos, langages) | non | ✅ 9 ADR rédigés |
 | `../CHANGELOG.md` (racine) | C2.2.4 | Historique des versions | non | ✅ créé (`[Unreleased]`) |
 | `dossier/plan.md` | — | Plan d'assemblage des 30 p. | — | ✅ ossature posée |
