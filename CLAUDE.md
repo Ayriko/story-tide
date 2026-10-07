@@ -29,7 +29,7 @@ logiciel, Bac+5). Studio fictif commanditaire : Tidemark Studio. Développeur : 
 TypeScript strict · Next.js App Router (RSC + Server Actions, PAS de tRPC, PAS de backend
 séparé) · Tailwind (dark mode par défaut) · Tiptap pur (PAS BlockNote/Lexical) ·
 Cytoscape.js · PostgreSQL + Prisma · Better Auth (email+mdp, sessions en base) ·
-pg-boss derrière l'interface JobQueue (PAS de Redis/BullMQ) · MinIO via interface Storage
+pg-boss derrière l'interface JobQueue (PAS de Redis/BullMQ) · MinIO (servi par le fork Silo, ADR-0028) via interface Storage
 (SDK S3) · Zod à toutes les frontières · Vitest + Testing Library + Playwright (smoke) ·
 Docker/Compose multi-stage non-root · Traefik · GitHub Actions → ghcr.io → SSH pull sur
 VPS OVH. Aho-Corasick : implémentation MAISON dans src/lib/linker (zéro dépendance).

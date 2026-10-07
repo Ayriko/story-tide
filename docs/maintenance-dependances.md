@@ -10,7 +10,7 @@
 | Paramètre | Politique | Détail |
 |---|---|---|
 | **Fréquence** | Revue **mensuelle** planifiée + canal **sécurité immédiat** + veille **continue** | Revue groupée le premier lundi du mois (§3). Un avis de sécurité touchant une version présente au lockfile court-circuite la cadence : traitement immédiat (§5). La veille (§4) tourne au fil de l'eau. |
-| **Périmètre** | Toute la surface réellement déployée | Packages npm (dependencies **et** devDependencies — la chaîne de build fait partie de la surface d'attaque, cf. §6) ; images Docker de base (`node:24-slim`, `postgres:16-alpine`, `minio/minio`, `postgres:16-alpine` du service backup) ; Traefik ; actions GitHub des workflows CI/CD. |
+| **Périmètre** | Toute la surface réellement déployée | Packages npm (dependencies **et** devDependencies — la chaîne de build fait partie de la surface d'attaque, cf. §6) ; images Docker de base (`node:24-slim`, `postgres:16-alpine`, `pgsty/silo` (fork maintenu de MinIO, ADR-0028), `postgres:16-alpine` du service backup) ; Traefik ; actions GitHub des workflows CI/CD. |
 | **Type** | **Manuel, outillé** | Aucune montée de version automatique. Chaque bump suit le circuit standard du projet : branche → gates complets (lint, typecheck, tests + couverture, e2e) → pull request → merge → livré au tag suivant. Une mise à jour de dépendance est un changement comme un autre : elle est vérifiée comme tel. |
 
 ## 2. Le socle : lockfile + `npm ci`

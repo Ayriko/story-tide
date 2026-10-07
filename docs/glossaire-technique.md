@@ -54,7 +54,7 @@
 | **VPS** | Virtual Private Server : un serveur loué, à nous seuls. | Notre hébergement (un seul, sobre, chez OVH). |
 | **OVH / OVHcloud** | Hébergeur français. | Notre fournisseur (données en UE, datacenters bas-carbone). |
 | **Hetzner / Vercel** | Hébergeurs concurrents. | Comparés en étude ; Hetzner = plan B documenté. |
-| **MinIO** | Serveur de stockage de fichiers auto-hébergé, compatible standard S3. | Stocke les images, hors base de données, sans coût ni verrouillage. |
+| **MinIO** | Serveur de stockage de fichiers auto-hébergé, compatible standard S3. Servi depuis 2026-10 par **Silo**, fork communautaire maintenu (même API, mêmes données — ADR-0028). | Stocke les images, hors base de données, sans coût ni verrouillage. |
 | **OVH Object Storage** | Stockage de fichiers managé d'OVH (standard S3). | Évolution prévue de MinIO quand le volume grossit. |
 | **Tiptap** | Éditeur de texte riche pour le web, gratuit (licence MIT). | Notre éditeur de wiki ; enregistre en JSON exploitable. |
 | **ProseMirror** | La fondation technique sous Tiptap (utilisée par NYT, Asana…). | Cœur éprouvé de l'édition de texte. |
