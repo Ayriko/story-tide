@@ -6,6 +6,7 @@
 - Évaluation des remplaçants (AIStor, Chainguard), puis bascule sur **Silo** (`pgsty/silo`), le fork proposé par Aymeric.
 - Inventaire exhaustif des références MinIO, puis modifications chirurgicales sur les composes, l'image backup, la CI et la doc (ADR-0028).
 - Vérifications réelles : relecture du volume existant, sauvegarde complète, simulation des étapes CI, e2e.
+- Fin de session : merge de la PR Silo (#36), puis merge de `main` dans la branche KAN-77 (conflit `CHANGELOG.md` résolu), merge de la PR KAN-77 (#35), et commit `docs(pilotage)` des devlogs et captures sur `main`.
 
 **Décisions prises :**
 - **Silo (`docker.io/pgsty/silo:RELEASE.2026-09-03T13-18-01Z`) partout, jamais `:latest`.** Drop-in : mêmes `MINIO_*`, même API S3, même format disque, `curl`/`sh` présents, root comme avant. Écartés : changer de serveur (RustFS/Garage/SeaweedFS : migration de données non justifiée en mono-nœud) ; miroir ghcr d'une image en cache ou build des sources archivées (aucun correctif de sécurité) ; Chainguard (seul `latest` gratuit, sans shell ni curl, non-root à reprendre sur les volumes de prod) ; AIStor (licence obligatoire, S3 refusé sans). — Aymeric.
@@ -23,6 +24,8 @@
 - **`npx playwright test --repeat-each=3`** fait collisionner les e-mails `Date.now()` entre workers (`UniqueConstraintViolation` à l'inscription, puis timeout `waitForURL`). C'est un artefact de la répétition, pas un bug. Pour répéter, ajouter `--workers=1`.
 - **Flake `folder-organization.spec.ts`** (glisser-déposer, `treeitem` introuvable après le glisser) observé une fois dans la suite complète, non reproduit seul. Sans lien avec le stockage, non traité dans ce lot.
 - **`git rev-parse --short main origin/main`** échoue (`fatal: Needed a single revision`) : `--short` n'accepte qu'une révision. Ça a interrompu une chaîne `&&` avant la création de la branche.
+- **Conflit `CHANGELOG.md` au merge de `main` dans KAN-77** : les deux branches ajoutaient une entrée sous `[Unreleased]` (« Modifié » Silo, « Corrigé » KAN-77). Le fichier sur disque était passé `UU` **sans marqueurs et sans aucune des deux entrées**, vidé au moment de la résolution. Les deux versions ont été récupérées depuis l'index git (`git show :2:CHANGELOG.md` = branche courante, `:3:` = branche fusionnée) et les deux entrées conservées dans l'ordre Keep a Changelog. Chaque ligne a été vérifiée contre l'index, ainsi que le reste du fichier à partir de `[1.5.0]` sur les deux côtés. **Candidat skill** (conflit de CHANGELOG `[Unreleased]` entre branches parallèles).
+- **Collage multi-lignes dans PowerShell 5.1 : seule la première ligne s'exécute.** Les commandes `git add` / `git commit` rendues en blocs ont été partiellement perdues au collage : `entree-devlog-2026-10-07.md` n'est pas parti dans le commit `docs` de la PR Silo et a rejoint le commit `docs(pilotage)` sur `main`. → Règle désormais appliquée (mémoire Claude) : une seule ligne par étape, commandes chaînées par `;` (`&&` n'existe pas en PowerShell 5.1).
 
 **Commandes utiles de la session :**
 - `docker compose -f docker-compose.dev.yml exec minio sh -c 'mcli alias set local http://127.0.0.1:9000 story_tide change-me-story-tide && mcli ls local'` — lister les buckets via le client embarqué de Silo.
@@ -30,6 +33,7 @@
 - `docker run --rm --network host --entrypoint mcli -e MC_HOST_local="http://<user>:<pass>@localhost:<port>" docker.io/pgsty/silo:<tag> mb --ignore-existing local/<bucket>` — provisionner un bucket sans fichier de config (étape CI).
 - `docker run --rm --network story-tide_default -e PGHOST=postgres … --entrypoint sh <image-backup> -c /usr/local/bin/backup.sh` — exécuter une sauvegarde réelle contre la stack de dev.
 - `curl -s "https://hub.docker.com/v2/repositories/<org>/<repo>/tags?page_size=15"` et `curl -sI … /v2/<repo>/manifests/<tag>` (header `docker-content-digest`) — vérifier un tag et relever son digest sans Docker.
+- `git show :2:<fichier>` / `git show :3:<fichier>` — lire la version « nous » / « eux » d'un fichier en conflit pendant un merge, même quand la copie de travail a été abîmée.
 
 **Livrables produits :**
 - `docker-compose.dev.yml`, `deploy/compose.staging.yml`, `deploy/compose.prod.yml` : `minio` et `minio-setup` passent sur `pgsty/silo:<tag>` ; `mc` → `mcli` ; commentaire fork + ADR au-dessus de chaque image.
@@ -45,7 +49,9 @@
   - étapes CI simulées en local (health + `mb`) ;
   - configs compose staging/prod valides.
 - Gates : lint ✅ · typecheck ✅ (après `prisma generate`) · format:check ✅ · tests ✅ 578/578 · couverture 98,8 % · e2e 16/17 (✅ `image-upload.spec.ts` sur Silo ; ❌ 1 flake `folder-organization`, hors lot) · build ✅.
-- Commits : préparés (3), non exécutés par Claude.
+- Commits (exécutés par Aymeric) : `a0d0903 chore(deploy): bascule MinIO vers le fork Silo dans les composes et l'image backup`, `53f50ef fix(ci): demarre Silo a la place de MinIO pour le job e2e`, `f43f134 docs: ADR-0028 migration MinIO vers Silo, CHANGELOG et mentions` → PR #36 mergée (`85afce4`).
+- Merge `origin/main` → `fix/kan-77-renvois-scan-status` (`ab5f6c1`, conflit CHANGELOG résolu), puis PR #35 KAN-77 mergée (`5d3df07`).
+- `8e5d821 docs(pilotage): devlogs 2026-10-04 (KAN-77) et 2026-10-07 (Silo), captures de supervision du 2026-09-12` sur `main`.
 
 **Avancement certification :**
 - C2.1.1 / C4.x (chaîne CI/CD) : CI e2e, build de l'image backup et `compose pull` rétablis.
@@ -53,9 +59,10 @@
 - Maintenance des dépendances : surface d'images de base mise à jour dans `docs/maintenance-dependances.md`.
 
 **À faire / suite :**
-- Aymeric : exécuter les 3 commits préparés, pousser, et vérifier que le job e2e de la PR `chore/migration-silo` passe.
-- Après le merge : fusionner `main` dans `fix/kan-77-renvois-scan-status` et relancer sa CI.
-- RC staging avant toute prod : `compose pull` (Silo), `minio-setup` `Exited (0)`, relecture des objets existants, upload réel, déclenchement manuel d'une sauvegarde.
+- RC staging avant toute prod, qui couvre les deux lots :
+  - Silo : `compose pull`, `minio-setup` `Exited (0)`, relecture des objets existants, upload réel, déclenchement manuel d'une sauvegarde ;
+  - KAN-77 : migration `20261004120000_kan77_entity_scan_versions` via le conteneur `migrate`, puis TST-ENT-019.
+- Jira : poster le commentaire KAN-77 et faire avancer le ticket ; créer ou rattacher un ticket pour la migration Silo (la PR #36 n'en cite aucun).
 - Ouvert : le flake du glisser-déposer `folder-organization.spec.ts` est à suivre (ticket ?). `--repeat-each` demande `--workers=1`.
 - Idée à faire : évaluer Garage ou RustFS si Silo cesse d'être maintenu (surveiller le rythme de releases `pgsty/silo`).
 - Reporter cette entrée dans dev-log.md (hors repo) + redéposer dans le projet Claude.
@@ -76,5 +83,7 @@
 | 2026-10-07 | `docker: Error response from daemon: unauthorized: access to the requested resource is not authorized` (pull `quay.io/minio/minio`) | MinIO a fermé les pulls anonymes sur quay.io fin 09/2026 (après Docker Hub) | Bascule sur `docker.io/pgsty/silo:<tag>` (ADR-0028) |
 | 2026-10-07 | `tsc` : `missing the following properties … contentVersion, scannedVersion` sur `main` | Client Prisma généré depuis une autre branche | `npx prisma generate` après un changement de branche |
 | 2026-10-07 | `UniqueConstraintViolation` à l'inscription en `--repeat-each` | E-mails `Date.now()` identiques entre workers parallèles | `--repeat-each` avec `--workers=1` |
+| 2026-10-07 | `CHANGELOG.md` en `UU` sans marqueurs, les deux entrées `[Unreleased]` disparues | Copie de travail vidée pendant la résolution du conflit | Récupérer les deux versions avec `git show :2:` / `:3:`, puis garder les deux entrées (Modifié puis Corrigé) |
+| 2026-10-07 | Collage d'un bloc de commandes git dans PowerShell : seule la 1re ligne s'exécute | Comportement du collage multi-lignes dans PowerShell 5.1 | Une seule ligne par étape, commandes chaînées par `;` |
 
-Rien de ce lot n'est commité : 3 commits préparés pour Aymeric. L'entrée devlog du 2026-10-04 et les 6 captures restent hors de ce lot, pour le commit `docs` sur `main`.
+Cette mise à jour du devlog n'est pas encore commitée.
