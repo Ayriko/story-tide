@@ -36,3 +36,4 @@
 | 0026 | Contrat de `ShellBackground` étendu par variables CSS pour l'artwork de marque | accepté | 2026-08-26 |
 | 0027 | Accent périwinkle de l'artwork remonté au thème global, séparé en deux tokens | accepté | 2026-09-08 |
 | 0028 | Migration de MinIO vers Silo (fork communautaire maintenu) | accepté | 2026-10-07 |
+| 0029 | Rôle et plan utilisateur, journal d'administration | accepté | 2026-10-13 |
