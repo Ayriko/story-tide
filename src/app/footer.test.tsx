@@ -50,4 +50,16 @@ describe("Footer", () => {
       screen.getByRole("link", { name: /statut du service.*nouvelle fenêtre/i }),
     ).toBeInTheDocument();
   });
+
+  it("n'affiche aucun lien d'administration par defaut", () => {
+    render(<Footer />);
+
+    expect(screen.queryByRole("link", { name: "Administration" })).not.toBeInTheDocument();
+  });
+
+  it("affiche le lien d'administration vers /admin quand l'appelant le demande", () => {
+    render(<Footer showAdminLink />);
+
+    expect(screen.getByRole("link", { name: "Administration" })).toHaveAttribute("href", "/admin");
+  });
 });

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
 import type { Alias, Entity, Folder, World } from "@/generated/prisma/client";
-import { AliasSource, WorldOrigin } from "@/generated/prisma/client";
+import { AliasSource, UserPlan, WorldOrigin } from "@/generated/prisma/client";
+import { makeUser } from "@/test-utils/make-user";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
 import { normalizeForMatch } from "@/lib/linker/normalize";
 import { WorldNotFoundError } from "./world-service";
@@ -43,6 +44,9 @@ vi.mock("@/db/client", () => ({
     folder: {
       findFirst: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -55,6 +59,7 @@ const entityUpdate = vi.mocked(prisma.entity.update);
 const entityUpsert = vi.mocked(prisma.entity.upsert);
 const entityDelete = vi.mocked(prisma.entity.delete);
 const folderFindFirst = vi.mocked(prisma.folder.findFirst);
+const userFindUnique = vi.mocked(prisma.user.findUnique);
 
 const OWNER_ID = "owner-1";
 const WORLD_ID = "w1";
@@ -126,8 +131,12 @@ function makeFolder(overrides: Partial<Folder> = {}): Folder {
   };
 }
 
+// Plan du proprietaire (KAN-72) : FREE par defaut, meme montage que
+// world-service.test.ts (mockReset car clearAllMocks ne vide pas les ...Once).
 beforeEach(() => {
   vi.clearAllMocks();
+  userFindUnique.mockReset();
+  userFindUnique.mockResolvedValue(makeUser({ id: OWNER_ID }));
 });
 
 describe("createEntity", () => {
@@ -185,6 +194,30 @@ describe("createEntity", () => {
       createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] }),
     ).rejects.toThrow(EntityQuotaExceededError);
     expect(entityCreate).not.toHaveBeenCalled();
+  });
+
+  it("cite la limite du plan dans le message d'erreur", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityCount.mockResolvedValueOnce(50);
+
+    await expect(
+      createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] }),
+    ).rejects.toThrow("Limite d'entrées atteinte pour ce monde (offre gratuite : 50 maximum).");
+  });
+
+  it("ne bloque plus en plan UNLIMITED, et ne compte meme pas les fiches", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    userFindUnique.mockResolvedValueOnce(makeUser({ id: OWNER_ID, plan: UserPlan.UNLIMITED }));
+    entityCreate.mockResolvedValueOnce(makeEntity());
+
+    await createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] });
+
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { id: OWNER_ID },
+      select: { plan: true },
+    });
+    expect(entityCount).not.toHaveBeenCalled();
+    expect(entityCreate).toHaveBeenCalled();
   });
 
   it("saute le controle de quota pour un monde origin=INTRO, meme au-dela de la limite", async () => {

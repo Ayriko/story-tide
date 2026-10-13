@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
 import { storage } from "@/lib/storage";
 import type { Image, World } from "@/generated/prisma/client";
-import { WorldOrigin } from "@/generated/prisma/client";
+import { UserPlan, WorldOrigin } from "@/generated/prisma/client";
+import { makeUser } from "@/test-utils/make-user";
 import {
   WorldNotFoundError,
   WorldQuotaExceededError,
@@ -35,6 +36,9 @@ vi.mock("@/db/client", () => ({
     image: {
       findMany: vi.fn(),
     },
+    user: {
+      findUnique: vi.fn(),
+    },
   },
 }));
 
@@ -52,6 +56,7 @@ const worldCreate = vi.mocked(prisma.world.create);
 const worldUpdate = vi.mocked(prisma.world.update);
 const worldDelete = vi.mocked(prisma.world.delete);
 const imageFindMany = vi.mocked(prisma.image.findMany);
+const userFindUnique = vi.mocked(prisma.user.findUnique);
 const storageDelete = vi.mocked(storage.delete);
 
 const OWNER_ID = "owner-1";
@@ -84,8 +89,14 @@ function makeImage(overrides: Partial<Image> = {}): Image {
   };
 }
 
+// Plan du proprietaire (KAN-72) : FREE par defaut pour tous les tests, pose
+// en implementation permanente apres un mockReset (clearAllMocks ne vide pas
+// la file des ...Once, skill vitest-clearallmocks-once-queue). Un test qui
+// veut un autre plan le pose avec mockResolvedValueOnce.
 beforeEach(() => {
   vi.clearAllMocks();
+  userFindUnique.mockReset();
+  userFindUnique.mockResolvedValue(makeUser({ id: OWNER_ID }));
 });
 
 describe("createWorld", () => {
@@ -138,6 +149,47 @@ describe("createWorld", () => {
     );
     expect(worldFindUnique).not.toHaveBeenCalled();
     expect(worldCreate).not.toHaveBeenCalled();
+  });
+
+  it("lit le plan du proprietaire en base avant d'appliquer le quota", async () => {
+    worldCount.mockResolvedValueOnce(0);
+    worldFindUnique.mockResolvedValueOnce(null);
+    worldCreate.mockResolvedValueOnce(makeWorld());
+
+    await createWorld(OWNER_ID, { name: "Eldoria" });
+
+    expect(userFindUnique).toHaveBeenCalledWith({
+      where: { id: OWNER_ID },
+      select: { plan: true },
+    });
+  });
+
+  it("cite la limite du plan dans le message d'erreur", async () => {
+    worldCount.mockResolvedValueOnce(3);
+
+    await expect(createWorld(OWNER_ID, { name: "Eldoria" })).rejects.toThrow(
+      "Limite de mondes atteinte pour l'offre gratuite (3 maximum).",
+    );
+  });
+
+  it("ne bloque plus en plan UNLIMITED, et ne compte meme pas les mondes", async () => {
+    userFindUnique.mockResolvedValueOnce(makeUser({ id: OWNER_ID, plan: UserPlan.UNLIMITED }));
+    worldFindUnique.mockResolvedValueOnce(null);
+    worldCreate.mockResolvedValueOnce(makeWorld({ id: "w4" }));
+
+    await createWorld(OWNER_ID, { name: "Eldoria" });
+
+    expect(worldCount).not.toHaveBeenCalled();
+    expect(worldCreate).toHaveBeenCalled();
+  });
+
+  it("retombe sur le palier FREE si le compte est introuvable (jamais de quota leve par defaut)", async () => {
+    userFindUnique.mockResolvedValueOnce(null);
+    worldCount.mockResolvedValueOnce(3);
+
+    await expect(createWorld(OWNER_ID, { name: "Eldoria" })).rejects.toThrow(
+      WorldQuotaExceededError,
+    );
   });
 });
 
