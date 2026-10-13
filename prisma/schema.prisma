@@ -32,6 +32,28 @@ enum AliasSource {
   SEED
 }
 
+// Role et plan utilisateur (KAN-72, ADR-0029). Deux axes distincts, jamais
+// fusionnes : le role dit ce qu'on peut administrer (/admin), le plan dit ce
+// qu'on peut creer (quotas, src/lib/quotas.ts).
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum UserPlan {
+  FREE
+  UNLIMITED
+}
+
+// Origine du plan : DEFAULT = valeur d'inscription, MANUAL = pose par un
+// administrateur (prioritaire sur un futur abonnement, qui ne doit jamais
+// ecraser un compte offert), SUBSCRIPTION = reserve a l'abonnement a venir.
+enum PlanSource {
+  DEFAULT
+  MANUAL
+  SUBSCRIPTION
+}
+
 model World {
   id          String       @id @default(cuid())
   name        String
@@ -191,19 +213,47 @@ model Image {
 }
 
 model User {
-  id            String    @id
+  id            String          @id
   name          String
   email         String
-  emailVerified Boolean   @default(false)
+  emailVerified Boolean         @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   sessions      Session[]
   accounts      Account[]
   worlds        World[]
+  // KAN-72 : colonnes a DEFAULT, hors du perimetre de Better Auth (aucun
+  // additionalFields dans auth.ts) - le role se relit en base a chaque appel,
+  // jamais depuis la session.
+  role          UserRole        @default(USER)
+  plan          UserPlan        @default(FREE)
+  planSource    PlanSource      @default(DEFAULT)
+  adminActions  AdminAuditLog[] @relation("AdminActor")
+  adminHistory  AdminAuditLog[] @relation("AdminTarget")
 
   @@unique([email])
   @@map("user")
+}
+
+// Journal des actions d'administration (KAN-72, ADR-0029) : qui a change quoi
+// sur quel compte, quand, pourquoi. Ecrit dans la meme transaction que le
+// changement qu'il trace. actor sans onDelete (RESTRICT) : un compte qui a
+// agi comme administrateur ne se supprime pas tant que ses lignes existent.
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorId      String
+  actor        User     @relation("AdminActor", fields: [actorId], references: [id])
+  targetUserId String
+  target       User     @relation("AdminTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  // "plan.change" | "role.change" (constantes TS, pas d'enum SQL : la liste va grandir)
+  action       String
+  before       Json
+  after        Json
+  reason       String
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId, createdAt])
 }
 
 model Session {

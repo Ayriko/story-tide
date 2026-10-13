@@ -3,10 +3,9 @@ import { prisma } from "@/db/client";
 import type { CreateEntityInput, UpdateEntityInput } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, extractPlainText } from "@/lib/tiptap-content";
 import { normalizeForMatch } from "@/lib/linker/normalize";
-import { FREE_ENTITY_LIMIT_PER_WORLD } from "@/lib/quotas";
 import type { Alias, Entity } from "@/generated/prisma/client";
 import { AliasSource, WorldOrigin } from "@/generated/prisma/client";
-import { getWorld } from "./world-service";
+import { getOwnerLimits, getWorld } from "./world-service";
 // Import a sens unique deliberement etroit (KAN-60) : seule la classe
 // d'erreur traverse la frontiere, jamais une fonction de folder-service.ts -
 // exception ciblee au principe "deux regroupements independants" (KAN-38),
@@ -38,8 +37,8 @@ export class EntityNotFoundError extends Error {
 }
 
 export class EntityQuotaExceededError extends Error {
-  constructor() {
-    super("Limite d'entrées atteinte pour ce monde (offre gratuite : 50 maximum).");
+  constructor(limit: number) {
+    super(`Limite d'entrées atteinte pour ce monde (offre gratuite : ${limit} maximum).`);
     this.name = "EntityQuotaExceededError";
   }
 }
@@ -51,7 +50,9 @@ export class EntityQuotaExceededError extends Error {
 
 // Quota saute entierement (aucune requete count) si le monde n'est pas USER
 // (INTRO/DEMO, KAN-18) - getWorld a deja renvoye l'objet complet, aucune
-// requete supplementaire necessaire pour lire ce champ.
+// requete supplementaire necessaire pour lire ce champ. Pour un monde USER,
+// la limite vient du plan du proprietaire (KAN-72) : plan sans plafond =
+// aucune requete count non plus.
 //
 // .normalize("NFC") sur name/aliases (diagnostic session normalisation
 // Unicode, ADR-0020) : garantit qu'aucune donnee stockee n'arrive en forme
@@ -70,9 +71,12 @@ export async function createEntity(
 ): Promise<EntityRecord> {
   const world = await getWorld(ownerId, worldId);
   if (world.origin === WorldOrigin.USER) {
-    const count = await prisma.entity.count({ where: { worldId } });
-    if (count >= FREE_ENTITY_LIMIT_PER_WORLD) {
-      throw new EntityQuotaExceededError();
+    const { entitiesPerWorld: entityLimit } = await getOwnerLimits(ownerId);
+    if (entityLimit !== null) {
+      const count = await prisma.entity.count({ where: { worldId } });
+      if (count >= entityLimit) {
+        throw new EntityQuotaExceededError(entityLimit);
+      }
     }
   }
   const entity = await prisma.entity.create({
