@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ShieldCheck } from "lucide-react";
 
 // Pied de page partage entre (auth) et (app) (KAN-45 - canal officiel de
 // retours beta). <footer> natif = landmark "contentinfo" implicite : ce
@@ -21,7 +21,11 @@ const LINK_CLASSNAME =
 // pouvoir diverger.
 export const FOOTER_ID = "site-footer";
 
-export function Footer() {
+// showAdminLink (KAN-72) : lu en base cote serveur par l'appelant (isAdmin(),
+// src/lib/auth-session.ts), jamais depuis la session ; faux par defaut, donc
+// absent des pages publiques ((auth), mentions legales). Le lien n'est qu'un
+// raccourci : la garde reelle est sur /admin lui-meme.
+export function Footer({ showAdminLink = false }: { showAdminLink?: boolean }) {
   const year = new Date().getFullYear();
 
   return (
@@ -29,6 +33,15 @@ export function Footer() {
       <div className="mx-auto flex max-w-[1150px] flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
         <p className="text-muted-foreground">© {year} Tidemark Studio</p>
         <nav aria-label="Liens légaux et support" className="flex items-center gap-4">
+          {showAdminLink ? (
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-foreground hover:border-link hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <ShieldCheck aria-hidden="true" className="size-3.5" />
+              Administration
+            </Link>
+          ) : null}
           <Link href="/mentions-legales" className={LINK_CLASSNAME}>
             Mentions légales
           </Link>
