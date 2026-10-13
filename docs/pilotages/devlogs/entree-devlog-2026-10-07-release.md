@@ -35,7 +35,7 @@
 
 **À faire / suite :**
 - Committer ce lot : `docs/manuels/exploitation-vps.md`, `docs/README.md`, `docs/cahier-recettes.md`, cette entrée, la capture (`docs(ops): manuel d'exploitation VPS, recette v1.5.1, devlog`).
-- Skills candidates du jour (à écrire en session Claude Code) : `prisma generate` après changement de branche · conflit CHANGELOG `[Unreleased]` entre branches · collage PowerShell une ligne par étape · lecture d'un `.env` Compose depuis bash.
+- ~~Skills candidates du jour~~ **Fait le 07/10 (Cowork)** : 13 skills écrites dans `.claude/skills/` et commitées — 4 du jour (`prisma-generate-after-branch-switch`, `changelog-unreleased-merge-conflict`, `powershell-paste-one-line`, `compose-env-read-from-bash`), 3 du 04/10 (`prisma-updatedat-system-write`, `python-text-write-crlf-windows`, `vitest-clearallmocks-once-queue`), 6 plus anciennes jamais extraites (`use-server-module-async-only`, `playwright-getbylabel-exact`, `env-var-seven-places`, `scroll-smooth-measurement`, `unicode-normalize-index-remap` alignée sur ADR-0020, `playwright-reload-topass-click` alignée sur `link-ignore.spec.ts`). Cinq candidats écartés car déjà couverts. Plus aucun « candidat skill » en attente dans ce journal.
 - Dette : `openssl` dans le stage `migrate` ; garde-fou `fetch` de `scripts/release.ts` (toujours en attente, non traité dans cette RC).
 - Flake `folder-organization.spec.ts` : à surveiller à la prochaine suite complète, ticket si récidive.
 - Prochain lot : KAN-69 (prompt `claude/prompt-session-kan-69.md`).
