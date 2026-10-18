@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { requireSessionOrRedirect } from "@/lib/auth-session";
+import { isAdmin, requireSessionOrRedirect } from "@/lib/auth-session";
 import { listWorlds } from "@/services/world-service";
 import { Card } from "@/components/ui/card";
 import { Footer } from "../../footer";
@@ -24,7 +24,10 @@ export const metadata: Metadata = {
 // jamais dans une sidebar).
 export default async function WorldsPage() {
   const session = await requireSessionOrRedirect();
-  const worlds = await listWorlds(session.user.id);
+  const [worlds, admin] = await Promise.all([
+    listWorlds(session.user.id),
+    isAdmin(session.user.id),
+  ]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -118,7 +121,7 @@ export default async function WorldsPage() {
           </Card>
         </main>
         <ScrollHint />
-        <Footer />
+        <Footer showAdminLink={admin} />
       </div>
     </div>
   );

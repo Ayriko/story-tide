@@ -20,7 +20,7 @@ logiciel, Bac+5). Studio fictif commanditaire : Tidemark Studio. Développeur : 
    focus visible, contrastes, labels — dès le premier composant).
 4. **C2.3.1 Recette** : /docs/cahier-recettes.md tenu à jour quand une
    fonctionnalité est livrée. Nomenclature TST-<CAT>-<NNN> (AUT, MND, ENT, LNK, GRF,
-   SEC, QOT), 6 champs par scénario (Description, Objectif, Préconditions, Étapes,
+   SEC, QOT, ADM), 6 champs par scénario (Description, Objectif, Préconditions, Étapes,
    Résultat attendu, Critères d'acceptation), cas passants ET cas d'échec, scénarios
    sécurité dédiés. Bogues : P0 <24h / P1 <72h / P2 planifié, correctif toujours
    accompagné d'un test de non-régression.

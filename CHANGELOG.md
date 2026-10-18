@@ -5,6 +5,22 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+### Ajouté
+
+- Page d'administration `/admin` (KAN-72), réservée aux comptes de rôle
+  `ADMIN` : tableau de bord (utilisateurs, contenu, activité sur 30 jours,
+  comptes gratuits proches d'un plafond, version déployée), liste paginée des
+  utilisateurs avec recherche, et fiche par compte. Depuis la fiche, un
+  administrateur change le plan (`FREE` / `UNLIMITED`) ou le rôle d'un compte
+  avec une raison obligatoire ; chaque changement est écrit dans un journal
+  consultable sur la fiche. Les quotas de l'offre gratuite lisent désormais le
+  plan du compte : `UNLIMITED` lève les plafonds de mondes et d'entrées. Pour
+  tout autre visiteur, `/admin` répond comme une route inexistante (ADR-0029).
+  Première promotion par `npm run admin:promote -- <email>` en développement,
+  par deux requêtes SQL en production (manuel d'exploitation §4). Migration
+  additive (trois colonnes à valeur par défaut sur `user`, table
+  `AdminAuditLog`).
+
 ## [1.5.1] - 2026-10-07
 
 ### Modifié

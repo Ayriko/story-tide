@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { requireSessionOrRedirect } from "@/lib/auth-session";
+import { isAdmin, requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { getFolderTree, getUnfiledEntities } from "@/services/folder-service";
@@ -41,10 +41,11 @@ export default async function WorldLayout({
 
   // Sans dependance d'ordre entre elles (chacune revalide l'appartenance au
   // monde via son propre getWorld interne) - KAN-57.
-  const [entities, folderTree, unfiledEntities] = await Promise.all([
+  const [entities, folderTree, unfiledEntities, admin] = await Promise.all([
     listEntities(session.user.id, world.id),
     getFolderTree(session.user.id, world.id),
     getUnfiledEntities(session.user.id, world.id),
+    isAdmin(session.user.id),
   ]);
 
   return (
@@ -62,6 +63,7 @@ export default async function WorldLayout({
       }))}
       userName={session.user.name}
       userEmail={session.user.email}
+      userIsAdmin={admin}
     >
       {children}
     </WorldShell>

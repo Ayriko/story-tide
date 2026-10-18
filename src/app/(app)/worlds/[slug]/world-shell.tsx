@@ -59,6 +59,7 @@ export function WorldShell({
   unfiledEntities,
   userName,
   userEmail,
+  userIsAdmin,
   children,
 }: {
   worldId: string;
@@ -69,6 +70,7 @@ export function WorldShell({
   unfiledEntities: EntitySearchResult[];
   userName: string;
   userEmail: string;
+  userIsAdmin: boolean;
   children: ReactNode;
 }) {
   const collapsed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -225,7 +227,7 @@ export function WorldShell({
             </Card>
           </main>
           <ScrollHint />
-          <Footer />
+          <Footer showAdminLink={userIsAdmin} />
         </div>
       </div>
     </div>

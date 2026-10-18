@@ -46,8 +46,19 @@ test("surlignage live + navigation (liste accessible et Ctrl/Cmd+clic)", async (
   // 3. Retour au monde, creer la fiche SOURCE (celle qui va mentionner la cible).
   await page.goto(worldUrl);
   const sourceName = `Chronique ${Date.now()}`;
-  await page.getByTestId("create-entity-trigger").click();
-  await page.getByLabel("Nom", { exact: true }).fill(sourceName);
+  // Juste apres un goto, la page peut ne pas etre encore hydratee : le clic
+  // sur le declencheur part alors dans le vide et la modale ne s'ouvre jamais
+  // (flake CI : "waiting for getByLabel('Nom')" jusqu'au timeout du test).
+  // Clic et ouverture de la modale dans le meme retry ; isVisible() evite de
+  // recliquer sous l'overlay d'une modale deja ouverte.
+  const nomField = page.getByLabel("Nom", { exact: true });
+  await expect(async () => {
+    if (!(await nomField.isVisible())) {
+      await page.getByTestId("create-entity-trigger").click();
+    }
+    await expect(nomField).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  await nomField.fill(sourceName);
   await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
   const sourceUrl = page.url();
