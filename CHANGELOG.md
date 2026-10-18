@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-18
+
 ### Ajouté
 
 - Page d'administration `/admin` (KAN-72), réservée aux comptes de rôle
