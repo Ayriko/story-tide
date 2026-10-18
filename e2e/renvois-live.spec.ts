@@ -41,7 +41,15 @@ test("Renvois se met a jour seul apres le scan du worker", async ({ page }) => {
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   await page.goto(worldUrl);
-  await page.getByTestId("create-entity-trigger").click();
+  // Apres un goto, le clic peut partir avant l'hydratation et ne jamais
+  // ouvrir la modale (flake CI) : clic et ouverture dans le meme retry, cf.
+  // link-highlight.spec.ts.
+  await expect(async () => {
+    if (!(await page.getByLabel("Nom", { exact: true }).isVisible())) {
+      await page.getByTestId("create-entity-trigger").click();
+    }
+    await expect(page.getByLabel("Nom", { exact: true })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Nom", { exact: true }).fill(`Annales ${Date.now()}`);
   await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);

@@ -92,14 +92,30 @@ test("le quota d'entites bloque la creation au-dela de 50 fiches gratuites par m
 
   // 50e fiche (via UI) : juste sous la limite, doit reussir.
   await page.goto(worldUrl);
-  await page.getByTestId("create-entity-trigger").click();
+  // Apres un goto, le clic peut partir avant l'hydratation et ne jamais
+  // ouvrir la modale (flake CI) : clic et ouverture dans le meme retry, cf.
+  // link-highlight.spec.ts.
+  await expect(async () => {
+    if (!(await page.getByLabel("Nom", { exact: true }).isVisible())) {
+      await page.getByTestId("create-entity-trigger").click();
+    }
+    await expect(page.getByLabel("Nom", { exact: true })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Nom", { exact: true }).fill(`Fiche 50 ${Date.now()}`);
   await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
 
   // 51e fiche (via UI) : a la limite, doit etre bloquee.
   await page.goto(worldUrl);
-  await page.getByTestId("create-entity-trigger").click();
+  // Apres un goto, le clic peut partir avant l'hydratation et ne jamais
+  // ouvrir la modale (flake CI) : clic et ouverture dans le meme retry, cf.
+  // link-highlight.spec.ts.
+  await expect(async () => {
+    if (!(await page.getByLabel("Nom", { exact: true }).isVisible())) {
+      await page.getByTestId("create-entity-trigger").click();
+    }
+    await expect(page.getByLabel("Nom", { exact: true })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Nom", { exact: true }).fill(`Fiche 51 ${Date.now()}`);
   await page.getByTestId("create-entity-submit").click();
   await expect(

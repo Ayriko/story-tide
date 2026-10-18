@@ -49,7 +49,15 @@ test("mention manuelle @ : popup, insertion, relation MANUAL bidirectionnelle", 
   // 3. Creer la fiche SOURCE (celle qui va mentionner la cible via @).
   await page.goto(worldUrl);
   const sourceName = `Chronique ${Date.now()}`;
-  await page.getByTestId("create-entity-trigger").click();
+  // Apres un goto, le clic peut partir avant l'hydratation et ne jamais
+  // ouvrir la modale (flake CI) : clic et ouverture dans le meme retry, cf.
+  // link-highlight.spec.ts.
+  await expect(async () => {
+    if (!(await page.getByLabel("Nom", { exact: true }).isVisible())) {
+      await page.getByTestId("create-entity-trigger").click();
+    }
+    await expect(page.getByLabel("Nom", { exact: true })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Nom", { exact: true }).fill(sourceName);
   await page.getByTestId("create-entity-submit").click();
   await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
