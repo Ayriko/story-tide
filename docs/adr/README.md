@@ -37,3 +37,4 @@
 | 0027 | Accent périwinkle de l'artwork remonté au thème global, séparé en deux tokens | accepté | 2026-09-08 |
 | 0028 | Migration de MinIO vers Silo (fork communautaire maintenu) | accepté | 2026-10-07 |
 | 0029 | Rôle et plan utilisateur, journal d'administration | accepté | 2026-10-13 |
+| 0030 | Types d'entrées personnalisés par monde | accepté | 2026-10-20 |

@@ -52,6 +52,11 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
   `world-service.ts` avant tout accès à une fiche — un monde non possédé bloque l'accès
   à ses entités avant même de les chercher. Patron à reproduire pour toute ressource
   imbriquée dans un monde (relations, futur graphe).
+- **Résolveur unique du type d'une entrée** (KAN-81, ADR-0030) :
+  `src/lib/entity-types.ts` (TS pur) résout clé, libellé, groupe et icône d'une entrée,
+  native ou personnalisée, à partir du catalogue du monde. Ce catalogue est chargé une
+  fois par rendu (`getWorldTypeCatalog`, `cache()`) et posé en contexte client. Aucun
+  affichage ne lit `entity.type` directement.
 - **Schéma de contenu partagé client/serveur** : `src/lib/tiptap-extensions.ts` définit
   une seule fois l'allowlist de nodes/marks de l'éditeur, utilisée à la fois par le
   composant client (`EntityEditor`) et par la validation serveur
