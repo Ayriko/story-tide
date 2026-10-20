@@ -4,14 +4,14 @@ import type { FolderTreeNode } from "@/services/folder-service";
 // React/DOM, appelable tel quel depuis le Server Component layout.tsx comme
 // depuis folder-tree.tsx cote client (KAN-57).
 
-export type EntityLite = { id: string; name: string; type: string };
+export type EntityLite = { id: string; name: string; type: string; customTypeId: string | null };
 
 // Union unifiee dossier/entite - un dossier reel (FolderTreeNode) et le
 // panier "Non classe" (getUnfiledEntities) partagent la meme forme "folder"
 // pour que l'arbre les traite de facon identique (pliable, meme rendu).
 export type TreeNode =
   | { kind: "folder"; id: string; name: string; children: TreeNode[] }
-  | { kind: "entity"; id: string; name: string; type: string };
+  | { kind: "entity"; id: string; name: string; type: string; customTypeId: string | null };
 
 export const UNFILED_NODE_ID = "__unfiled__";
 const UNFILED_NODE_NAME = "Non classé";
@@ -34,6 +34,7 @@ function toFolderNode(folder: FolderTreeNode): TreeNode {
         id: entity.id,
         name: entity.name,
         type: entity.type,
+        customTypeId: entity.customTypeId,
       })),
     ],
   };

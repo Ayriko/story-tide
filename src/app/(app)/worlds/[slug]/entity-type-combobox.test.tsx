@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderInWorld } from "@/test-utils/render-in-world";
 import userEvent from "@testing-library/user-event";
 import { EntityTypeCombobox } from "./entity-type-combobox";
 
@@ -9,7 +10,7 @@ function hiddenValue(container: HTMLElement): string | null {
 
 describe("EntityTypeCombobox", () => {
   it("affiche le libelle du type par defaut, avec le vrai id soumis en input cache", () => {
-    const { container } = render(
+    const { container } = renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -19,7 +20,7 @@ describe("EntityTypeCombobox", () => {
 
   it("ouvre la liste groupee au focus et filtre au fil de la frappe", async () => {
     const user = userEvent.setup();
-    render(
+    renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -38,7 +39,7 @@ describe("EntityTypeCombobox", () => {
 
   it("le clic sur une option la selectionne (texte affiche + input cache)", async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const { container } = renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -52,7 +53,7 @@ describe("EntityTypeCombobox", () => {
 
   it("affiche un etat vide quand aucun type ne correspond a la recherche", async () => {
     const user = userEvent.setup();
-    render(
+    renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -65,7 +66,7 @@ describe("EntityTypeCombobox", () => {
 
   it("ArrowDown deplace la selection active, Enter valide", async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const { container } = renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -79,7 +80,7 @@ describe("EntityTypeCombobox", () => {
 
   it("le dernier type du dernier groupe reste atteignable au clavier (non-regression : panneau rogne par un ancetre overflow-hidden)", async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const { container } = renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -100,7 +101,7 @@ describe("EntityTypeCombobox", () => {
 
   it("Echap ferme la liste sans changer la selection", async () => {
     const user = userEvent.setup();
-    const { container } = render(
+    const { container } = renderInWorld(
       <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
     );
 
@@ -113,7 +114,7 @@ describe("EntityTypeCombobox", () => {
 
   it("revient au libelle du dernier type valide si le texte tape ne correspond a rien, au blur", async () => {
     const user = userEvent.setup();
-    render(
+    renderInWorld(
       <div>
         <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />
         <button type="button">Ailleurs</button>
@@ -126,5 +127,59 @@ describe("EntityTypeCombobox", () => {
     await user.click(screen.getByRole("button", { name: "Ailleurs" }));
 
     expect(input).toHaveValue("Personnage");
+  });
+
+  // KAN-81 : types du monde (catalogue en contexte).
+  describe("types du monde (KAN-81)", () => {
+    const CATALOG = {
+      custom: [{ id: "ct-ship", label: "Vaisseau", group: "Objets", icon: "ship" }],
+      hidden: ["prophecy"],
+    };
+
+    it("propose un type personnalise dans son groupe, marque perso, et soumet custom + id", async () => {
+      const user = userEvent.setup();
+      const { container } = renderInWorld(
+        <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
+        { catalog: CATALOG },
+      );
+
+      await user.click(screen.getByRole("combobox", { name: "Type" }));
+      await user.click(screen.getByRole("option", { name: "Vaisseau (type personnalisé)" }));
+
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("Vaisseau");
+      expect(hiddenValue(container)).toBe("custom");
+      expect(container.querySelector<HTMLInputElement>('input[name="customTypeId"]')?.value).toBe(
+        "ct-ship",
+      );
+    });
+
+    it("n'affiche pas un type natif masque", async () => {
+      const user = userEvent.setup();
+      renderInWorld(
+        <EntityTypeCombobox id="entity-type" name="type" label="Type" defaultValue="character" />,
+        { catalog: CATALOG },
+      );
+
+      await user.click(screen.getByRole("combobox", { name: "Type" }));
+      expect(screen.queryByRole("option", { name: "Prophétie" })).not.toBeInTheDocument();
+    });
+
+    it("garde le type courant masque de l'entree modifiee (keepTypeKey)", async () => {
+      const user = userEvent.setup();
+      renderInWorld(
+        <EntityTypeCombobox
+          id="entity-type"
+          name="type"
+          label="Type"
+          defaultValue="prophecy"
+          keepTypeKey="prophecy"
+        />,
+        { catalog: CATALOG },
+      );
+
+      expect(screen.getByRole("combobox", { name: "Type" })).toHaveValue("Prophétie");
+      await user.click(screen.getByRole("combobox", { name: "Type" }));
+      expect(screen.getByRole("option", { name: "Prophétie" })).toBeInTheDocument();
+    });
   });
 });

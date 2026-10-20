@@ -5,6 +5,8 @@ import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { listWorldRelations } from "@/services/relation-service";
+import { getWorldTypeCatalog } from "@/services/entity-type-service";
+import { resolveEntityType } from "@/lib/entity-types";
 import { buildAccessibleGraphEntries, buildGraphElements } from "@/lib/graph-elements";
 import { Button } from "@/components/ui/button";
 import { GraphAccessibleDisclosure } from "./graph-accessible-disclosure";
@@ -24,16 +26,22 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
     throw error;
   }
 
-  const [entities, relations] = await Promise.all([
+  const [entities, relations, typeCatalog] = await Promise.all([
     listEntities(session.user.id, world.id),
     listWorldRelations(session.user.id, world.id),
+    getWorldTypeCatalog(session.user.id, world.id),
   ]);
 
-  const entityInputs = entities.map((entity) => ({
-    id: entity.id,
-    name: entity.name,
-    type: entity.type,
-  }));
+  const entityInputs = entities.map((entity) => {
+    const resolved = resolveEntityType(entity, typeCatalog);
+    return {
+      id: entity.id,
+      name: entity.name,
+      typeKey: resolved.key,
+      typeLabel: resolved.label,
+      group: resolved.group,
+    };
+  });
   const elements = buildGraphElements(entityInputs, relations);
   const accessibleEntries = buildAccessibleGraphEntries(entityInputs, relations);
 

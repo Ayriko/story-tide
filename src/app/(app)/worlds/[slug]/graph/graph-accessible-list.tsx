@@ -27,6 +27,9 @@ export function GraphAccessibleList({
             >
               {entry.name}
             </Link>
+            {/* Type resolu (KAN-81), hors du nom accessible du lien : ce nom
+                reste le seul nom de l'entree. */}
+            <span className="ml-2 text-xs text-muted-foreground">{entry.typeLabel}</span>
             <ul className="mt-1 flex flex-col gap-1 pl-4">
               {entry.outgoing.map((target) => (
                 <li key={target.id}>
@@ -39,6 +42,7 @@ export function GraphAccessibleList({
                         fleche double pour le signaler visuellement. */}
                     {target.mutual ? "↔" : "→"} {target.name}
                   </Link>
+                  <span className="ml-2 text-xs text-muted-foreground">{target.typeLabel}</span>
                 </li>
               ))}
             </ul>

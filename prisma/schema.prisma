@@ -55,33 +55,38 @@ enum PlanSource {
 }
 
 model World {
-  id          String       @id @default(cuid())
-  name        String
-  slug        String
-  ownerId     String
-  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  origin      WorldOrigin  @default(USER)
+  id                String             @id @default(cuid())
+  name              String
+  slug              String
+  ownerId           String
+  owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  origin            WorldOrigin        @default(USER)
   // Epinglage (quick win 2.5) : proprietaire unique par monde pour le moment
   // (hypothese assumee, cf. commentaire de pinWorld/unpinWorld dans
   // world-service.ts) - nullable, colonne seule dans sa migration, jamais
   // fusionnee avec celle de KAN-38.
-  pinnedAt    DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  entities    Entity[]
-  relations   Relation[]
-  linkIgnores LinkIgnore[]
-  images      Image[]
-  folders     Folder[]
+  pinnedAt          DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  entities          Entity[]
+  relations         Relation[]
+  linkIgnores       LinkIgnore[]
+  images            Image[]
+  folders           Folder[]
+  // Parametrage des types (KAN-81, ADR-0030) : cles NATIVES (ENTITY_TYPES)
+  // non proposees a la creation dans ce monde. Les entrees existantes de ces
+  // types les gardent et les affichent.
+  hiddenEntityTypes String[]           @default([])
+  customEntityTypes CustomEntityType[]
 
   @@unique([ownerId, slug])
   @@index([ownerId])
 }
 
 model Entity {
-  id             String   @id @default(cuid())
+  id             String            @id @default(cuid())
   worldId        String
-  world          World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  world          World             @relation(fields: [worldId], references: [id], onDelete: Cascade)
   name           String
   type           String // "character"|"place"|... - donnee, pas schema
   content        Json // JSON ProseMirror (Tiptap)
@@ -96,14 +101,23 @@ model Entity {
   // onDelete: SetNull (jamais Cascade) - supprimer un dossier ne supprime
   // jamais une entite, seulement sa position (voir folder-service.ts).
   folderId       String?
-  folder         Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  folder         Folder?           @relation(fields: [folderId], references: [id], onDelete: SetNull)
   // Signal de fin de scan (KAN-77) : contentVersion incremente a chaque
   // sauvegarde de contenu, scannedVersion = version lue par le dernier job de
   // liaison termine. scannedVersion >= contentVersion => "Renvois" a jour.
-  contentVersion Int      @default(0)
-  scannedVersion Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  contentVersion Int               @default(0)
+  scannedVersion Int               @default(0)
+  // Type personnalise du monde (KAN-81, ADR-0030) : renseigne si et seulement
+  // si type = "custom" (contrainte CHECK posee en SQL dans la migration,
+  // Prisma ne sait pas la declarer). onDelete: NoAction et PAS Restrict :
+  // RESTRICT est verifie immediatement et ferait echouer la suppression d'un
+  // monde (cascade World -> Entity et World -> CustomEntityType dans la meme
+  // instruction) ; NO ACTION est verifie en fin d'instruction - supprimer un
+  // monde passe, supprimer directement un type encore utilise echoue.
+  customTypeId   String?
+  customType     CustomEntityType? @relation(fields: [customTypeId], references: [id], onDelete: NoAction)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   aliases         Alias[]
   sourceRelations Relation[]   @relation("RelationSource")
@@ -114,6 +128,30 @@ model Entity {
   @@unique([worldId, seedRef])
   @@index([worldId])
   @@index([folderId])
+  @@index([customTypeId])
+}
+
+// Type d'entree propre a un monde (KAN-81, ADR-0030). Le registre natif
+// (26 types) reste en code (entity-schemas.ts) ; une entree d'un type perso
+// porte type = "custom" + customTypeId.
+model CustomEntityType {
+  id        String   @id @default(cuid())
+  worldId   String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  label     String // NFC (ADR-0020), 1 a 40 caracteres
+  // normalizeForMatch(label) : cle de comparaison insensible a la casse et aux
+  // accents - porte l'unicite du libelle dans le monde (pas d'index sur
+  // expression : unaccent n'est pas IMMUTABLE). La collision avec les 26
+  // libelles natifs est verifiee dans le service.
+  labelKey  String
+  group     String // une des 8 cles de ENTITY_TYPE_GROUPS, validee par Zod (pas d'enum, comme Entity.type)
+  icon      String // cle de CUSTOM_TYPE_ICONS ; inconnue -> icone du groupe
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entities  Entity[]
+
+  @@unique([worldId, labelKey])
+  @@index([worldId])
 }
 
 // Organisation FACULTATIVE des entites d'un monde (KAN-38), en arborescence.

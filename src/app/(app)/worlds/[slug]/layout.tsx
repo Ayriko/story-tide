@@ -3,7 +3,9 @@ import { isAdmin, requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { getFolderTree, getUnfiledEntities } from "@/services/folder-service";
+import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import { WorldShell } from "./world-shell";
+import { WorldTypeCatalogProvider } from "./world-type-catalog";
 
 // Shell propre a UN monde (KAN-36 P1/P1-ter, reference-vvd.md §6) : ce
 // Server Component ne fait QUE recuperer les donnees (session, monde,
@@ -41,31 +43,43 @@ export default async function WorldLayout({
 
   // Sans dependance d'ordre entre elles (chacune revalide l'appartenance au
   // monde via son propre getWorld interne) - KAN-57.
-  const [entities, folderTree, unfiledEntities, admin] = await Promise.all([
+  // Catalogue des types (KAN-81) : une requete, partagee par cache() avec
+  // les pages serveur du meme rendu, posee en contexte client autour du shell.
+  const [entities, folderTree, unfiledEntities, admin, typeCatalog] = await Promise.all([
     listEntities(session.user.id, world.id),
     getFolderTree(session.user.id, world.id),
     getUnfiledEntities(session.user.id, world.id),
     isAdmin(session.user.id),
+    getWorldTypeCatalog(session.user.id, world.id),
   ]);
 
   return (
-    <WorldShell
-      worldId={world.id}
-      worldName={world.name}
-      worldSlug={world.slug}
-      entities={entities.map(({ id, name, type, folderId }) => ({ id, name, type, folderId }))}
-      folderTree={folderTree}
-      unfiledEntities={unfiledEntities.map(({ id, name, type, folderId }) => ({
-        id,
-        name,
-        type,
-        folderId,
-      }))}
-      userName={session.user.name}
-      userEmail={session.user.email}
-      userIsAdmin={admin}
-    >
-      {children}
-    </WorldShell>
+    <WorldTypeCatalogProvider catalog={typeCatalog}>
+      <WorldShell
+        worldId={world.id}
+        worldName={world.name}
+        worldSlug={world.slug}
+        entities={entities.map(({ id, name, type, customTypeId, folderId }) => ({
+          id,
+          name,
+          type,
+          customTypeId,
+          folderId,
+        }))}
+        folderTree={folderTree}
+        unfiledEntities={unfiledEntities.map(({ id, name, type, customTypeId, folderId }) => ({
+          id,
+          name,
+          type,
+          customTypeId,
+          folderId,
+        }))}
+        userName={session.user.name}
+        userEmail={session.user.email}
+        userIsAdmin={admin}
+      >
+        {children}
+      </WorldShell>
+    </WorldTypeCatalogProvider>
   );
 }

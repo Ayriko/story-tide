@@ -3,12 +3,13 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { createEntityAction, type EntityFormState } from "@/actions/entity";
-import { ENTITY_TYPES } from "@/lib/entity-schemas";
+import { selectableTypes } from "@/lib/entity-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityTypeCombobox } from "./entity-type-combobox";
+import { useWorldTypeCatalog } from "./world-type-catalog";
 
 const initialState: EntityFormState = {};
 
@@ -25,6 +26,9 @@ function SubmitButton() {
 // "chrome" vient du Dialog englobant (create-entity-dialog.tsx).
 export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worldSlug: string }) {
   const [state, formAction] = useActionState(createEntityAction, initialState);
+  // Premier type proposable du monde (KAN-81) : Personnage sauf s'il est
+  // masque.
+  const defaultTypeKey = selectableTypes(useWorldTypeCatalog())[0]?.types[0]?.key ?? "";
 
   return (
     <form action={formAction} noValidate className="flex flex-col gap-3">
@@ -60,7 +64,7 @@ export function CreateEntityForm({ worldId, worldSlug }: { worldId: string; worl
         id="entity-type"
         name="type"
         label="Type"
-        defaultValue={state.values?.type ?? ENTITY_TYPES[0]}
+        defaultValue={state.values?.type ?? defaultTypeKey}
         invalid={Boolean(state.errors?.type)}
         describedBy={state.errors?.type ? "entity-type-error" : undefined}
       />

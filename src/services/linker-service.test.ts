@@ -90,6 +90,7 @@ function makeEntity(overrides: Partial<Entity> & { aliases?: Alias[] } = {}): En
     folderId: null,
     contentVersion: 0,
     scannedVersion: 0,
+    customTypeId: null,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...entityOverrides,

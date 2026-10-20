@@ -21,14 +21,15 @@ export function EntitySettingsDialog({
   worldSlug,
   entityId,
   name,
-  type,
+  typeKey,
   aliases,
 }: {
   worldId: string;
   worldSlug: string;
   entityId: string;
   name: string;
-  type: string;
+  // Cle de type resolue (KAN-81) : native ou `custom:<id>`.
+  typeKey: string;
   aliases: string[];
 }) {
   return (
@@ -48,7 +49,7 @@ export function EntitySettingsDialog({
           worldSlug={worldSlug}
           entityId={entityId}
           name={name}
-          type={type}
+          typeKey={typeKey}
           aliases={aliases}
         />
 

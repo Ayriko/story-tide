@@ -19,8 +19,26 @@ describe("createEntitySchema", () => {
     expect(result).toEqual({
       name: "Aeliana",
       type: "character",
+      customTypeId: null,
       aliases: ["La Reine", "L'Ombre"],
     });
+  });
+
+  it("accepte un type personnalise avec son customTypeId (KAN-81)", () => {
+    const result = createEntitySchema.safeParse({
+      name: "Aube Grise",
+      type: "custom",
+      customTypeId: "ct-ship",
+    });
+    expect(result.success && result.data.customTypeId).toBe("ct-ship");
+  });
+
+  it("rejette custom sans customTypeId, et un type natif avec customTypeId (KAN-81)", () => {
+    expect(createEntitySchema.safeParse({ name: "A", type: "custom" }).success).toBe(false);
+    expect(
+      createEntitySchema.safeParse({ name: "A", type: "character", customTypeId: "ct-ship" })
+        .success,
+    ).toBe(false);
   });
 
   it("applique un tableau d'aliases vide par defaut", () => {

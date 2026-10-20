@@ -29,7 +29,7 @@ function makeFolderNode(overrides: Partial<FolderTreeNode> = {}): FolderTreeNode
 }
 
 function makeEntity(overrides: Partial<EntityLite> = {}): EntityLite {
-  return { id: "e1", name: "Aeliana", type: "character", ...overrides };
+  return { id: "e1", name: "Aeliana", type: "character", customTypeId: null, ...overrides };
 }
 
 // Objet complet (meme convention que linker-service.test.ts/entity-service.test.ts) -
@@ -46,6 +46,7 @@ function makeFolderEntity(overrides: Partial<Entity> = {}): Entity {
     folderId: "f1",
     contentVersion: 0,
     scannedVersion: 0,
+    customTypeId: null,
     createdAt: new Date("2026-09-01T00:00:00.000Z"),
     updatedAt: new Date("2026-09-01T00:00:00.000Z"),
     ...overrides,
@@ -84,8 +85,8 @@ describe("buildTreeNodes", () => {
     const unfiled = tree[0];
     if (!unfiled || unfiled.kind !== "folder") throw new Error("unreachable");
     expect(unfiled.children).toEqual([
-      { kind: "entity", id: "e1", name: "Aeliana", type: "character" },
-      { kind: "entity", id: "e2", name: "Aeliana", type: "character" },
+      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+      { kind: "entity", id: "e2", name: "Aeliana", type: "character", customTypeId: null },
     ]);
   });
 
@@ -113,7 +114,7 @@ describe("buildTreeNodes", () => {
       name: "Royaumes",
       children: [
         { kind: "folder", id: "f2", name: "Nord", children: [] },
-        { kind: "entity", id: "e1", name: "Aeliana", type: "character" },
+        { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
       ],
     });
   });
@@ -246,7 +247,9 @@ describe("moveEntityInTree", () => {
     const f2 = after.find((n) => n.kind === "folder" && n.id === "f2");
     if (f1?.kind !== "folder" || f2?.kind !== "folder") throw new Error("unreachable");
     expect(f1.children).toEqual([]);
-    expect(f2.children).toEqual([{ kind: "entity", id: "e1", name: "Aeliana", type: "character" }]);
+    expect(f2.children).toEqual([
+      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+    ]);
   });
 
   it("deplace une entite de Non classe vers un vrai dossier", () => {
@@ -255,7 +258,9 @@ describe("moveEntityInTree", () => {
     const f1 = after.find((n) => n.kind === "folder" && n.id === "f1");
     const unfiled = after.find((n) => n.kind === "folder" && n.id === UNFILED_NODE_ID);
     if (f1?.kind !== "folder" || unfiled?.kind !== "folder") throw new Error("unreachable");
-    expect(f1.children).toEqual([{ kind: "entity", id: "e1", name: "Aeliana", type: "character" }]);
+    expect(f1.children).toEqual([
+      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+    ]);
     expect(unfiled.children).toEqual([]);
   });
 
@@ -268,7 +273,7 @@ describe("moveEntityInTree", () => {
     if (f1?.kind !== "folder" || unfiled?.kind !== "folder") throw new Error("unreachable");
     expect(f1.children).toEqual([]);
     expect(unfiled.children).toEqual([
-      { kind: "entity", id: "e1", name: "Aeliana", type: "character" },
+      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
     ]);
   });
 

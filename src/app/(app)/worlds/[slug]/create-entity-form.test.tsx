@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderInWorld } from "@/test-utils/render-in-world";
 import userEvent from "@testing-library/user-event";
 import { CreateEntityForm } from "./create-entity-form";
 import { createEntityAction } from "@/actions/entity";
@@ -16,7 +17,7 @@ describe("CreateEntityForm", () => {
   });
 
   it("associe les labels natifs aux champs nom, type et alias", () => {
-    render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
+    renderInWorld(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
     expect(screen.getByLabelText("Nom")).toBeInTheDocument();
     expect(screen.getByLabelText("Type")).toBeInTheDocument();
@@ -29,7 +30,7 @@ describe("CreateEntityForm", () => {
       values: { name: "Aeliana", type: "character", aliases: "" },
     });
     const user = userEvent.setup();
-    render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
+    renderInWorld(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
     await user.type(screen.getByLabelText("Nom"), "Aeliana");
     await user.click(screen.getByTestId("create-entity-submit"));
@@ -44,7 +45,7 @@ describe("CreateEntityForm", () => {
       values: { name: "   ", type: "character", aliases: "" },
     });
     const user = userEvent.setup();
-    render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
+    renderInWorld(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
     await user.click(screen.getByTestId("create-entity-submit"));
 
@@ -58,7 +59,7 @@ describe("CreateEntityForm", () => {
       values: { name: "", type: "character", aliases: "" },
     });
     const user = userEvent.setup();
-    render(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
+    renderInWorld(<CreateEntityForm worldId="w1" worldSlug="eldoria" />);
 
     await user.click(screen.getByTestId("create-entity-submit"));
 

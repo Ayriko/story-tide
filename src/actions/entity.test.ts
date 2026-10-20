@@ -4,6 +4,8 @@ import { requireSession } from "@/lib/auth-session";
 import { WorldNotFoundError } from "@/services/world-service";
 import { FolderNotFoundError } from "@/services/folder-service";
 import {
+  EntityTypeHiddenError,
+  EntityTypeNotFoundError,
   createEntity,
   deleteEntity,
   moveEntityToFolder,
@@ -70,14 +72,16 @@ describe("searchEntitiesAction", () => {
   it("renvoie les resultats du service quand tout est correct", async () => {
     mockedRequireSession.mockResolvedValueOnce(SESSION);
     mockedSearchEntities.mockResolvedValueOnce([
-      { id: "e1", name: "Aeliana", type: "character", folderId: null },
+      { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
     ]);
 
     const result = await searchEntitiesAction("w1", "Aeliana");
 
     expect(result).toEqual({
       ok: true,
-      entities: [{ id: "e1", name: "Aeliana", type: "character", folderId: null }],
+      entities: [
+        { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
+      ],
     });
     expect(mockedSearchEntities).toHaveBeenCalledWith("owner-1", "w1", "Aeliana");
   });
@@ -153,6 +157,55 @@ describe("createEntityAction", () => {
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/monde-1");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/(app)/worlds/[slug]", "layout");
   });
+
+  // KAN-81 : le combobox poste type="custom" + customTypeId.
+  it("transmet un type personnalise (custom + customTypeId) au service", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedCreateEntity.mockResolvedValueOnce({ id: "e1" } as unknown as Awaited<
+      ReturnType<typeof createEntity>
+    >);
+
+    await createEntityAction(
+      {},
+      formData({
+        worldId: "w1",
+        worldSlug: "monde-1",
+        name: "Aube Grise",
+        type: "custom",
+        customTypeId: "ct-ship",
+        aliases: "",
+      }),
+    );
+
+    expect(mockedCreateEntity).toHaveBeenCalledWith(
+      "owner-1",
+      "w1",
+      expect.objectContaining({ type: "custom", customTypeId: "ct-ship" }),
+    );
+  });
+
+  it("un type introuvable (autre monde) devient une erreur du champ type, sans log", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedCreateEntity.mockRejectedValueOnce(new EntityTypeNotFoundError());
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const state = await createEntityAction(
+      {},
+      formData({
+        worldId: "w1",
+        worldSlug: "monde-1",
+        name: "Aube Grise",
+        type: "custom",
+        customTypeId: "ct-autrui",
+        aliases: "",
+      }),
+    );
+
+    expect(state.errors?.type).toBe("Type introuvable.");
+    expect(state.values?.type).toBe("custom:ct-autrui");
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
 });
 
 describe("updateEntityAction", () => {
@@ -180,6 +233,26 @@ describe("updateEntityAction", () => {
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/monde-1");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/monde-1/entities/e1");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/(app)/worlds/[slug]", "layout");
+  });
+
+  it("un type natif masque devient une erreur du champ type (KAN-81)", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedUpdateEntity.mockRejectedValueOnce(new EntityTypeHiddenError());
+
+    const state = await updateEntityAction(
+      {},
+      formData({
+        worldId: "w1",
+        worldSlug: "monde-1",
+        entityId: "e1",
+        name: "Aldric",
+        type: "prophecy",
+        aliases: "",
+      }),
+    );
+
+    expect(state.errors?.type).toBe("Ce type n'est plus proposé dans ce monde.");
+    expect(mockedRevalidatePath).not.toHaveBeenCalled();
   });
 });
 
@@ -210,6 +283,7 @@ describe("moveEntityToFolderAction", () => {
       folderId: "f1",
       contentVersion: 0,
       scannedVersion: 0,
+      customTypeId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       aliases: [],
@@ -238,6 +312,7 @@ describe("moveEntityToFolderAction", () => {
       folderId: null,
       contentVersion: 0,
       scannedVersion: 0,
+      customTypeId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
       aliases: [],
