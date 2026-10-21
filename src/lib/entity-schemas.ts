@@ -101,11 +101,22 @@ const aliasesSchema = z
     Array.from(new Set(aliases.map((alias) => alias.trim()).filter((alias) => alias.length > 0))),
   );
 
-export const createEntitySchema = z.object({
-  name: z.string().trim().min(1, "Le nom est requis.").max(100, "100 caractères maximum."),
-  type: z.enum(ENTITY_TYPES, "Type invalide."),
-  aliases: aliasesSchema,
-});
+// "custom" (KAN-81, ADR-0030) : sentinelle d'une entree d'un type
+// personnalise du monde - customTypeId obligatoire avec elle, interdit sinon
+// (meme invariant que la contrainte CHECK en base). L'appartenance de
+// customTypeId au monde est verifiee dans le service, jamais ici.
+export const createEntitySchema = z
+  .object({
+    name: z.string().trim().min(1, "Le nom est requis.").max(100, "100 caractères maximum."),
+    type: z.enum([...ENTITY_TYPES, "custom"], "Type invalide."),
+    customTypeId: z.string().trim().min(1).nullable().default(null),
+    aliases: aliasesSchema,
+  })
+  .superRefine((input, context) => {
+    if ((input.type === "custom") !== (input.customTypeId !== null)) {
+      context.addIssue({ code: "custom", path: ["type"], message: "Type invalide." });
+    }
+  });
 
 // Meme forme que la creation : le type peut etre change apres coup.
 export const updateEntitySchema = createEntitySchema;

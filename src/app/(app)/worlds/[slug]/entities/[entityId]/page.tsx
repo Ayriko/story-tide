@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Lightbulb } from "lucide-react";
+import { ArrowLeft, Lightbulb } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
@@ -11,8 +11,10 @@ import {
   listIncomingLinks,
   listOutgoingLinks,
 } from "@/services/relation-service";
-import { entityTypeLabel } from "@/lib/entity-schemas";
+import { resolveEntityType } from "@/lib/entity-types";
+import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
+import { Button } from "@/components/ui/button";
 import { EntityTypeIcon } from "../../entity-type-icon";
 import { EntityEditor } from "./entity-editor";
 import { EntitySettingsDialog } from "./entity-settings-dialog";
@@ -84,15 +86,24 @@ export default async function EntityPage({
   // scheduleSave dans entity-editor.tsx). Les deux vues convergent donc sans
   // action de l'utilisateur, sauf worker indisponible (abandon apres 10 s,
   // console.warn).
-  const [dictionary, ignoredTargetIds, linkedEntities, backlinks, ignoredTargets, worldEntities] =
-    await Promise.all([
-      buildDictionary(world.id),
-      getIgnoredTargetIds(session.user.id, world.id, entity.id),
-      listOutgoingLinks(session.user.id, world.id, entity.id),
-      listIncomingLinks(session.user.id, world.id, entity.id),
-      listIgnoredTargets(session.user.id, world.id, entity.id),
-      listEntities(session.user.id, world.id),
-    ]);
+  const [
+    dictionary,
+    ignoredTargetIds,
+    linkedEntities,
+    backlinks,
+    ignoredTargets,
+    worldEntities,
+    typeCatalog,
+  ] = await Promise.all([
+    buildDictionary(world.id),
+    getIgnoredTargetIds(session.user.id, world.id, entity.id),
+    listOutgoingLinks(session.user.id, world.id, entity.id),
+    listIncomingLinks(session.user.id, world.id, entity.id),
+    listIgnoredTargets(session.user.id, world.id, entity.id),
+    listEntities(session.user.id, world.id),
+    getWorldTypeCatalog(session.user.id, world.id),
+  ]);
+  const resolvedType = resolveEntityType(entity, typeCatalog);
   // Mentions manuelles @ (KAN-22) : liste des entites du monde proposees par
   // la popup de suggestion (entity-editor.tsx), meme convention que
   // `dictionary` - deja chargee avec la page, aucun appel reseau a la frappe.
@@ -105,12 +116,15 @@ export default async function EntityPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <Link
-        href={`/worlds/${world.slug}`}
-        className="w-fit text-sm text-muted-foreground hover:text-foreground hover:underline"
-      >
-        ← {world.name}
-      </Link>
+      {/* Bouton de retour (KAN-81, retour Aymeric) : meme patron que la
+          Constellation (graph/page.tsx) - visuel de bouton, semantique de
+          lien (c'est une navigation). */}
+      <Button asChild variant="outline" size="sm" className="w-fit">
+        <Link href={`/worlds/${world.slug}`}>
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          {world.name}
+        </Link>
+      </Button>
 
       {/* cardHeader dense (KAN-36 P4, reference-vvd.md §3) : remplace le
           header minimal de P2 (titre + sous-titre texte + gear a part). */}
@@ -124,15 +138,15 @@ export default async function EntityPage({
             worldSlug={world.slug}
             entityId={entity.id}
             name={entity.name}
-            type={entity.type}
+            typeKey={resolvedType.key}
             aliases={entity.aliases}
           />
         </div>
         <div className="flex min-w-0 flex-col gap-3 pr-12">
           <h1 className="font-heading text-3xl font-medium text-foreground">{entity.name}</h1>
           <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
-            <EntityTypeIcon type={entity.type} className="size-3.5 text-primary-foreground" />
-            {entityTypeLabel(entity.type)}
+            <EntityTypeIcon icon={resolvedType.icon} className="size-3.5 text-primary-foreground" />
+            {resolvedType.label}
           </span>
           {entity.aliases.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">

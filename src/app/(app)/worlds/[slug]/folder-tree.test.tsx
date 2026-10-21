@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
+import { renderInWorld } from "@/test-utils/render-in-world";
 import userEvent from "@testing-library/user-event";
 import { moveEntityToFolderAction } from "@/actions/entity";
 import { FolderTree } from "./folder-tree";
@@ -49,12 +50,12 @@ function buildFixtureTree(): TreeNode[] {
         ],
       }),
     ],
-    [{ id: "e1", name: "Aeliana", type: "character" }],
+    [{ id: "e1", name: "Aeliana", type: "character", customTypeId: null }],
   );
 }
 
 function renderTree(tree: TreeNode[] = buildFixtureTree()) {
-  return render(
+  return renderInWorld(
     <FolderTree
       tree={tree}
       worldId="w1"

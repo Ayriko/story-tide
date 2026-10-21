@@ -3,7 +3,7 @@ import { prisma } from "@/db/client";
 import type { CreateEntityInput, UpdateEntityInput } from "@/lib/entity-schemas";
 import { EMPTY_CONTENT, extractPlainText } from "@/lib/tiptap-content";
 import { normalizeForMatch } from "@/lib/linker/normalize";
-import type { Alias, Entity } from "@/generated/prisma/client";
+import type { Alias, Entity, World } from "@/generated/prisma/client";
 import { AliasSource, WorldOrigin } from "@/generated/prisma/client";
 import { getOwnerLimits, getWorld } from "./world-service";
 // Import a sens unique deliberement etroit (KAN-60) : seule la classe
@@ -17,6 +17,8 @@ export type EntitySearchResult = {
   id: string;
   name: string;
   type: string;
+  // Type personnalise (KAN-81) : resolu cote client via le catalogue du monde.
+  customTypeId: string | null;
   folderId: string | null;
 };
 
@@ -40,6 +42,50 @@ export class EntityQuotaExceededError extends Error {
   constructor(limit: number) {
     super(`Limite d'entrées atteinte pour ce monde (offre gratuite : ${limit} maximum).`);
     this.name = "EntityQuotaExceededError";
+  }
+}
+
+// Type personnalise inexistant OU d'un autre monde : meme erreur (OWASP A01,
+// pas de fuite d'existence d'un type d'autrui).
+export class EntityTypeNotFoundError extends Error {
+  constructor() {
+    super("Type introuvable.");
+    this.name = "EntityTypeNotFoundError";
+  }
+}
+
+export class EntityTypeHiddenError extends Error {
+  constructor() {
+    super("Ce type n'est plus proposé dans ce monde.");
+    this.name = "EntityTypeHiddenError";
+  }
+}
+
+// Type demande pour une entree (KAN-81, ADR-0030), le monde etant deja
+// verifie (getWorld) : un customTypeId doit appartenir A CE monde ; un type
+// natif masque n'est pas proposable. `current` (modification) : garder le
+// type actuel de l'entree est toujours permis, meme masque - ses entrees le
+// gardent et l'affichent.
+async function assertEntityTypeAllowed(
+  world: World,
+  input: { type: string; customTypeId: string | null },
+  current?: { type: string; customTypeId: string | null },
+): Promise<void> {
+  if (current && current.type === input.type && current.customTypeId === input.customTypeId) {
+    return;
+  }
+  if (input.customTypeId !== null) {
+    const customType = await prisma.customEntityType.findFirst({
+      where: { id: input.customTypeId, worldId: world.id },
+      select: { id: true },
+    });
+    if (!customType) {
+      throw new EntityTypeNotFoundError();
+    }
+    return;
+  }
+  if (world.hiddenEntityTypes.includes(input.type)) {
+    throw new EntityTypeHiddenError();
   }
 }
 
@@ -79,11 +125,13 @@ export async function createEntity(
       }
     }
   }
+  await assertEntityTypeAllowed(world, input);
   const entity = await prisma.entity.create({
     data: {
       worldId,
       name: input.name.normalize("NFC"),
       type: input.type,
+      customTypeId: input.customTypeId,
       aliases: {
         create: input.aliases.map((value) => {
           const nfc = value.normalize("NFC");
@@ -180,6 +228,7 @@ export async function searchEntities(
       id: true,
       name: true,
       type: true,
+      customTypeId: true,
       folderId: true,
       aliases: { select: { normalized: true }, where: { active: true } },
     },
@@ -191,7 +240,13 @@ export async function searchEntities(
         normalizeForMatch(entity.name).includes(needle) ||
         entity.aliases.some((alias) => alias.normalized.includes(needle)),
     )
-    .map(({ id, name, type, folderId }) => ({ id, name, type, folderId }));
+    .map(({ id, name, type, customTypeId, folderId }) => ({
+      id,
+      name,
+      type,
+      customTypeId,
+      folderId,
+    }));
 }
 
 export async function getEntity(
@@ -213,18 +268,30 @@ export async function getEntity(
 // Remplacement complet des alias a chaque update (meme semantique qu'avant
 // KAN-18, ou tout le tableau etait deja reecrit) : deleteMany + create dans
 // la meme ecriture imbriquee, transaction implicite Prisma.
+// Monde lu ici (et non via getEntity) : son parametrage des types (KAN-81)
+// est necessaire a assertEntityTypeAllowed - meme verification
+// d'appartenance, sans second getWorld.
 export async function updateEntity(
   ownerId: string,
   worldId: string,
   entityId: string,
   input: UpdateEntityInput,
 ): Promise<EntityRecord> {
-  const entity = await getEntity(ownerId, worldId, entityId);
+  const world = await getWorld(ownerId, worldId);
+  const entity = await prisma.entity.findFirst({
+    where: { id: entityId, worldId },
+    select: { id: true, type: true, customTypeId: true },
+  });
+  if (!entity) {
+    throw new EntityNotFoundError();
+  }
+  await assertEntityTypeAllowed(world, input, entity);
   const updated = await prisma.entity.update({
     where: { id: entity.id },
     data: {
       name: input.name.normalize("NFC"),
       type: input.type,
+      customTypeId: input.customTypeId,
       aliases: {
         deleteMany: {},
         create: input.aliases.map((value) => {

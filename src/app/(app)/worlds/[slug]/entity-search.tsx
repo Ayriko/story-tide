@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { searchEntitiesAction } from "@/actions/entity";
-import { entityTypeGroup, entityTypeLabel, groupedEntityTypes } from "@/lib/entity-schemas";
-import type { EntityTypeGroup } from "@/lib/entity-schemas";
+import { ENTITY_TYPE_GROUPS, type EntityTypeGroup } from "@/lib/entity-schemas";
+import { resolveEntityType } from "@/lib/entity-types";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import { CreateFolderDialog } from "./create-folder-dialog";
 import { FolderTree } from "./folder-tree";
 import { MoveEntityMenu } from "./move-entity-menu";
 import { buildTreeNodes, flattenFolderOptions } from "./folder-tree-utils";
+import { useWorldTypeCatalog } from "./world-type-catalog";
 
 const SEARCH_DEBOUNCE_MS = 300;
 type ViewMode = "types" | "dossiers";
@@ -99,6 +100,7 @@ export function EntitySearch({
   // plomberie supplementaire. Aucune persistance inter-rechargement, non
   // demandee.
   const [collapsedGroups, setCollapsedGroups] = useState<Set<EntityTypeGroup>>(new Set());
+  const typeCatalog = useWorldTypeCatalog();
 
   const scheduleSearch = useCallback(
     (rawQuery: string) => {
@@ -157,20 +159,23 @@ export function EntitySearch({
   }
 
   // Regroupement par categorie (KAN-36 P3 point 5), memes 8 groupes que le
-  // combobox de creation et les filtres du graphe (groupedEntityTypes(),
-  // ordre stable) - un type sans groupe connu (donnee legacy) tombe dans
-  // "Divers", meme repli que EntityTypeIcon. Un groupe sans entite
-  // correspondante ne s'affiche pas du tout.
+  // combobox de creation et les filtres du graphe (ENTITY_TYPE_GROUPS, ordre
+  // stable) - groupe RESOLU (KAN-81) : un type personnalise se range dans son
+  // groupe comme un natif ; un type sans groupe connu tombe dans "Divers"
+  // (resolveEntityType). Un groupe sans entite correspondante ne s'affiche
+  // pas du tout.
   const isSearching = query.trim().length > 0;
   // Derivation pure (BUG-004) : sans recherche active, toujours `initialEntities`
   // (la prop la plus recente), jamais une copie qui pourrait figer.
   const results = isSearching ? (searchResults ?? []) : initialEntities;
-  const groupedResults = groupedEntityTypes()
-    .map(({ group }) => ({
-      group,
-      entities: results.filter((entity) => (entityTypeGroup(entity.type) ?? "Divers") === group),
-    }))
-    .filter(({ entities }) => entities.length > 0);
+  const resolvedResults = results.map((entity) => ({
+    entity,
+    resolved: resolveEntityType(entity, typeCatalog),
+  }));
+  const groupedResults = ENTITY_TYPE_GROUPS.map((group) => ({
+    group,
+    entries: resolvedResults.filter(({ resolved }) => resolved.group === group),
+  })).filter(({ entries }) => entries.length > 0);
   // Vue Dossiers, hors recherche : jamais filtre par la requete (non
   // pertinent, isSearching est faux dans cette branche) - unfiledEntities
   // vient de getUnfiledEntities, jamais d'initialEntities (semantique
@@ -277,7 +282,7 @@ export function EntitySearch({
         )
       ) : (
         <div className="flex flex-col gap-3">
-          {groupedResults.map(({ group, entities }, index) => {
+          {groupedResults.map(({ group, entries }, index) => {
             // Pendant une recherche active, l'etat replie est ignore a
             // l'affichage (confirme avec Aymeric) - jamais modifie par la
             // recherche elle-meme, seulement par un clic sur l'en-tete.
@@ -300,7 +305,7 @@ export function EntitySearch({
                 </button>
                 {isOpen ? (
                   <ul id={panelId} className="flex flex-col gap-2 pt-1">
-                    {entities.map((entity) => (
+                    {entries.map(({ entity, resolved }) => (
                       <li key={entity.id}>
                         <Link
                           href={`/worlds/${worldSlug}/entities/${entity.id}`}
@@ -308,13 +313,13 @@ export function EntitySearch({
                         >
                           <Card className="flex-row items-center justify-between px-4 py-3 transition-colors hover:bg-accent">
                             <span className="flex min-w-0 items-center gap-2">
-                              <EntityTypeIcon type={entity.type} />
+                              <EntityTypeIcon icon={resolved.icon} />
                               <span className="truncate text-sm font-medium text-foreground">
                                 {entity.name}
                               </span>
                             </span>
                             <span className="shrink-0 text-xs font-normal text-muted-foreground">
-                              {entityTypeLabel(entity.type)}
+                              {resolved.label}
                             </span>
                           </Card>
                         </Link>

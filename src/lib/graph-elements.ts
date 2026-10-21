@@ -6,10 +6,14 @@ import type { RelationOrigin } from "@/generated/prisma/client";
 // monde en elements au format attendu par Cytoscape (data-only, pas de
 // positions - le layout par defaut de Cytoscape s'en charge cote client).
 
+// Type deja RESOLU par l'appelant (resolveEntityType, KAN-81) : cette
+// fonction reste pure, sans catalogue de types a connaitre.
 export interface GraphEntityInput {
   id: string;
   name: string;
-  type: string;
+  typeKey: string;
+  typeLabel: string;
+  group: string;
 }
 
 export interface GraphRelationInput {
@@ -19,7 +23,9 @@ export interface GraphRelationInput {
 }
 
 export interface GraphNodeElement {
-  data: { id: string; label: string; type: string };
+  // typeKey : cle resolue (native ou `custom:<id>`) lue par le filtre ;
+  // group : couleur du noeud (par groupe, inchange).
+  data: { id: string; label: string; typeKey: string; group: string };
 }
 
 export interface GraphEdgeElement {
@@ -36,7 +42,7 @@ export function buildGraphElements(
   relations: GraphRelationInput[],
 ): GraphElements {
   const nodes = entities.map((entity) => ({
-    data: { id: entity.id, label: entity.name, type: entity.type },
+    data: { id: entity.id, label: entity.name, typeKey: entity.typeKey, group: entity.group },
   }));
 
   // AUTO et MANUAL peuvent coexister pour le meme couple source/cible
@@ -63,10 +69,12 @@ export function buildGraphElements(
 export interface AccessibleGraphEntry {
   id: string;
   name: string;
+  // Libelle du type resolu (KAN-81) - equivalent textuel de la couleur.
+  typeLabel: string;
   // mutual : les deux entites se mentionnent l'une l'autre (relation dans les
   // deux sens) - un seul lien affiche pour la paire (cf. commentaire plus
   // bas), jamais deux lignes distinctes pour la meme paire.
-  outgoing: { id: string; name: string; mutual: boolean }[];
+  outgoing: { id: string; name: string; typeLabel: string; mutual: boolean }[];
 }
 
 // Depart CANONIQUE d'une paire (independant de l'ordre source/cible d'une
@@ -100,6 +108,7 @@ export function buildAccessibleGraphEntries(
   relations: GraphRelationInput[],
 ): AccessibleGraphEntry[] {
   const nameById = new Map(entities.map((entity) => [entity.id, entity.name]));
+  const typeLabelById = new Map(entities.map((entity) => [entity.id, entity.typeLabel]));
 
   // Paires dirigees valides (indep. de l'origine) - sert uniquement a
   // detecter la reciprocite d'une paire, pas a construire les entrees.
@@ -116,7 +125,7 @@ export function buildAccessibleGraphEntries(
   // la meme cle au lieu d'empiler un doublon.
   const outgoingByOwner = new Map<
     string,
-    Map<string, { id: string; name: string; mutual: boolean }>
+    Map<string, { id: string; name: string; typeLabel: string; mutual: boolean }>
   >();
 
   for (const relation of relations) {
@@ -134,7 +143,12 @@ export function buildAccessibleGraphEntries(
       : [relation.targetId, relation.sourceId, sourceName];
 
     const owned = outgoingByOwner.get(ownerId) ?? new Map();
-    owned.set(otherId, { id: otherId, name: otherName, mutual });
+    owned.set(otherId, {
+      id: otherId,
+      name: otherName,
+      typeLabel: typeLabelById.get(otherId) ?? "",
+      mutual,
+    });
     outgoingByOwner.set(ownerId, owned);
   }
 
@@ -148,6 +162,7 @@ export function buildAccessibleGraphEntries(
         {
           id: entity.id,
           name: entity.name,
+          typeLabel: entity.typeLabel,
           outgoing: [...outgoing.values()].sort((a, b) => a.name.localeCompare(b.name)),
         },
       ];

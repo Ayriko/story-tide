@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import cytoscape, { type Core, type NodeSingular } from "cytoscape";
 import { ChevronDown } from "lucide-react";
 import type { GraphElements } from "@/lib/graph-elements";
-import {
-  ENTITY_TYPES,
-  entityTypeGroup,
-  entityTypeLabel,
-  groupedEntityTypes,
-} from "@/lib/entity-schemas";
+import { filterableTypes } from "@/lib/entity-types";
 import { cn } from "@/lib/utils";
+import { useWorldTypeCatalog } from "../world-type-catalog";
 
 // Couleur PAR GROUPE (KAN-18, 26 types groupes en 8 familles), pas par type
 // individuel : 26 teintes distinctes seraient illisibles et intenables cote
@@ -86,6 +82,18 @@ export function GraphView({
   // Aymeric : ne doit pas encombrer la vue a l'ouverture), purement visuel
   // (ne change rien a hiddenTypes).
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Cles resolues presentes dans le graphe (KAN-81) : un type masque encore
+  // utilise reste filtrable (filterableTypes) - sinon ses noeuds
+  // deviendraient infiltrables.
+  const typeCatalog = useWorldTypeCatalog();
+  const usedTypeKeys = useMemo(
+    () => new Set(elements.nodes.map((node) => node.data.typeKey)),
+    [elements],
+  );
+  const filterGroups = useMemo(
+    () => filterableTypes(typeCatalog, usedTypeKeys),
+    [typeCatalog, usedTypeKeys],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -109,12 +117,8 @@ export function GraphView({
         {
           selector: "node",
           style: {
-            "background-color": (node: NodeSingular) => {
-              const group = entityTypeGroup(node.data("type") as string);
-              return group
-                ? (NODE_COLOR_BY_GROUP[group] ?? DEFAULT_NODE_COLOR)
-                : DEFAULT_NODE_COLOR;
-            },
+            "background-color": (node: NodeSingular) =>
+              NODE_COLOR_BY_GROUP[node.data("group") as string] ?? DEFAULT_NODE_COLOR,
             label: "data(label)",
             "font-family": interFontFamily,
             "font-size": 10,
@@ -188,14 +192,20 @@ export function GraphView({
   // Effet separe du montage : change juste la visibilite des nœuds deja
   // presents, sans jamais recreer l'instance Cytoscape (couteux, perdrait le
   // zoom/pan courant).
+  // Comparaison sur node.data("typeKey") et PAS un selecteur chaine
+  // `[typeKey = "…"]` (KAN-81) : la cle `custom:<id>` vient de la base, et le
+  // parseur de selecteurs de Cytoscape ne sait representer ni un '"' echappe
+  // ni un '\' dans une valeur entre guillemets (verifie sur la version
+  // installee) - aucune chaine a echapper, aucune injection possible.
   useEffect(() => {
     const cy = cyRef.current;
     if (!cy) {
       return;
     }
-    for (const type of ENTITY_TYPES) {
-      cy.nodes(`[type = "${type}"]`).style("display", hiddenTypes.has(type) ? "none" : "element");
-    }
+    cy.nodes().forEach((node) => {
+      const typeKey = node.data("typeKey") as string;
+      node.style("display", hiddenTypes.has(typeKey) ? "none" : "element");
+    });
   }, [hiddenTypes]);
 
   function toggleType(type: string) {
@@ -253,14 +263,19 @@ export function GraphView({
               id="graph-filters-body"
               className="flex max-h-56 flex-col gap-2 overflow-y-auto border-t border-border px-2 py-1.5"
             >
-              {groupedEntityTypes().map(({ group, types }) => (
+              {filterGroups.map(({ group, types }) => (
                 <fieldset key={group} className="flex flex-col gap-1">
                   <legend className="flex w-full items-center justify-between gap-2">
                     <span className="text-[11px] font-semibold text-muted-foreground">{group}</span>
                     <span className="flex items-center gap-1 text-[10px]">
                       <button
                         type="button"
-                        onClick={() => setGroupHidden(types, false)}
+                        onClick={() =>
+                          setGroupHidden(
+                            types.map(({ key }) => key),
+                            false,
+                          )
+                        }
                         className="text-muted-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         Tout
@@ -270,7 +285,12 @@ export function GraphView({
                       </span>
                       <button
                         type="button"
-                        onClick={() => setGroupHidden(types, true)}
+                        onClick={() =>
+                          setGroupHidden(
+                            types.map(({ key }) => key),
+                            true,
+                          )
+                        }
                         className="text-muted-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                       >
                         Rien
@@ -279,13 +299,13 @@ export function GraphView({
                   </legend>
                   <div className="flex flex-wrap gap-1">
                     {types.map((type) => {
-                      const hidden = hiddenTypes.has(type);
+                      const hidden = hiddenTypes.has(type.key);
                       return (
                         <button
-                          key={type}
+                          key={type.key}
                           type="button"
                           aria-pressed={!hidden}
-                          onClick={() => toggleType(type)}
+                          onClick={() => toggleType(type.key)}
                           className={cn(
                             "rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                             hidden
@@ -298,7 +318,7 @@ export function GraphView({
                                 "border-primary/40 bg-primary/15 text-foreground",
                           )}
                         >
-                          {entityTypeLabel(type)}
+                          {type.label}
                         </button>
                       );
                     })}

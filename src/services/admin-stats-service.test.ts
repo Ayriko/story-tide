@@ -48,6 +48,7 @@ function makeEntity(overrides: Partial<Entity> = {}): Entity {
     folderId: null,
     contentVersion: 0,
     scannedVersion: 0,
+    customTypeId: null,
     createdAt: new Date("2026-10-10T09:00:00.000Z"),
     updatedAt: new Date("2026-10-10T09:00:00.000Z"),
     ...overrides,

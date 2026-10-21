@@ -1,0 +1,279 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth-session";
+import { WorldNotFoundError } from "@/services/world-service";
+import {
+  CustomTypeLabelTakenError,
+  LastSelectableTypeError,
+  ReassignMapStaleError,
+  createCustomType,
+  deleteCustomType,
+  setNativeTypeHidden,
+  updateCustomType,
+} from "@/services/entity-type-service";
+import {
+  createCustomTypeAction,
+  deleteCustomTypeAction,
+  setNativeTypeHiddenAction,
+  updateCustomTypeAction,
+} from "./world-settings";
+
+vi.mock("@/lib/auth-session", () => ({
+  requireSession: vi.fn(),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
+// redirect() de Next leve pour interrompre le rendu : reproduit ici, sinon
+// l'action continuerait apres la redirection.
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(() => {
+    throw new Error("NEXT_REDIRECT");
+  }),
+}));
+
+vi.mock("@/services/entity-type-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/entity-type-service")>();
+  return {
+    ...actual,
+    createCustomType: vi.fn(),
+    updateCustomType: vi.fn(),
+    setNativeTypeHidden: vi.fn(),
+    deleteCustomType: vi.fn(),
+  };
+});
+
+const mockedRequireSession = vi.mocked(requireSession);
+const mockedRedirect = vi.mocked(redirect);
+const mockedRevalidatePath = vi.mocked(revalidatePath);
+const mockedCreateCustomType = vi.mocked(createCustomType);
+const mockedUpdateCustomType = vi.mocked(updateCustomType);
+const mockedSetNativeTypeHidden = vi.mocked(setNativeTypeHidden);
+const mockedDeleteCustomType = vi.mocked(deleteCustomType);
+
+const SESSION = { user: { id: "owner-1" } } as unknown as Awaited<
+  ReturnType<typeof requireSession>
+>;
+
+function formData(fields: Record<string, string>): FormData {
+  const data = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    data.set(key, value);
+  }
+  return data;
+}
+
+const SHIP_FIELDS = { worldId: "w1", label: "Vaisseau", group: "Objets", icon: "ship" };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("createCustomTypeAction", () => {
+  it("cree le type pour le proprietaire de la session et revalide le layout du monde", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+
+    const state = await createCustomTypeAction({}, formData(SHIP_FIELDS));
+
+    expect(state).toEqual({ ok: true });
+    expect(mockedCreateCustomType).toHaveBeenCalledWith("owner-1", "w1", {
+      label: "Vaisseau",
+      group: "Objets",
+      icon: "ship",
+    });
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/(app)/worlds/[slug]", "layout");
+  });
+
+  it("sans session : redirige vers /login sans appeler le service", async () => {
+    mockedRequireSession.mockRejectedValueOnce(new Error("UNAUTHENTICATED"));
+
+    await expect(createCustomTypeAction({}, formData(SHIP_FIELDS))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(mockedRedirect).toHaveBeenCalledWith("/login");
+    expect(mockedCreateCustomType).not.toHaveBeenCalled();
+  });
+
+  it("monde d'autrui : « introuvable », sans revalidation", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedCreateCustomType.mockRejectedValueOnce(new WorldNotFoundError());
+
+    const state = await createCustomTypeAction({}, formData(SHIP_FIELDS));
+
+    expect(state.formError).toBe("Type introuvable.");
+    expect(mockedRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("libelle deja utilise : erreur du champ libelle", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedCreateCustomType.mockRejectedValueOnce(new CustomTypeLabelTakenError());
+
+    const state = await createCustomTypeAction({}, formData(SHIP_FIELDS));
+
+    expect(state.errors?.label).toBe("Ce libellé est déjà utilisé dans ce monde.");
+    expect(state.values?.label).toBe("Vaisseau");
+  });
+
+  it("validation Zod : libelle vide, groupe et icone inconnus, sans appeler le service", async () => {
+    const state = await createCustomTypeAction(
+      {},
+      formData({ worldId: "w1", label: "  ", group: "Inconnu", icon: "dragon" }),
+    );
+
+    expect(state.errors).toEqual({
+      label: "Le libellé est requis.",
+      group: "Groupe invalide.",
+      icon: "Icône invalide.",
+    });
+    expect(mockedRequireSession).not.toHaveBeenCalled();
+    expect(mockedCreateCustomType).not.toHaveBeenCalled();
+  });
+
+  it("libelle de plus de 40 caracteres refuse", async () => {
+    const state = await createCustomTypeAction(
+      {},
+      formData({ ...SHIP_FIELDS, label: "x".repeat(41) }),
+    );
+    expect(state.errors?.label).toBe("40 caractères maximum.");
+  });
+
+  it("echec inattendu : message generique ET erreur reelle loguee", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    const failure = new Error("connexion perdue");
+    mockedCreateCustomType.mockRejectedValueOnce(failure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const state = await createCustomTypeAction({}, formData(SHIP_FIELDS));
+
+    expect(state.formError).toBe("Enregistrement impossible pour le moment. Réessayez.");
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+    consoleError.mockRestore();
+  });
+});
+
+describe("updateCustomTypeAction", () => {
+  it("transmet worldId et typeId au service", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+
+    await updateCustomTypeAction({}, formData({ ...SHIP_FIELDS, typeId: "ct-ship" }));
+
+    expect(mockedUpdateCustomType).toHaveBeenCalledWith(
+      "owner-1",
+      "w1",
+      "ct-ship",
+      expect.objectContaining({ label: "Vaisseau" }),
+    );
+  });
+});
+
+describe("setNativeTypeHiddenAction", () => {
+  it("masque un type natif", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+
+    const state = await setNativeTypeHiddenAction(
+      {},
+      formData({ worldId: "w1", type: "prophecy", hidden: "true" }),
+    );
+
+    expect(state).toEqual({ ok: true });
+    expect(mockedSetNativeTypeHidden).toHaveBeenCalledWith("owner-1", "w1", "prophecy", true);
+  });
+
+  it("type inconnu refuse par Zod", async () => {
+    const state = await setNativeTypeHiddenAction(
+      {},
+      formData({ worldId: "w1", type: "custom", hidden: "true" }),
+    );
+    expect(state.formError).toBe("Type invalide.");
+    expect(mockedSetNativeTypeHidden).not.toHaveBeenCalled();
+  });
+
+  it("dernier type proposable : message du service", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedSetNativeTypeHidden.mockRejectedValueOnce(new LastSelectableTypeError());
+
+    const state = await setNativeTypeHiddenAction(
+      {},
+      formData({ worldId: "w1", type: "note", hidden: "true" }),
+    );
+
+    expect(state.formError).toBe("Au moins un type doit rester proposé dans ce monde.");
+  });
+
+  it("monde d'autrui : « introuvable »", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedSetNativeTypeHidden.mockRejectedValueOnce(new WorldNotFoundError());
+
+    const state = await setNativeTypeHiddenAction(
+      {},
+      formData({ worldId: "w-autrui", type: "note", hidden: "true" }),
+    );
+
+    expect(state.formError).toBe("Monde introuvable.");
+  });
+});
+
+describe("deleteCustomTypeAction", () => {
+  it("lit la carte de reaffectation depuis les champs reassign:<entityId>", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+
+    const state = await deleteCustomTypeAction(
+      {},
+      formData({
+        worldId: "w1",
+        typeId: "ct-ship",
+        "reassign:e1": "object",
+        "reassign:e2": "custom:ct-bag",
+      }),
+    );
+
+    expect(state).toEqual({ ok: true });
+    expect(mockedDeleteCustomType).toHaveBeenCalledWith("owner-1", "w1", "ct-ship", {
+      e1: "object",
+      e2: "custom:ct-bag",
+    });
+  });
+
+  it("cible invalide : refus avant tout appel de service", async () => {
+    const state = await deleteCustomTypeAction(
+      {},
+      formData({ worldId: "w1", typeId: "ct-ship", "reassign:e1": "" }),
+    );
+    expect(state.formError).toBe("Choisis un type cible pour chaque entrée.");
+    expect(mockedDeleteCustomType).not.toHaveBeenCalled();
+  });
+
+  it("carte perimee : « La liste a changé, recharge »", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedDeleteCustomType.mockRejectedValueOnce(new ReassignMapStaleError());
+
+    const state = await deleteCustomTypeAction({}, formData({ worldId: "w1", typeId: "ct-ship" }));
+
+    expect(state.formError).toBe("La liste a changé, recharge la page.");
+    expect(mockedRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("monde d'autrui : « introuvable »", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedDeleteCustomType.mockRejectedValueOnce(new WorldNotFoundError());
+
+    const state = await deleteCustomTypeAction(
+      {},
+      formData({ worldId: "w-autrui", typeId: "ct-ship" }),
+    );
+
+    expect(state.formError).toBe("Type introuvable.");
+  });
+
+  it("sans session : redirige vers /login", async () => {
+    mockedRequireSession.mockRejectedValueOnce(new Error("UNAUTHENTICATED"));
+
+    await expect(
+      deleteCustomTypeAction({}, formData({ worldId: "w1", typeId: "ct-ship" })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(mockedDeleteCustomType).not.toHaveBeenCalled();
+  });
+});

@@ -3,15 +3,11 @@
 import { useState, type KeyboardEvent } from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { ChevronsUpDown } from "lucide-react";
-import {
-  ENTITY_TYPE_REFERENCE,
-  entityTypeLabel,
-  groupedEntityTypes,
-  type EntityType,
-} from "@/lib/entity-schemas";
+import { parseTypeKey, selectableTypes } from "@/lib/entity-types";
 import { Label } from "@/components/ui/label";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
+import { useWorldTypeCatalog } from "./world-type-catalog";
 
 // Combobox base sur le Command de shadcn/cmdk (KAN-36, solde ADR-0016) -
 // remplace l'implementation interne posee par KAN-18 en attendant ce
@@ -62,15 +58,21 @@ import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 // purement visuel (pas de htmlFor), coherent avec les autres champs du
 // formulaire, sans dupliquer le nom accessible.
 //
-// Champ de FORMULAIRE (pas une popup d'editeur) : un <input type="hidden">
-// porte la vraie valeur soumise (name), le <form action> existant
-// (useActionState) n'a besoin d'aucun changement pour lire "type" depuis le
-// FormData.
+// Champ de FORMULAIRE (pas une popup d'editeur) : des <input type="hidden">
+// portent la vraie valeur soumise - `name` (cle native ou sentinelle
+// "custom") et "customTypeId" (vide pour un natif, KAN-81) - lues depuis le
+// FormData par le <form action> existant (useActionState).
+//
+// Types proposes (KAN-81) : ceux du monde (catalogue en contexte) -
+// personnalises dans leur groupe avec une marque discrete « perso », natifs
+// masques absents, sauf `keepTypeKey` (type courant de l'entree modifiee).
+// Valeurs manipulees ici = cles resolues (native ou `custom:<id>`).
 export function EntityTypeCombobox({
   id,
   name,
   label,
   defaultValue,
+  keepTypeKey,
   invalid,
   describedBy,
 }: {
@@ -78,11 +80,15 @@ export function EntityTypeCombobox({
   name: string;
   label: string;
   defaultValue: string;
+  keepTypeKey?: string;
   invalid?: boolean;
   describedBy?: string;
 }) {
+  const groups = selectableTypes(useWorldTypeCatalog(), keepTypeKey);
+  const labelOf = (key: string) =>
+    groups.flatMap(({ types }) => types).find((type) => type.key === key)?.label ?? "";
   const [selected, setSelected] = useState(defaultValue);
-  const [query, setQuery] = useState(entityTypeLabel(defaultValue));
+  const [query, setQuery] = useState(labelOf(defaultValue));
   const [open, setOpen] = useState(false);
 
   // useActionState re-rend le MEME composant (pas de remontage) apres un
@@ -93,27 +99,26 @@ export function EntityTypeCombobox({
   if (defaultValue !== previousDefaultValue) {
     setPreviousDefaultValue(defaultValue);
     setSelected(defaultValue);
-    setQuery(entityTypeLabel(defaultValue));
+    setQuery(labelOf(defaultValue));
   }
 
   // Tant que l'utilisateur n'a rien tape de different du libelle deja
   // selectionne (ouverture au focus/clic, navigation clavier immediate), la
   // liste complete reste visible - le filtrage ne s'active qu'une fois le
   // texte affiche divergent de la selection courante.
-  const needle = query === entityTypeLabel(selected) ? "" : query.trim().toLowerCase();
-  const filteredGroups = groupedEntityTypes()
+  const needle = query === labelOf(selected) ? "" : query.trim().toLowerCase();
+  const filteredGroups = groups
     .map(({ group, types }) => ({
       group,
-      types: types.filter((type) =>
-        ENTITY_TYPE_REFERENCE[type].label.toLowerCase().includes(needle),
-      ),
+      types: types.filter((type) => type.label.toLowerCase().includes(needle)),
     }))
     .filter(({ types }) => types.length > 0);
   const hasOptions = filteredGroups.length > 0;
+  const submitted = parseTypeKey(selected);
 
-  function commit(type: EntityType) {
-    setSelected(type);
-    setQuery(entityTypeLabel(type));
+  function commit(key: string) {
+    setSelected(key);
+    setQuery(labelOf(key));
     setOpen(false);
   }
 
@@ -126,7 +131,8 @@ export function EntityTypeCombobox({
   return (
     <div id={id} className="relative flex flex-col gap-1.5">
       <Label>{label}</Label>
-      <input type="hidden" name={name} value={selected} />
+      <input type="hidden" name={name} value={submitted?.type ?? ""} />
+      <input type="hidden" name="customTypeId" value={submitted?.customTypeId ?? ""} />
       <Command shouldFilter={false} label={label} className="overflow-visible bg-transparent p-0">
         <InputGroup>
           <CommandPrimitive.Input
@@ -141,7 +147,7 @@ export function EntityTypeCombobox({
               // Le texte tape peut ne correspondre a aucun type (recherche en
               // cours abandonnee) - revenir au libelle du dernier type valide
               // selectionne, jamais a une valeur flottante invalide.
-              setQuery(entityTypeLabel(selected));
+              setQuery(labelOf(selected));
               setOpen(false);
             }}
             aria-invalid={invalid ? true : undefined}
@@ -162,16 +168,28 @@ export function EntityTypeCombobox({
                   <CommandGroup key={group} heading={group}>
                     {types.map((type) => (
                       <CommandItem
-                        key={type}
-                        value={type}
+                        key={type.key}
+                        value={type.key}
                         onMouseDown={(event) => {
                           // preventDefault : evite que le blur du champ texte
                           // ne ferme la liste avant que le clic ne s'applique.
                           event.preventDefault();
                         }}
-                        onSelect={() => commit(type)}
+                        onSelect={() => commit(type.key)}
+                        // Nom accessible explicite (KAN-81) : la marque visuelle
+                        // « perso » est masquee aux lecteurs d'ecran, remplacee
+                        // par une mention complete.
+                        aria-label={type.isCustom ? `${type.label} (type personnalisé)` : undefined}
                       >
-                        {ENTITY_TYPE_REFERENCE[type].label}
+                        {type.label}
+                        {type.isCustom ? (
+                          <span
+                            aria-hidden="true"
+                            className="ml-auto text-xs text-muted-foreground"
+                          >
+                            perso
+                          </span>
+                        ) : null}
                       </CommandItem>
                     ))}
                   </CommandGroup>

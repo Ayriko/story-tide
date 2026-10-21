@@ -7,26 +7,38 @@ describe("buildGraphElements", () => {
     expect(buildGraphElements([], [])).toEqual({ nodes: [], edges: [] });
   });
 
-  it("convertit chaque entite en node avec id/label/type", () => {
+  it("convertit chaque entite en node avec id/label/typeKey/group", () => {
     const result = buildGraphElements(
       [
-        { id: "e1", name: "Aeliana", type: "character" },
-        { id: "e2", name: "Valombre", type: "place" },
+        {
+          id: "e1",
+          name: "Aeliana",
+          typeKey: "character",
+          typeLabel: "Personnage",
+          group: "Personnages",
+        },
+        { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
       ],
       [],
     );
 
     expect(result.nodes).toEqual([
-      { data: { id: "e1", label: "Aeliana", type: "character" } },
-      { data: { id: "e2", label: "Valombre", type: "place" } },
+      { data: { id: "e1", label: "Aeliana", typeKey: "character", group: "Personnages" } },
+      { data: { id: "e2", label: "Valombre", typeKey: "place", group: "Lieux" } },
     ]);
   });
 
   it("convertit chaque relation en arete avec source/target/origin", () => {
     const result = buildGraphElements(
       [
-        { id: "e1", name: "Aeliana", type: "character" },
-        { id: "e2", name: "Valombre", type: "place" },
+        {
+          id: "e1",
+          name: "Aeliana",
+          typeKey: "character",
+          typeLabel: "Personnage",
+          group: "Personnages",
+        },
+        { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
       ],
       [{ sourceId: "e1", targetId: "e2", origin: RelationOrigin.AUTO }],
     );
@@ -41,8 +53,14 @@ describe("buildGraphElements", () => {
   it("distingue une arete AUTO et une arete MANUAL pour le meme couple (id different)", () => {
     const result = buildGraphElements(
       [
-        { id: "e1", name: "Aeliana", type: "character" },
-        { id: "e2", name: "Valombre", type: "place" },
+        {
+          id: "e1",
+          name: "Aeliana",
+          typeKey: "character",
+          typeLabel: "Personnage",
+          group: "Personnages",
+        },
+        { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
       ],
       [
         { sourceId: "e1", targetId: "e2", origin: RelationOrigin.AUTO },
@@ -56,7 +74,15 @@ describe("buildGraphElements", () => {
 
   it("omet silencieusement une arete dont une extremite n'est plus dans la liste d'entites", () => {
     const result = buildGraphElements(
-      [{ id: "e1", name: "Aeliana", type: "character" }],
+      [
+        {
+          id: "e1",
+          name: "Aeliana",
+          typeKey: "character",
+          typeLabel: "Personnage",
+          group: "Personnages",
+        },
+      ],
       [{ sourceId: "e1", targetId: "e2-supprime", origin: RelationOrigin.AUTO }],
     );
 
@@ -66,9 +92,21 @@ describe("buildGraphElements", () => {
 
 describe("buildAccessibleGraphEntries", () => {
   const ENTITIES = [
-    { id: "e1", name: "Aeliana", type: "character" },
-    { id: "e2", name: "Valombre", type: "place" },
-    { id: "e3", name: "Robert", type: "character" },
+    {
+      id: "e1",
+      name: "Aeliana",
+      typeKey: "character",
+      typeLabel: "Personnage",
+      group: "Personnages",
+    },
+    { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
+    {
+      id: "e3",
+      name: "Robert",
+      typeKey: "character",
+      typeLabel: "Personnage",
+      group: "Personnages",
+    },
   ];
 
   it("retourne un tableau vide sans entite ni relation", () => {
@@ -85,9 +123,10 @@ describe("buildAccessibleGraphEntries", () => {
       {
         id: "e1",
         name: "Aeliana",
+        typeLabel: "Personnage",
         outgoing: [
-          { id: "e3", name: "Robert", mutual: false },
-          { id: "e2", name: "Valombre", mutual: false },
+          { id: "e3", name: "Robert", typeLabel: "Personnage", mutual: false },
+          { id: "e2", name: "Valombre", typeLabel: "Lieu", mutual: false },
         ],
       },
     ]);
@@ -100,7 +139,12 @@ describe("buildAccessibleGraphEntries", () => {
     ]);
 
     expect(result).toEqual([
-      { id: "e1", name: "Aeliana", outgoing: [{ id: "e2", name: "Valombre", mutual: false }] },
+      {
+        id: "e1",
+        name: "Aeliana",
+        typeLabel: "Personnage",
+        outgoing: [{ id: "e2", name: "Valombre", typeLabel: "Lieu", mutual: false }],
+      },
     ]);
   });
 
@@ -113,14 +157,31 @@ describe("buildAccessibleGraphEntries", () => {
     // "Aeliana" < "Robert" alphabetiquement - la paire est rangee sous
     // Aeliana (proprietaire canonique), jamais sous les deux.
     expect(result).toEqual([
-      { id: "e1", name: "Aeliana", outgoing: [{ id: "e3", name: "Robert", mutual: true }] },
+      {
+        id: "e1",
+        name: "Aeliana",
+        typeLabel: "Personnage",
+        outgoing: [{ id: "e3", name: "Robert", typeLabel: "Personnage", mutual: true }],
+      },
     ]);
   });
 
   it("depuis le nom a egalite, departage par id (deterministe) - paire mutuelle jamais dupliquee", () => {
     const sameNameEntities = [
-      { id: "e1", name: "Homonyme", type: "character" },
-      { id: "e2", name: "Homonyme", type: "character" },
+      {
+        id: "e1",
+        name: "Homonyme",
+        typeKey: "character",
+        typeLabel: "Personnage",
+        group: "Personnages",
+      },
+      {
+        id: "e2",
+        name: "Homonyme",
+        typeKey: "character",
+        typeLabel: "Personnage",
+        group: "Personnages",
+      },
     ];
     const result = buildAccessibleGraphEntries(sameNameEntities, [
       { sourceId: "e1", targetId: "e2", origin: RelationOrigin.MANUAL },
@@ -129,7 +190,12 @@ describe("buildAccessibleGraphEntries", () => {
 
     // "e1" < "e2" - departage par id puisque les noms sont identiques.
     expect(result).toEqual([
-      { id: "e1", name: "Homonyme", outgoing: [{ id: "e2", name: "Homonyme", mutual: true }] },
+      {
+        id: "e1",
+        name: "Homonyme",
+        typeLabel: "Personnage",
+        outgoing: [{ id: "e2", name: "Homonyme", typeLabel: "Personnage", mutual: true }],
+      },
     ]);
   });
 
@@ -156,5 +222,27 @@ describe("buildAccessibleGraphEntries", () => {
     ]);
 
     expect(result.map((entry) => entry.name)).toEqual(["Aeliana", "Robert"]);
+  });
+});
+
+// KAN-81 : le type est resolu par l'appelant - un type personnalise arrive
+// avec sa cle `custom:<id>` et son groupe, recopies tels quels.
+describe("buildGraphElements - type personnalise (KAN-81)", () => {
+  it("porte la cle custom:<id> et le groupe resolus dans les donnees du noeud", () => {
+    const { nodes } = buildGraphElements(
+      [
+        {
+          id: "e1",
+          name: "Aube Grise",
+          typeKey: "custom:ct1",
+          typeLabel: "Vaisseau",
+          group: "Objets",
+        },
+      ],
+      [],
+    );
+    expect(nodes).toEqual([
+      { data: { id: "e1", label: "Aube Grise", typeKey: "custom:ct1", group: "Objets" } },
+    ]);
   });
 });

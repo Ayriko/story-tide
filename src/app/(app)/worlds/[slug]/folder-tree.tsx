@@ -23,10 +23,11 @@ import {
 import { ChevronRight, Folder as FolderIcon, FolderOpen } from "lucide-react";
 import { moveEntityToFolderAction, type MoveEntityState } from "@/actions/entity";
 import { cn } from "@/lib/utils";
-import { entityTypeLabel } from "@/lib/entity-schemas";
+import { resolveEntityType, type EntityTypeIconKey } from "@/lib/entity-types";
 import { EntityTypeIcon } from "./entity-type-icon";
 import { FolderRowActions } from "./folder-row-actions";
 import { MoveEntityMenu } from "./move-entity-menu";
+import { useWorldTypeCatalog } from "./world-type-catalog";
 import {
   UNFILED_NODE_ID,
   flattenVisibleItems,
@@ -75,9 +76,11 @@ export function FolderTree({
   // eviter tout useEffect qui observerait un etat.
   const [dragState, setDragState] = useState<MoveEntityState>({});
   const [, startTransition] = useTransition();
-  const [activeDrag, setActiveDrag] = useState<{ id: string; name: string; type: string } | null>(
-    null,
-  );
+  const [activeDrag, setActiveDrag] = useState<{
+    id: string;
+    name: string;
+    icon: EntityTypeIconKey;
+  } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // Le deplacement de focus DOM impuratif ne vit jamais en plein rendu : cet
@@ -188,9 +191,9 @@ export function FolderTree({
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current as
-      { entityId: string; name: string; type: string } | undefined;
+      { entityId: string; name: string; icon: EntityTypeIconKey } | undefined;
     if (data) {
-      setActiveDrag({ id: data.entityId, name: data.name, type: data.type });
+      setActiveDrag({ id: data.entityId, name: data.name, icon: data.icon });
     }
   }
 
@@ -259,7 +262,7 @@ export function FolderTree({
       <DragOverlay>
         {activeDrag ? (
           <div className="flex items-center gap-2 rounded-md bg-card px-2 py-1.5 text-sm text-foreground shadow-lg ring-1 ring-foreground/10">
-            <EntityTypeIcon type={activeDrag.type} />
+            <EntityTypeIcon icon={activeDrag.icon} />
             <span className="truncate">{activeDrag.name}</span>
           </div>
         ) : null}
@@ -307,11 +310,13 @@ function TreeItem({
   // useDraggable sur ce role="treeitem" (dnd-kit y mettrait son propre
   // role/tabIndex/aria-roledescription, qui ecraserait le tabindex flottant
   // et le role="treeitem" deja geres par cet arbre).
+  const typeCatalog = useWorldTypeCatalog();
+  const resolvedType = node.kind === "entity" ? resolveEntityType(node, typeCatalog) : null;
   const draggable = useDraggable({
     id: node.id,
     data:
-      node.kind === "entity"
-        ? { entityId: node.id, currentFolderId, name: node.name, type: node.type }
+      node.kind === "entity" && resolvedType
+        ? { entityId: node.id, currentFolderId, name: node.name, icon: resolvedType.icon }
         : undefined,
   });
   const droppable = useDroppable({ id: node.id });
@@ -416,9 +421,9 @@ function TreeItem({
         {...draggable.listeners}
       >
         <span aria-hidden="true" className="size-4 shrink-0" />
-        <EntityTypeIcon type={node.type} />
+        {resolvedType ? <EntityTypeIcon icon={resolvedType.icon} /> : null}
         <span className="truncate">{node.name}</span>
-        <span className="sr-only">{entityTypeLabel(node.type)}</span>
+        {resolvedType ? <span className="sr-only">{resolvedType.label}</span> : null}
       </Link>
       <MoveEntityMenu
         worldId={worldId}

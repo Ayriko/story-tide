@@ -5,15 +5,18 @@ import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { listWorldRelations } from "@/services/relation-service";
+import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import { buildGraphElements } from "@/lib/graph-elements";
-import { ENTITY_TYPE_GROUPS, entityTypeGroup, entityTypeLabel } from "@/lib/entity-schemas";
+import { ENTITY_TYPE_GROUPS } from "@/lib/entity-schemas";
 import type { EntityTypeGroup } from "@/lib/entity-schemas";
+import { resolveEntityType } from "@/lib/entity-types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CreateEntityDialog } from "./create-entity-dialog";
 import { DashboardSearchChip } from "./dashboard-search-chip";
 import { EntityTypeIcon } from "./entity-type-icon";
 import { GraphView } from "./graph/graph-view";
+import { WorldTitleMenu } from "./world-title-menu";
 
 const RECENT_LIMIT = 8;
 // Hauteur partagee par les deux colonnes du corps (KAN-36 P3-bis) - une
@@ -78,26 +81,35 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
     throw error;
   }
 
-  const [entities, relations] = await Promise.all([
+  const [entities, relations, typeCatalog] = await Promise.all([
     listEntities(session.user.id, world.id),
     listWorldRelations(session.user.id, world.id),
+    getWorldTypeCatalog(session.user.id, world.id),
   ]);
 
-  const recent = [...entities]
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+  // Type resolu une fois par entree (KAN-81) : recent, graphe et compteurs
+  // lisent la meme resolution.
+  const resolvedEntities = entities.map((entity) => ({
+    entity,
+    resolved: resolveEntityType(entity, typeCatalog),
+  }));
+
+  const recent = [...resolvedEntities]
+    .sort((a, b) => b.entity.updatedAt.getTime() - a.entity.updatedAt.getTime())
     .slice(0, RECENT_LIMIT);
 
-  const entityInputs = entities.map((entity) => ({
+  const entityInputs = resolvedEntities.map(({ entity, resolved }) => ({
     id: entity.id,
     name: entity.name,
-    type: entity.type,
+    typeKey: resolved.key,
+    typeLabel: resolved.label,
+    group: resolved.group,
   }));
   const elements = buildGraphElements(entityInputs, relations);
 
   const countsByGroup = new Map<string, number>();
-  for (const entity of entities) {
-    const group = entityTypeGroup(entity.type) ?? "Divers";
-    countsByGroup.set(group, (countsByGroup.get(group) ?? 0) + 1);
+  for (const { resolved } of resolvedEntities) {
+    countsByGroup.set(resolved.group, (countsByGroup.get(resolved.group) ?? 0) + 1);
   }
   const lastUpdate = entities.reduce<Date | null>(
     (latest, entity) => (!latest || entity.updatedAt > latest ? entity.updatedAt : latest),
@@ -126,7 +138,7 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-4xl font-medium text-foreground">{world.name}</h1>
+          <WorldTitleMenu worldName={world.name} worldSlug={world.slug} />
           <p className="text-sm text-muted-foreground">De retour à l&apos;œuvre.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -163,7 +175,7 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
           ) : (
             <div className={`${PANEL_HEIGHT} overflow-y-auto themed-scrollbar`}>
               <ul className="flex flex-col gap-2 p-2">
-                {recent.map((entity) => (
+                {recent.map(({ entity, resolved }) => (
                   <li key={entity.id}>
                     <Link
                       href={`/worlds/${world.slug}/entities/${entity.id}`}
@@ -171,14 +183,12 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
                     >
                       <Card className="flex-row items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-accent">
                         <span className="flex min-w-0 items-center gap-2">
-                          <EntityTypeIcon type={entity.type} className="size-5" />
+                          <EntityTypeIcon icon={resolved.icon} className="size-5" />
                           <span className="flex min-w-0 flex-col">
                             <span className="truncate text-sm font-medium text-foreground">
                               {entity.name}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              {entityTypeLabel(entity.type)}
-                            </span>
+                            <span className="text-xs text-muted-foreground">{resolved.label}</span>
                           </span>
                         </span>
                         <span className="shrink-0 text-xs text-muted-foreground">

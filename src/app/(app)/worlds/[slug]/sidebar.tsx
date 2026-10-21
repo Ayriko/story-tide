@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Settings2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { EntitySearchResult } from "@/services/entity-service";
 import type { FolderTreeNode } from "@/services/folder-service";
@@ -54,6 +56,17 @@ export function Sidebar({
       </nav>
 
       <CreateEntityDialog worldId={worldId} worldSlug={worldSlug} />
+
+      {/* Acces permanent aux parametres du monde (KAN-81), en pied de
+          sidebar sur toutes les pages du monde - remplace l'engrenage de la
+          barre haute, avec le menu du titre du dashboard. */}
+      <Link
+        href={`/worlds/${worldSlug}/settings`}
+        className="-mt-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <Settings2 aria-hidden="true" className="size-4" />
+        Paramètres du monde
+      </Link>
     </Card>
   );
 }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { renderInWorld } from "@/test-utils/render-in-world";
 import userEvent from "@testing-library/user-event";
 import { searchEntitiesAction } from "@/actions/entity";
 import type { EntitySearchResult } from "@/services/entity-service";
@@ -12,11 +13,11 @@ vi.mock("@/actions/entity", () => ({
 const mockedSearchEntitiesAction = vi.mocked(searchEntitiesAction);
 
 const ENTITIES: EntitySearchResult[] = [
-  { id: "e1", name: "Aeliana", type: "character", folderId: null },
+  { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
 ];
 
 function renderSearch(overrides: Partial<React.ComponentProps<typeof EntitySearch>> = {}) {
-  return render(
+  return renderInWorld(
     <EntitySearch
       worldId="w1"
       worldSlug="eldoria"

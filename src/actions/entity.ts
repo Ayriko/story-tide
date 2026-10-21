@@ -9,9 +9,12 @@ import {
   searchEntitiesSchema,
   updateEntitySchema,
 } from "@/lib/entity-schemas";
+import { CUSTOM_ENTITY_TYPE, customTypeKey } from "@/lib/entity-types";
 import {
   EntityNotFoundError,
   EntityQuotaExceededError,
+  EntityTypeHiddenError,
+  EntityTypeNotFoundError,
   createEntity,
   deleteEntity,
   moveEntityToFolder,
@@ -27,6 +30,7 @@ export type EntityFormState = {
   errors?: Partial<Record<"name" | "type" | "aliases", string>>;
   formError?: string;
   // Valeurs soumises, reaffichees apres une erreur (meme raison qu'auth.ts/world.ts).
+  // type : cle resolue (native ou `custom:<id>`, KAN-81), celle du combobox.
   values?: { name?: string; type?: string; aliases?: string };
 };
 
@@ -54,6 +58,26 @@ function aliasesFromField(formData: FormData): string[] {
     .map((line) => line.trim());
 }
 
+// Le combobox de type (KAN-81) poste deux champs : "type" (cle native ou la
+// sentinelle "custom") et "customTypeId" (vide pour un natif).
+function typeFields(formData: FormData): { type: string; customTypeId: string | null } {
+  const customTypeId = stringField(formData, "customTypeId");
+  return { type: stringField(formData, "type"), customTypeId: customTypeId || null };
+}
+
+function typeKeyValue({ type, customTypeId }: { type: string; customTypeId: string | null }) {
+  return type === CUSTOM_ENTITY_TYPE && customTypeId ? customTypeKey(customTypeId) : type;
+}
+
+// Erreurs de type (KAN-81) communes a la creation et a la modification -
+// attendues, jamais loguees (refus metier, pas une panne).
+function typeErrorFrom(error: unknown): EntityFormState["errors"] | null {
+  if (error instanceof EntityTypeNotFoundError || error instanceof EntityTypeHiddenError) {
+    return { type: error.message };
+  }
+  return null;
+}
+
 function fieldErrorsFrom(error: ZodError): EntityFormState["errors"] {
   const errors: EntityFormState["errors"] = {};
   for (const issue of error.issues) {
@@ -71,15 +95,16 @@ export async function createEntityAction(
 ): Promise<EntityFormState> {
   const worldId = stringField(formData, "worldId");
   const worldSlug = stringField(formData, "worldSlug");
+  const submittedType = typeFields(formData);
   const values = {
     name: stringField(formData, "name"),
-    type: stringField(formData, "type"),
+    type: typeKeyValue(submittedType),
     aliases: stringField(formData, "aliases"),
   };
 
   const parsed = createEntitySchema.safeParse({
     name: formData.get("name"),
-    type: formData.get("type"),
+    ...submittedType,
     aliases: aliasesFromField(formData),
   });
   if (!parsed.success) {
@@ -103,6 +128,10 @@ export async function createEntityAction(
     }
     if (error instanceof EntityQuotaExceededError) {
       return { formError: error.message, values };
+    }
+    const typeErrors = typeErrorFrom(error);
+    if (typeErrors) {
+      return { errors: typeErrors, values };
     }
     console.error("[entity] Création de fiche échouée :", error);
     return { formError: "Création impossible pour le moment. Réessayez.", values };
@@ -132,15 +161,16 @@ export async function updateEntityAction(
   const worldId = stringField(formData, "worldId");
   const worldSlug = stringField(formData, "worldSlug");
   const entityId = stringField(formData, "entityId");
+  const submittedType = typeFields(formData);
   const values = {
     name: stringField(formData, "name"),
-    type: stringField(formData, "type"),
+    type: typeKeyValue(submittedType),
     aliases: stringField(formData, "aliases"),
   };
 
   const parsed = updateEntitySchema.safeParse({
     name: formData.get("name"),
-    type: formData.get("type"),
+    ...submittedType,
     aliases: aliasesFromField(formData),
   });
   if (!parsed.success) {
@@ -159,6 +189,10 @@ export async function updateEntityAction(
   } catch (error) {
     if (error instanceof WorldNotFoundError || error instanceof EntityNotFoundError) {
       return { formError: "Entrée introuvable.", values };
+    }
+    const typeErrors = typeErrorFrom(error);
+    if (typeErrors) {
+      return { errors: typeErrors, values };
     }
     console.error("[entity] Mise à jour de fiche échouée :", error);
     return { formError: "Mise à jour impossible pour le moment. Réessayez.", values };

@@ -15,7 +15,6 @@ import { TopBar } from "../../top-bar";
 import { UserMenu } from "../../user-menu";
 import { FOCUS_SEARCH_EVENT } from "./entity-search";
 import { Sidebar } from "./sidebar";
-import { WorldSettingsDialog } from "./world-settings-dialog";
 
 const COLLAPSE_STORAGE_KEY = "story-tide:sidebar-collapsed";
 // Evenement DOM prive (pas "storage", qui ne se declenche que dans les
@@ -174,7 +173,6 @@ export function WorldShell({
           }
           right={
             <>
-              <WorldSettingsDialog worldId={worldId} worldName={worldName} />
               <LocalClock />
               <UserMenu name={userName} email={userEmail} />
             </>

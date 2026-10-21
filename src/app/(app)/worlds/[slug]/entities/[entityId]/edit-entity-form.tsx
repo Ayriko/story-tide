@@ -25,18 +25,19 @@ export function EditEntityForm({
   worldSlug,
   entityId,
   name,
-  type,
+  typeKey,
   aliases,
 }: {
   worldId: string;
   worldSlug: string;
   entityId: string;
   name: string;
-  type: string;
+  // Cle resolue du type courant (KAN-81) : toujours proposee, meme masquee.
+  typeKey: string;
   aliases: string[];
 }) {
   const initialState: EntityFormState = {
-    values: { name, type, aliases: aliases.join("\n") },
+    values: { name, type: typeKey, aliases: aliases.join("\n") },
   };
   const [state, formAction] = useActionState(updateEntityAction, initialState);
 
@@ -75,7 +76,8 @@ export function EditEntityForm({
         id="entity-type"
         name="type"
         label="Type"
-        defaultValue={state.values?.type ?? type}
+        defaultValue={state.values?.type ?? typeKey}
+        keepTypeKey={typeKey}
         invalid={Boolean(state.errors?.type)}
         describedBy={state.errors?.type ? "entity-type-error" : undefined}
       />

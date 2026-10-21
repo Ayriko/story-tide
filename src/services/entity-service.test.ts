@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/db/client";
-import type { Alias, Entity, Folder, World } from "@/generated/prisma/client";
+import type { Alias, CustomEntityType, Entity, Folder, World } from "@/generated/prisma/client";
 import { AliasSource, UserPlan, WorldOrigin } from "@/generated/prisma/client";
 import { makeUser } from "@/test-utils/make-user";
 import { EMPTY_CONTENT } from "@/lib/tiptap-content";
+import type { CreateEntityInput } from "@/lib/entity-schemas";
 import { normalizeForMatch } from "@/lib/linker/normalize";
 import { WorldNotFoundError } from "./world-service";
 import { FolderNotFoundError } from "./folder-service";
 import {
   EntityNotFoundError,
   EntityQuotaExceededError,
+  EntityTypeHiddenError,
+  EntityTypeNotFoundError,
   createEntity,
   createSeedEntity,
   deleteEntity,
@@ -44,6 +47,10 @@ vi.mock("@/db/client", () => ({
     folder: {
       findFirst: vi.fn(),
     },
+    // KAN-81 : appartenance d'un type personnalise au monde (assertEntityTypeAllowed).
+    customEntityType: {
+      findFirst: vi.fn(),
+    },
     user: {
       findUnique: vi.fn(),
     },
@@ -58,6 +65,7 @@ const entityCreate = vi.mocked(prisma.entity.create);
 const entityUpdate = vi.mocked(prisma.entity.update);
 const entityUpsert = vi.mocked(prisma.entity.upsert);
 const entityDelete = vi.mocked(prisma.entity.delete);
+const customTypeFindFirst = vi.mocked(prisma.customEntityType.findFirst);
 const folderFindFirst = vi.mocked(prisma.folder.findFirst);
 const userFindUnique = vi.mocked(prisma.user.findUnique);
 
@@ -72,6 +80,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     slug: "eldoria",
     origin: WorldOrigin.USER,
     pinnedAt: null,
+    hiddenEntityTypes: [],
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,
@@ -107,6 +116,7 @@ function makeEntity(
     folderId: null,
     contentVersion: 0,
     scannedVersion: 0,
+    customTypeId: null,
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...entityOverrides,
@@ -148,6 +158,7 @@ describe("createEntity", () => {
     const entity = await createEntity(OWNER_ID, WORLD_ID, {
       name: "Aeliana",
       type: "character",
+      customTypeId: null,
       aliases: ["La Reine"],
     });
 
@@ -157,6 +168,7 @@ describe("createEntity", () => {
         worldId: WORLD_ID,
         name: "Aeliana",
         type: "character",
+        customTypeId: null,
         aliases: { create: [{ value: "La Reine", normalized: normalizeForMatch("La Reine") }] },
         content: EMPTY_CONTENT,
         plainText: "",
@@ -171,7 +183,12 @@ describe("createEntity", () => {
     worldFindFirst.mockResolvedValueOnce(null);
 
     await expect(
-      createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] }),
+      createEntity(OWNER_ID, WORLD_ID, {
+        name: "Aeliana",
+        type: "character",
+        customTypeId: null,
+        aliases: [],
+      }),
     ).rejects.toThrow(WorldNotFoundError);
     expect(entityCreate).not.toHaveBeenCalled();
   });
@@ -181,7 +198,12 @@ describe("createEntity", () => {
     entityCount.mockResolvedValueOnce(49);
     entityCreate.mockResolvedValueOnce(makeEntity());
 
-    await createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] });
+    await createEntity(OWNER_ID, WORLD_ID, {
+      name: "Aeliana",
+      type: "character",
+      customTypeId: null,
+      aliases: [],
+    });
 
     expect(entityCreate).toHaveBeenCalled();
   });
@@ -191,7 +213,12 @@ describe("createEntity", () => {
     entityCount.mockResolvedValueOnce(50);
 
     await expect(
-      createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] }),
+      createEntity(OWNER_ID, WORLD_ID, {
+        name: "Aeliana",
+        type: "character",
+        customTypeId: null,
+        aliases: [],
+      }),
     ).rejects.toThrow(EntityQuotaExceededError);
     expect(entityCreate).not.toHaveBeenCalled();
   });
@@ -201,7 +228,12 @@ describe("createEntity", () => {
     entityCount.mockResolvedValueOnce(50);
 
     await expect(
-      createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] }),
+      createEntity(OWNER_ID, WORLD_ID, {
+        name: "Aeliana",
+        type: "character",
+        customTypeId: null,
+        aliases: [],
+      }),
     ).rejects.toThrow("Limite d'entrées atteinte pour ce monde (offre gratuite : 50 maximum).");
   });
 
@@ -210,7 +242,12 @@ describe("createEntity", () => {
     userFindUnique.mockResolvedValueOnce(makeUser({ id: OWNER_ID, plan: UserPlan.UNLIMITED }));
     entityCreate.mockResolvedValueOnce(makeEntity());
 
-    await createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] });
+    await createEntity(OWNER_ID, WORLD_ID, {
+      name: "Aeliana",
+      type: "character",
+      customTypeId: null,
+      aliases: [],
+    });
 
     expect(userFindUnique).toHaveBeenCalledWith({
       where: { id: OWNER_ID },
@@ -224,7 +261,12 @@ describe("createEntity", () => {
     worldFindFirst.mockResolvedValueOnce(makeWorld({ origin: WorldOrigin.INTRO }));
     entityCreate.mockResolvedValueOnce(makeEntity());
 
-    await createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] });
+    await createEntity(OWNER_ID, WORLD_ID, {
+      name: "Aeliana",
+      type: "character",
+      customTypeId: null,
+      aliases: [],
+    });
 
     expect(entityCount).not.toHaveBeenCalled();
     expect(entityCreate).toHaveBeenCalled();
@@ -234,7 +276,12 @@ describe("createEntity", () => {
     worldFindFirst.mockResolvedValueOnce(makeWorld({ origin: WorldOrigin.DEMO }));
     entityCreate.mockResolvedValueOnce(makeEntity());
 
-    await createEntity(OWNER_ID, WORLD_ID, { name: "Aeliana", type: "character", aliases: [] });
+    await createEntity(OWNER_ID, WORLD_ID, {
+      name: "Aeliana",
+      type: "character",
+      customTypeId: null,
+      aliases: [],
+    });
 
     expect(entityCount).not.toHaveBeenCalled();
     expect(entityCreate).toHaveBeenCalled();
@@ -254,13 +301,19 @@ describe("createEntity", () => {
       makeEntity({ name: nfc, aliases: [makeAlias({ value: nfc })] }),
     );
 
-    await createEntity(OWNER_ID, WORLD_ID, { name: nfd, type: "character", aliases: [nfd] });
+    await createEntity(OWNER_ID, WORLD_ID, {
+      name: nfd,
+      type: "character",
+      customTypeId: null,
+      aliases: [nfd],
+    });
 
     expect(entityCreate).toHaveBeenCalledWith({
       data: {
         worldId: WORLD_ID,
         name: nfc,
         type: "character",
+        customTypeId: null,
         aliases: { create: [{ value: nfc, normalized: normalizeForMatch(nfc) }] },
         content: EMPTY_CONTENT,
         plainText: "",
@@ -355,13 +408,16 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "AELIANA");
 
-    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character", folderId: null }]);
+    expect(results).toEqual([
+      { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
+    ]);
     expect(entityFindMany).toHaveBeenCalledWith({
       where: { worldId: WORLD_ID },
       select: {
         id: true,
         name: true,
         type: true,
+        customTypeId: true,
         folderId: true,
         aliases: { select: { normalized: true }, where: { active: true } },
       },
@@ -382,7 +438,9 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "TYRAN");
 
-    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character", folderId: null }]);
+    expect(results).toEqual([
+      { id: "e1", name: "Néron", type: "character", customTypeId: null, folderId: null },
+    ]);
   });
 
   it("trouve les entites par nom, insensible aux accents", async () => {
@@ -394,7 +452,9 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "neron");
 
-    expect(results).toEqual([{ id: "e1", name: "Néron", type: "character", folderId: null }]);
+    expect(results).toEqual([
+      { id: "e1", name: "Néron", type: "character", customTypeId: null, folderId: null },
+    ]);
   });
 
   it("ne renvoie pas aliases dans la projection", async () => {
@@ -405,7 +465,9 @@ describe("searchEntities", () => {
 
     const results = await searchEntities(OWNER_ID, WORLD_ID, "Aeliana");
 
-    expect(results).toEqual([{ id: "e1", name: "Aeliana", type: "character", folderId: null }]);
+    expect(results).toEqual([
+      { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
+    ]);
   });
 
   it("renvoie un tableau vide si aucune fiche ne correspond", async () => {
@@ -469,6 +531,7 @@ describe("updateEntity", () => {
     const entity = await updateEntity(OWNER_ID, WORLD_ID, "e1", {
       name: "Aeliana la Grise",
       type: "place",
+      customTypeId: null,
       aliases: ["La Grise"],
     });
 
@@ -477,6 +540,7 @@ describe("updateEntity", () => {
       data: {
         name: "Aeliana la Grise",
         type: "place",
+        customTypeId: null,
         aliases: {
           deleteMany: {},
           create: [{ value: "La Grise", normalized: normalizeForMatch("La Grise") }],
@@ -493,7 +557,12 @@ describe("updateEntity", () => {
     entityFindFirst.mockResolvedValueOnce(null);
 
     await expect(
-      updateEntity(OWNER_ID, WORLD_ID, "e1", { name: "X", type: "character", aliases: [] }),
+      updateEntity(OWNER_ID, WORLD_ID, "e1", {
+        name: "X",
+        type: "character",
+        customTypeId: null,
+        aliases: [],
+      }),
     ).rejects.toThrow(EntityNotFoundError);
     expect(entityUpdate).not.toHaveBeenCalled();
   });
@@ -508,13 +577,19 @@ describe("updateEntity", () => {
       makeEntity({ name: nfc, aliases: [makeAlias({ value: nfc })] }),
     );
 
-    await updateEntity(OWNER_ID, WORLD_ID, "e1", { name: nfd, type: "character", aliases: [nfd] });
+    await updateEntity(OWNER_ID, WORLD_ID, "e1", {
+      name: nfd,
+      type: "character",
+      customTypeId: null,
+      aliases: [nfd],
+    });
 
     expect(entityUpdate).toHaveBeenCalledWith({
       where: { id: "e1" },
       data: {
         name: nfc,
         type: "character",
+        customTypeId: null,
         aliases: {
           deleteMany: {},
           create: [{ value: nfc, normalized: normalizeForMatch(nfc) }],
@@ -650,5 +725,127 @@ describe("moveEntityToFolder", () => {
       include: { aliases: true },
     });
     expect(result.aliases).toEqual(["La Reine"]);
+  });
+});
+
+function makeCustomType(overrides: Partial<CustomEntityType> = {}): CustomEntityType {
+  return {
+    id: "ct-ship",
+    worldId: WORLD_ID,
+    label: "Vaisseau",
+    labelKey: "vaisseau",
+    group: "Objets",
+    icon: "ship",
+    createdAt: new Date("2026-10-20T00:00:00.000Z"),
+    updatedAt: new Date("2026-10-20T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+// KAN-81 (ADR-0030) : type d'une entree verifie dans le service, jamais
+// seulement en UI.
+describe("type d'entree personnalise ou masque (KAN-81)", () => {
+  const CUSTOM_INPUT: CreateEntityInput = {
+    name: "Aube Grise",
+    type: "custom",
+    customTypeId: "ct-ship",
+    aliases: [],
+  };
+
+  it("createEntity : persiste type custom + customTypeId d'un type du meme monde", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityCount.mockResolvedValueOnce(0);
+    customTypeFindFirst.mockResolvedValueOnce(makeCustomType());
+    entityCreate.mockResolvedValueOnce(makeEntity({ type: "custom", customTypeId: "ct-ship" }));
+
+    await createEntity(OWNER_ID, WORLD_ID, CUSTOM_INPUT);
+
+    expect(customTypeFindFirst).toHaveBeenCalledWith({
+      where: { id: "ct-ship", worldId: WORLD_ID },
+      select: { id: true },
+    });
+    expect(entityCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "custom", customTypeId: "ct-ship" }),
+      }),
+    );
+  });
+
+  it("createEntity : customTypeId d'un autre monde -> introuvable, rien n'est cree", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityCount.mockResolvedValueOnce(0);
+    customTypeFindFirst.mockResolvedValueOnce(null);
+
+    await expect(createEntity(OWNER_ID, WORLD_ID, CUSTOM_INPUT)).rejects.toThrow(
+      EntityTypeNotFoundError,
+    );
+    expect(entityCreate).not.toHaveBeenCalled();
+  });
+
+  it("createEntity : type natif masque dans le monde -> refuse", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld({ hiddenEntityTypes: ["prophecy"] }));
+    entityCount.mockResolvedValueOnce(0);
+
+    await expect(
+      createEntity(OWNER_ID, WORLD_ID, {
+        name: "Les Sept Sceaux",
+        type: "prophecy",
+        customTypeId: null,
+        aliases: [],
+      }),
+    ).rejects.toThrow(EntityTypeHiddenError);
+    expect(entityCreate).not.toHaveBeenCalled();
+  });
+
+  it("updateEntity : garder un type natif masque deja porte par l'entree est permis", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld({ hiddenEntityTypes: ["prophecy"] }));
+    entityFindFirst.mockResolvedValueOnce(makeEntity({ type: "prophecy" }));
+    entityUpdate.mockResolvedValueOnce(makeEntity({ type: "prophecy", name: "Renommee" }));
+
+    await updateEntity(OWNER_ID, WORLD_ID, "e1", {
+      name: "Renommee",
+      type: "prophecy",
+      customTypeId: null,
+      aliases: [],
+    });
+
+    expect(entityUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("updateEntity : passer a un type natif masque -> refuse", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld({ hiddenEntityTypes: ["prophecy"] }));
+    entityFindFirst.mockResolvedValueOnce(makeEntity({ type: "character" }));
+
+    await expect(
+      updateEntity(OWNER_ID, WORLD_ID, "e1", {
+        name: "Aeliana",
+        type: "prophecy",
+        customTypeId: null,
+        aliases: [],
+      }),
+    ).rejects.toThrow(EntityTypeHiddenError);
+    expect(entityUpdate).not.toHaveBeenCalled();
+  });
+
+  it("updateEntity : customTypeId d'un autre monde -> introuvable, rien n'est modifie", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity());
+    customTypeFindFirst.mockResolvedValueOnce(null);
+
+    await expect(updateEntity(OWNER_ID, WORLD_ID, "e1", CUSTOM_INPUT)).rejects.toThrow(
+      EntityTypeNotFoundError,
+    );
+    expect(entityUpdate).not.toHaveBeenCalled();
+  });
+
+  it("updateEntity : garder son type personnalise ne revalide pas le type", async () => {
+    worldFindFirst.mockResolvedValueOnce(makeWorld());
+    entityFindFirst.mockResolvedValueOnce(makeEntity({ type: "custom", customTypeId: "ct-ship" }));
+    entityUpdate.mockResolvedValueOnce(makeEntity({ type: "custom", customTypeId: "ct-ship" }));
+
+    await updateEntity(OWNER_ID, WORLD_ID, "e1", CUSTOM_INPUT);
+
+    expect(customTypeFindFirst).not.toHaveBeenCalled();
+    expect(entityUpdate).toHaveBeenCalledTimes(1);
   });
 });
