@@ -38,3 +38,4 @@
 | 0028 | Migration de MinIO vers Silo (fork communautaire maintenu) | accepté | 2026-10-07 |
 | 0029 | Rôle et plan utilisateur, journal d'administration | accepté | 2026-10-13 |
 | 0030 | Types d'entrées personnalisés par monde | accepté | 2026-10-20 |
+| 0031 | Relations déclarées et typées | accepté | 2026-10-22 |
