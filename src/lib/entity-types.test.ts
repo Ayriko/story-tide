@@ -7,6 +7,8 @@ import {
   parseTypeKey,
   resolveEntityType,
   selectableTypes,
+  toEntityListItem,
+  toFolderTreeView,
   type WorldTypeCatalog,
 } from "./entity-types";
 import { ENTITY_TYPE_GROUPS } from "./entity-schemas";
@@ -164,5 +166,56 @@ describe("CUSTOM_TYPE_ICONS", () => {
     for (const icon of Object.values(GROUP_DEFAULT_ICON)) {
       expect(CUSTOM_TYPE_ICONS).toContain(icon);
     }
+  });
+});
+
+describe("toEntityListItem / toFolderTreeView (KAN-84, blindage des affichages)", () => {
+  const catalog: WorldTypeCatalog = { custom: [SHIP], hidden: [] };
+  const raw = {
+    id: "e1",
+    name: "Albatros",
+    folderId: "f1",
+    type: "custom",
+    customTypeId: SHIP.id,
+    // Champs d'une Entity complete : ne doivent jamais passer dans le DTO.
+    content: { type: "doc" },
+    plainText: "texte prive",
+  };
+
+  it("porte le type resolu et AUCUN champ brut (type, customTypeId, contenu)", () => {
+    const item = toEntityListItem(raw, catalog);
+
+    expect(item).toEqual({
+      id: "e1",
+      name: "Albatros",
+      folderId: "f1",
+      resolvedType: resolveEntityType(raw, catalog),
+    });
+    expect(item.resolvedType.label).toBe("Vaisseau");
+    expect(Object.keys(item).sort()).toEqual(["folderId", "id", "name", "resolvedType"]);
+  });
+
+  it("resout recursivement l'arbre de dossiers sans conserver les champs bruts", () => {
+    const tree = toFolderTreeView(
+      [
+        {
+          id: "f1",
+          name: "Flotte",
+          children: [{ id: "f2", name: "Epaves", children: [], entities: [] }],
+          entities: [raw],
+        },
+      ],
+      catalog,
+    );
+
+    expect(tree).toEqual([
+      {
+        id: "f1",
+        name: "Flotte",
+        children: [{ id: "f2", name: "Epaves", children: [], entities: [] }],
+        entities: [toEntityListItem(raw, catalog)],
+      },
+    ]);
+    expect(Object.keys(tree[0] ?? {}).sort()).toEqual(["children", "entities", "id", "name"]);
   });
 });

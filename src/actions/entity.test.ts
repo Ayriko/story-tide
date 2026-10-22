@@ -12,6 +12,7 @@ import {
   searchEntities,
   updateEntity,
 } from "@/services/entity-service";
+import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import {
   createEntityAction,
   deleteEntityAction,
@@ -44,7 +45,14 @@ vi.mock("@/services/entity-service", async (importOriginal) => {
   };
 });
 
+// Catalogue des types (KAN-84) : mocke - sans lui, searchEntitiesAction
+// taperait la vraie base et son catch generique masquerait l'echec.
+vi.mock("@/services/entity-type-service", () => ({
+  getWorldTypeCatalog: vi.fn(),
+}));
+
 const mockedRequireSession = vi.mocked(requireSession);
+const mockedGetWorldTypeCatalog = vi.mocked(getWorldTypeCatalog);
 const mockedSearchEntities = vi.mocked(searchEntities);
 const mockedCreateEntity = vi.mocked(createEntity);
 const mockedUpdateEntity = vi.mocked(updateEntity);
@@ -66,24 +74,51 @@ function formData(fields: Record<string, string>): FormData {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedGetWorldTypeCatalog.mockResolvedValue({
+    custom: [{ id: "ct1", label: "Vaisseau", group: "Objets", icon: "ship" }],
+    hidden: [],
+  });
 });
 
 describe("searchEntitiesAction", () => {
-  it("renvoie les resultats du service quand tout est correct", async () => {
+  it("renvoie les resultats avec leur type RESOLU, sans type brut (KAN-84)", async () => {
     mockedRequireSession.mockResolvedValueOnce(SESSION);
     mockedSearchEntities.mockResolvedValueOnce([
       { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
+      { id: "e2", name: "Albatros", type: "custom", customTypeId: "ct1", folderId: "f1" },
     ]);
 
-    const result = await searchEntitiesAction("w1", "Aeliana");
+    const result = await searchEntitiesAction("w1", "A");
 
     expect(result).toEqual({
       ok: true,
       entities: [
-        { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
+        {
+          id: "e1",
+          name: "Aeliana",
+          folderId: null,
+          resolvedType: expect.objectContaining({ key: "character", label: "Personnage" }),
+        },
+        {
+          id: "e2",
+          name: "Albatros",
+          folderId: "f1",
+          resolvedType: expect.objectContaining({
+            key: "custom:ct1",
+            label: "Vaisseau",
+            group: "Objets",
+          }),
+        },
       ],
     });
-    expect(mockedSearchEntities).toHaveBeenCalledWith("owner-1", "w1", "Aeliana");
+    if (result.ok) {
+      for (const entity of result.entities) {
+        expect(entity).not.toHaveProperty("type");
+        expect(entity).not.toHaveProperty("customTypeId");
+      }
+    }
+    expect(mockedSearchEntities).toHaveBeenCalledWith("owner-1", "w1", "A");
+    expect(mockedGetWorldTypeCatalog).toHaveBeenCalledWith("owner-1", "w1");
   });
 
   it("rejette une requete vide sans appeler le service", async () => {

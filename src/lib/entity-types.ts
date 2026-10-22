@@ -158,6 +158,64 @@ export function resolveEntityType(
   };
 }
 
+// DTO d'affichage d'une entree (KAN-84, blindage des affichages) : type DEJA
+// resolu, et ni `type` ni `customTypeId` - un composant d'affichage qui le
+// recoit ne peut pas lire le type brut (afficher « custom »), le typecheck
+// l'interdit. Seuls les formulaires de modification lisent la valeur stockee.
+export type EntityListItem = {
+  id: string;
+  name: string;
+  folderId: string | null;
+  resolvedType: ResolvedEntityType;
+};
+
+export function toEntityListItem(
+  entity: {
+    id: string;
+    name: string;
+    folderId: string | null;
+    type: string;
+    customTypeId: string | null;
+  },
+  catalog: WorldTypeCatalog,
+): EntityListItem {
+  return {
+    id: entity.id,
+    name: entity.name,
+    folderId: entity.folderId,
+    resolvedType: resolveEntityType(entity, catalog),
+  };
+}
+
+// Arbre de dossiers transmis au client : forme structurelle (pas d'import du
+// service ici, ce fichier reste sans dependance base), entrees resolues. Ne
+// porte que ce que la sidebar affiche - jamais le contenu des fiches.
+type FolderTreeSource = {
+  id: string;
+  name: string;
+  children: FolderTreeSource[];
+  entities: Parameters<typeof toEntityListItem>[0][];
+};
+
+export type FolderTreeView = {
+  id: string;
+  name: string;
+  children: FolderTreeView[];
+  entities: EntityListItem[];
+};
+
+export function toFolderTreeView(
+  folders: FolderTreeSource[],
+  catalog: WorldTypeCatalog,
+): FolderTreeView[] {
+  return folders.map((folder) => ({
+    id: folder.id,
+    name: folder.name,
+    children: toFolderTreeView(folder.children, catalog),
+    entities: folder.entities.map((entity) => toEntityListItem(entity, catalog)),
+  }));
+}
+
 export type GroupedEntityTypes = { group: EntityTypeGroup; types: ResolvedEntityType[] }[];
 
 // Tous les types connus du monde (natifs dans l'ordre du registre, puis

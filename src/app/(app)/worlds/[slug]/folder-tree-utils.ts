@@ -1,17 +1,18 @@
-import type { FolderTreeNode } from "@/services/folder-service";
+import type { EntityListItem, FolderTreeView, ResolvedEntityType } from "@/lib/entity-types";
 
 // Fichier .ts pur (pas .tsx, pas "use client") : aucune dependance
 // React/DOM, appelable tel quel depuis le Server Component layout.tsx comme
 // depuis folder-tree.tsx cote client (KAN-57).
 
-export type EntityLite = { id: string; name: string; type: string; customTypeId: string | null };
+// Type deja resolu (KAN-84) : l'arbre n'affiche jamais un type brut.
+export type EntityLite = Pick<EntityListItem, "id" | "name" | "resolvedType">;
 
-// Union unifiee dossier/entite - un dossier reel (FolderTreeNode) et le
+// Union unifiee dossier/entite - un dossier reel (FolderTreeView) et le
 // panier "Non classe" (getUnfiledEntities) partagent la meme forme "folder"
 // pour que l'arbre les traite de facon identique (pliable, meme rendu).
 export type TreeNode =
   | { kind: "folder"; id: string; name: string; children: TreeNode[] }
-  | { kind: "entity"; id: string; name: string; type: string; customTypeId: string | null };
+  | { kind: "entity"; id: string; name: string; resolvedType: ResolvedEntityType };
 
 export const UNFILED_NODE_ID = "__unfiled__";
 const UNFILED_NODE_NAME = "Non classé";
@@ -22,21 +23,16 @@ const UNFILED_NODE_NAME = "Non classé";
 // et folder-tree.tsx traitent deja `children` de facon agnostique au kind
 // (sauf pour expand/collapse, reserve aux dossiers), aucun changement requis
 // la-bas.
-function toFolderNode(folder: FolderTreeNode): TreeNode {
+function toEntityNode(entity: EntityLite): TreeNode {
+  return { kind: "entity", id: entity.id, name: entity.name, resolvedType: entity.resolvedType };
+}
+
+function toFolderNode(folder: FolderTreeView): TreeNode {
   return {
     kind: "folder",
     id: folder.id,
     name: folder.name,
-    children: [
-      ...folder.children.map(toFolderNode),
-      ...folder.entities.map((entity) => ({
-        kind: "entity" as const,
-        id: entity.id,
-        name: entity.name,
-        type: entity.type,
-        customTypeId: entity.customTypeId,
-      })),
-    ],
+    children: [...folder.children.map(toFolderNode), ...folder.entities.map(toEntityNode)],
   };
 }
 
@@ -46,7 +42,7 @@ function toFolderNode(folder: FolderTreeNode): TreeNode {
 // dossier), donc ce panier contient aujourd'hui la totalite des entites du
 // monde ; le code reste correct pour le jour ou une assignation existera.
 export function buildTreeNodes(
-  folders: FolderTreeNode[],
+  folders: FolderTreeView[],
   unfiledEntities: EntityLite[],
 ): TreeNode[] {
   return [
@@ -55,7 +51,7 @@ export function buildTreeNodes(
       kind: "folder",
       id: UNFILED_NODE_ID,
       name: UNFILED_NODE_NAME,
-      children: unfiledEntities.map((entity) => ({ kind: "entity" as const, ...entity })),
+      children: unfiledEntities.map(toEntityNode),
     },
   ];
 }
@@ -99,7 +95,7 @@ export type FolderOption = { id: string; name: string; depth: number };
 // KAN-60). Fonction pure separee de flattenVisibleItems : celle-ci ignore
 // l'etat de pli/depli (un menu de destination montre tout, contrairement a
 // l'arbre affiche) et ignore les entites (jamais une destination valide).
-export function flattenFolderOptions(folders: FolderTreeNode[], depth = 0): FolderOption[] {
+export function flattenFolderOptions(folders: FolderTreeView[], depth = 0): FolderOption[] {
   return folders.flatMap((folder) => [
     { id: folder.id, name: folder.name, depth },
     ...flattenFolderOptions(folder.children, depth + 1),

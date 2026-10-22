@@ -4,6 +4,7 @@ import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { getFolderTree, getUnfiledEntities } from "@/services/folder-service";
 import { getWorldTypeCatalog } from "@/services/entity-type-service";
+import { toEntityListItem, toFolderTreeView } from "@/lib/entity-types";
 import { WorldShell } from "./world-shell";
 import { WorldTypeCatalogProvider } from "./world-type-catalog";
 
@@ -59,21 +60,12 @@ export default async function WorldLayout({
         worldId={world.id}
         worldName={world.name}
         worldSlug={world.slug}
-        entities={entities.map(({ id, name, type, customTypeId, folderId }) => ({
-          id,
-          name,
-          type,
-          customTypeId,
-          folderId,
-        }))}
-        folderTree={folderTree}
-        unfiledEntities={unfiledEntities.map(({ id, name, type, customTypeId, folderId }) => ({
-          id,
-          name,
-          type,
-          customTypeId,
-          folderId,
-        }))}
+        // Types resolus ICI, cote serveur (KAN-84) : la sidebar ne recoit
+        // jamais type/customTypeId, ni le contenu des fiches rangees en
+        // dossier (l'arbre brut portait des Entity completes).
+        entities={entities.map((entity) => toEntityListItem(entity, typeCatalog))}
+        folderTree={toFolderTreeView(folderTree, typeCatalog)}
+        unfiledEntities={unfiledEntities.map((entity) => toEntityListItem(entity, typeCatalog))}
         userName={session.user.name}
         userEmail={session.user.email}
         userIsAdmin={admin}

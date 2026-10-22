@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { Settings2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import type { EntitySearchResult } from "@/services/entity-service";
-import type { FolderTreeNode } from "@/services/folder-service";
+import type { EntityListItem, FolderTreeView } from "@/lib/entity-types";
 import { CreateEntityDialog } from "./create-entity-dialog";
 import { EntitySearch } from "./entity-search";
 
@@ -31,9 +30,9 @@ export function Sidebar({
 }: {
   worldId: string;
   worldSlug: string;
-  entities: EntitySearchResult[];
-  folderTree: FolderTreeNode[];
-  unfiledEntities: EntitySearchResult[];
+  entities: EntityListItem[];
+  folderTree: FolderTreeView[];
+  unfiledEntities: EntityListItem[];
 }) {
   return (
     <Card className="flex h-full w-72 flex-col gap-4 border-none bg-card/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
