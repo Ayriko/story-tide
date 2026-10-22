@@ -3,7 +3,7 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import { renderInWorld } from "@/test-utils/render-in-world";
 import userEvent from "@testing-library/user-event";
 import { searchEntitiesAction } from "@/actions/entity";
-import type { EntitySearchResult } from "@/services/entity-service";
+import { resolveEntityType, type EntityListItem } from "@/lib/entity-types";
 import { EntitySearch } from "./entity-search";
 
 vi.mock("@/actions/entity", () => ({
@@ -12,8 +12,16 @@ vi.mock("@/actions/entity", () => ({
 
 const mockedSearchEntitiesAction = vi.mocked(searchEntitiesAction);
 
-const ENTITIES: EntitySearchResult[] = [
-  { id: "e1", name: "Aeliana", type: "character", customTypeId: null, folderId: null },
+const ENTITIES: EntityListItem[] = [
+  {
+    id: "e1",
+    name: "Aeliana",
+    folderId: null,
+    resolvedType: resolveEntityType(
+      { type: "character", customTypeId: null },
+      { custom: [], hidden: [] },
+    ),
+  },
 ];
 
 function renderSearch(overrides: Partial<React.ComponentProps<typeof EntitySearch>> = {}) {

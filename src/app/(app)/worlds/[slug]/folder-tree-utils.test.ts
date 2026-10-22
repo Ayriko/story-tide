@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Entity } from "@/generated/prisma/client";
-import type { FolderTreeNode } from "@/services/folder-service";
-import { EMPTY_CONTENT } from "@/lib/tiptap-content";
+import { resolveEntityType, type EntityListItem, type FolderTreeView } from "@/lib/entity-types";
 import {
   UNFILED_NODE_ID,
   buildTreeNodes,
@@ -13,44 +11,22 @@ import {
   type TreeNode,
 } from "./folder-tree-utils";
 
-function makeFolderNode(overrides: Partial<FolderTreeNode> = {}): FolderTreeNode {
-  return {
-    id: "f1",
-    worldId: "w1",
-    name: "Dossier",
-    parentId: null,
-    seedRef: null,
-    createdAt: new Date("2026-09-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-09-01T00:00:00.000Z"),
-    children: [],
-    entities: [],
-    ...overrides,
-  };
+// Type resolu reel (KAN-84) : l'arbre ne recoit jamais de type brut.
+const CHARACTER = resolveEntityType(
+  { type: "character", customTypeId: null },
+  { custom: [], hidden: [] },
+);
+
+function makeFolderNode(overrides: Partial<FolderTreeView> = {}): FolderTreeView {
+  return { id: "f1", name: "Dossier", children: [], entities: [], ...overrides };
 }
 
 function makeEntity(overrides: Partial<EntityLite> = {}): EntityLite {
-  return { id: "e1", name: "Aeliana", type: "character", customTypeId: null, ...overrides };
+  return { id: "e1", name: "Aeliana", resolvedType: CHARACTER, ...overrides };
 }
 
-// Objet complet (meme convention que linker-service.test.ts/entity-service.test.ts) -
-// utilise pour folder.entities: Entity[] (FolderTreeNode reel, pas EntityLite).
-function makeFolderEntity(overrides: Partial<Entity> = {}): Entity {
-  return {
-    id: "e1",
-    worldId: "w1",
-    name: "Aeliana",
-    type: "character",
-    content: EMPTY_CONTENT,
-    plainText: "",
-    seedRef: null,
-    folderId: "f1",
-    contentVersion: 0,
-    scannedVersion: 0,
-    customTypeId: null,
-    createdAt: new Date("2026-09-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-09-01T00:00:00.000Z"),
-    ...overrides,
-  };
+function makeFolderEntity(overrides: Partial<EntityListItem> = {}): EntityListItem {
+  return { id: "e1", name: "Aeliana", folderId: "f1", resolvedType: CHARACTER, ...overrides };
 }
 
 describe("buildTreeNodes", () => {
@@ -66,7 +42,7 @@ describe("buildTreeNodes", () => {
     const nested = makeFolderNode({
       id: "f1",
       name: "Royaumes",
-      children: [makeFolderNode({ id: "f2", name: "Nord", parentId: "f1", children: [] })],
+      children: [makeFolderNode({ id: "f2", name: "Nord", children: [] })],
     });
 
     const tree = buildTreeNodes([nested], []);
@@ -85,8 +61,8 @@ describe("buildTreeNodes", () => {
     const unfiled = tree[0];
     if (!unfiled || unfiled.kind !== "folder") throw new Error("unreachable");
     expect(unfiled.children).toEqual([
-      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
-      { kind: "entity", id: "e2", name: "Aeliana", type: "character", customTypeId: null },
+      { kind: "entity", id: "e1", name: "Aeliana", resolvedType: CHARACTER },
+      { kind: "entity", id: "e2", name: "Aeliana", resolvedType: CHARACTER },
     ]);
   });
 
@@ -102,7 +78,7 @@ describe("buildTreeNodes", () => {
     const folder = makeFolderNode({
       id: "f1",
       name: "Royaumes",
-      children: [makeFolderNode({ id: "f2", name: "Nord", parentId: "f1" })],
+      children: [makeFolderNode({ id: "f2", name: "Nord" })],
       entities: [makeFolderEntity({ id: "e1", name: "Aeliana", folderId: "f1" })],
     });
 
@@ -114,7 +90,7 @@ describe("buildTreeNodes", () => {
       name: "Royaumes",
       children: [
         { kind: "folder", id: "f2", name: "Nord", children: [] },
-        { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+        { kind: "entity", id: "e1", name: "Aeliana", resolvedType: CHARACTER },
       ],
     });
   });
@@ -138,10 +114,7 @@ describe("flattenVisibleItems", () => {
           makeFolderNode({
             id: "f2",
             name: "Nord",
-            parentId: "f1",
-            children: [
-              makeFolderNode({ id: "f3", name: "Capitales", parentId: "f2", children: [] }),
-            ],
+            children: [makeFolderNode({ id: "f3", name: "Capitales", children: [] })],
           }),
         ],
       }),
@@ -211,9 +184,9 @@ describe("flattenFolderOptions", () => {
         id: "f1",
         name: "Royaumes",
         entities: [makeFolderEntity({ id: "e1", folderId: "f1" })],
-        children: [makeFolderNode({ id: "f2", name: "Nord", parentId: "f1" })],
+        children: [makeFolderNode({ id: "f2", name: "Nord" })],
       }),
-      makeFolderNode({ id: "f3", name: "Factions", parentId: null }),
+      makeFolderNode({ id: "f3", name: "Factions" }),
     ];
 
     expect(flattenFolderOptions(folders)).toEqual([
@@ -248,7 +221,7 @@ describe("moveEntityInTree", () => {
     if (f1?.kind !== "folder" || f2?.kind !== "folder") throw new Error("unreachable");
     expect(f1.children).toEqual([]);
     expect(f2.children).toEqual([
-      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+      { kind: "entity", id: "e1", name: "Aeliana", resolvedType: CHARACTER },
     ]);
   });
 
@@ -259,7 +232,7 @@ describe("moveEntityInTree", () => {
     const unfiled = after.find((n) => n.kind === "folder" && n.id === UNFILED_NODE_ID);
     if (f1?.kind !== "folder" || unfiled?.kind !== "folder") throw new Error("unreachable");
     expect(f1.children).toEqual([
-      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+      { kind: "entity", id: "e1", name: "Aeliana", resolvedType: CHARACTER },
     ]);
     expect(unfiled.children).toEqual([]);
   });
@@ -273,7 +246,7 @@ describe("moveEntityInTree", () => {
     if (f1?.kind !== "folder" || unfiled?.kind !== "folder") throw new Error("unreachable");
     expect(f1.children).toEqual([]);
     expect(unfiled.children).toEqual([
-      { kind: "entity", id: "e1", name: "Aeliana", type: "character", customTypeId: null },
+      { kind: "entity", id: "e1", name: "Aeliana", resolvedType: CHARACTER },
     ]);
   });
 

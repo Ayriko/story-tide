@@ -1,7 +1,6 @@
-import { resolveEntityType } from "@/lib/entity-types";
+import type { EntityListItem } from "@/lib/entity-types";
 import { Card } from "@/components/ui/card";
 import { EntityTypeIcon } from "./entity-type-icon";
-import { useWorldTypeCatalog } from "./world-type-catalog";
 
 // Carte visuelle d'une entite, extraite de la vue Types (entity-search.tsx)
 // pour etre partagee par les DEUX nouveaux chemins de KAN-57 (liste plate en
@@ -9,14 +8,9 @@ import { useWorldTypeCatalog } from "./world-type-catalog";
 // inline intacte, jamais touchee par cette extraction (aucune abstraction
 // imposee sur du code deja existant et qui fonctionne).
 //
-// Rendu uniquement depuis des Client Components (entity-search.tsx) : lit le
-// catalogue des types du monde (KAN-81) dans le contexte.
-export function EntityRow({
-  entity,
-}: {
-  entity: { id: string; name: string; type: string; customTypeId: string | null };
-}) {
-  const resolved = resolveEntityType(entity, useWorldTypeCatalog());
+// Type deja resolu cote serveur (KAN-84) : jamais de type brut ici.
+export function EntityRow({ entity }: { entity: Pick<EntityListItem, "name" | "resolvedType"> }) {
+  const resolved = entity.resolvedType;
   return (
     <Card className="flex-row items-center justify-between px-4 py-3 transition-colors hover:bg-accent">
       <span className="flex min-w-0 items-center gap-2">

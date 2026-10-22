@@ -61,7 +61,9 @@ import { useWorldTypeCatalog } from "./world-type-catalog";
 // Champ de FORMULAIRE (pas une popup d'editeur) : des <input type="hidden">
 // portent la vraie valeur soumise - `name` (cle native ou sentinelle
 // "custom") et "customTypeId" (vide pour un natif, KAN-81) - lues depuis le
-// FormData par le <form action> existant (useActionState).
+// FormData par le <form action> existant (useActionState). Exception assumee
+// au blindage des affichages (KAN-84) : un champ d'ecriture doit connaitre la
+// valeur stockee ; les affichages, eux, ne recoivent qu'un type resolu.
 //
 // Types proposes (KAN-81) : ceux du monde (catalogue en contexte) -
 // personnalises dans leur groupe avec une marque discrete « perso », natifs

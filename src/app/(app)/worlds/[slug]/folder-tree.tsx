@@ -23,11 +23,10 @@ import {
 import { ChevronRight, Folder as FolderIcon, FolderOpen } from "lucide-react";
 import { moveEntityToFolderAction, type MoveEntityState } from "@/actions/entity";
 import { cn } from "@/lib/utils";
-import { resolveEntityType, type EntityTypeIconKey } from "@/lib/entity-types";
+import type { EntityTypeIconKey } from "@/lib/entity-types";
 import { EntityTypeIcon } from "./entity-type-icon";
 import { FolderRowActions } from "./folder-row-actions";
 import { MoveEntityMenu } from "./move-entity-menu";
-import { useWorldTypeCatalog } from "./world-type-catalog";
 import {
   UNFILED_NODE_ID,
   flattenVisibleItems,
@@ -310,8 +309,7 @@ function TreeItem({
   // useDraggable sur ce role="treeitem" (dnd-kit y mettrait son propre
   // role/tabIndex/aria-roledescription, qui ecraserait le tabindex flottant
   // et le role="treeitem" deja geres par cet arbre).
-  const typeCatalog = useWorldTypeCatalog();
-  const resolvedType = node.kind === "entity" ? resolveEntityType(node, typeCatalog) : null;
+  const resolvedType = node.kind === "entity" ? node.resolvedType : null;
   const draggable = useDraggable({
     id: node.id,
     data:
