@@ -38,6 +38,16 @@ vi.mock("@/db/client", () => ({
       findFirst: vi.fn(),
       findMany: vi.fn(),
     },
+    // Relations declarees (KAN-84) : mockees UNIQUEMENT pour prouver qu'aucune
+    // reconciliation/scan du texte n'y touche.
+    declaredRelation: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     $transaction: vi.fn(),
   },
 }));
@@ -53,6 +63,12 @@ const entityFindFirst = vi.mocked(prisma.entity.findFirst);
 const entityFindMany = vi.mocked(prisma.entity.findMany);
 const transaction = vi.mocked(prisma.$transaction);
 
+function expectDeclaredRelationsUntouched() {
+  for (const method of Object.values(prisma.declaredRelation)) {
+    expect(method).not.toHaveBeenCalled();
+  }
+}
+
 const OWNER_ID = "owner-1";
 const WORLD_ID = "w1";
 const ENTITY_ID = "e1";
@@ -66,6 +82,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     origin: WorldOrigin.USER,
     pinnedAt: null,
     hiddenEntityTypes: [],
+    hiddenRelationTypes: [],
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,
@@ -389,6 +406,20 @@ describe("reconcileManualMentions", () => {
       where: { sourceId: ENTITY_ID, origin: RelationOrigin.MANUAL, targetId: { in: ["e2"] } },
     });
     expect(relationCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("sauvegarde sans @ : les relations declarees restent intactes (KAN-84)", async () => {
+    worldFindFirst.mockResolvedValue(makeWorld());
+    relationFindMany.mockResolvedValue([
+      makeRelation({ sourceId: ENTITY_ID, targetId: "e2", origin: RelationOrigin.MANUAL }),
+    ]);
+
+    await reconcileManualMentions(OWNER_ID, WORLD_ID, ENTITY_ID, []);
+
+    // Seule la Relation MANUAL (reflet du texte) disparait ; la reconciliation
+    // ne lit ni n'ecrit jamais une relation declaree.
+    expect(relationDeleteMany).toHaveBeenCalledOnce();
+    expectDeclaredRelationsUntouched();
   });
 
   it("ignore silencieusement un id mentionne qui n'appartient pas au monde (jamais de confiance dans l'input client)", async () => {

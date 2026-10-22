@@ -28,7 +28,7 @@ describe("buildGraphElements", () => {
     ]);
   });
 
-  it("convertit chaque relation en arete avec source/target/origin", () => {
+  it("convertit une relation en arete texte flechee dans son sens (KAN-84)", () => {
     const result = buildGraphElements(
       [
         {
@@ -45,12 +45,20 @@ describe("buildGraphElements", () => {
 
     expect(result.edges).toEqual([
       {
-        data: { id: "e1->e2:AUTO", source: "e1", target: "e2", origin: RelationOrigin.AUTO },
+        data: {
+          id: "pair:e1~e2",
+          source: "e1",
+          target: "e2",
+          kind: "text",
+          arrow: true,
+          label: "",
+          relationTypes: [],
+        },
       },
     ]);
   });
 
-  it("distingue une arete AUTO et une arete MANUAL pour le meme couple (id different)", () => {
+  it("ne trace qu'une arete texte pour une paire a la fois AUTO et MANUAL (KAN-84)", () => {
     const result = buildGraphElements(
       [
         {
@@ -68,8 +76,8 @@ describe("buildGraphElements", () => {
       ],
     );
 
-    expect(result.edges).toHaveLength(2);
-    expect(result.edges.map((edge) => edge.data.id)).toEqual(["e1->e2:AUTO", "e1->e2:MANUAL"]);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0]?.data).toMatchObject({ id: "pair:e1~e2", kind: "text", arrow: true });
   });
 
   it("omet silencieusement une arete dont une extremite n'est plus dans la liste d'entites", () => {
@@ -125,8 +133,8 @@ describe("buildAccessibleGraphEntries", () => {
         name: "Aeliana",
         typeLabel: "Personnage",
         outgoing: [
-          { id: "e3", name: "Robert", typeLabel: "Personnage", mutual: false },
-          { id: "e2", name: "Valombre", typeLabel: "Lieu", mutual: false },
+          { id: "e3", name: "Robert", typeLabel: "Personnage", mutual: false, relationLabel: "" },
+          { id: "e2", name: "Valombre", typeLabel: "Lieu", mutual: false, relationLabel: "" },
         ],
       },
     ]);
@@ -143,7 +151,9 @@ describe("buildAccessibleGraphEntries", () => {
         id: "e1",
         name: "Aeliana",
         typeLabel: "Personnage",
-        outgoing: [{ id: "e2", name: "Valombre", typeLabel: "Lieu", mutual: false }],
+        outgoing: [
+          { id: "e2", name: "Valombre", typeLabel: "Lieu", mutual: false, relationLabel: "" },
+        ],
       },
     ]);
   });
@@ -161,7 +171,9 @@ describe("buildAccessibleGraphEntries", () => {
         id: "e1",
         name: "Aeliana",
         typeLabel: "Personnage",
-        outgoing: [{ id: "e3", name: "Robert", typeLabel: "Personnage", mutual: true }],
+        outgoing: [
+          { id: "e3", name: "Robert", typeLabel: "Personnage", mutual: true, relationLabel: "" },
+        ],
       },
     ]);
   });
@@ -194,7 +206,9 @@ describe("buildAccessibleGraphEntries", () => {
         id: "e1",
         name: "Homonyme",
         typeLabel: "Personnage",
-        outgoing: [{ id: "e2", name: "Homonyme", typeLabel: "Personnage", mutual: true }],
+        outgoing: [
+          { id: "e2", name: "Homonyme", typeLabel: "Personnage", mutual: true, relationLabel: "" },
+        ],
       },
     ]);
   });
@@ -243,6 +257,189 @@ describe("buildGraphElements - type personnalise (KAN-81)", () => {
     );
     expect(nodes).toEqual([
       { data: { id: "e1", label: "Aube Grise", typeKey: "custom:ct1", group: "Objets" } },
+    ]);
+  });
+});
+
+// KAN-84 : une arete par paire non ordonnee ; une relation declaree masque
+// les reflets du texte de la paire ; fleche seulement si un sens unique.
+describe("buildGraphElements - relations declarees (KAN-84)", () => {
+  const SELYNE = {
+    id: "a-selyne",
+    name: "Selyne",
+    typeKey: "character",
+    typeLabel: "Personnage",
+    group: "Personnages",
+  };
+  const ALDRIC = {
+    id: "b-aldric",
+    name: "Aldric",
+    typeKey: "character",
+    typeLabel: "Personnage",
+    group: "Personnages",
+  };
+  const PARENT = {
+    key: "parent",
+    label: "Parent de",
+    inverseLabel: "Enfant de",
+    symmetric: false,
+    isCustom: false,
+    isHidden: false,
+  };
+  const MENTOR = { ...PARENT, key: "mentor", label: "Mentor de", inverseLabel: "Élève de" };
+  const ALLY = {
+    key: "ally",
+    label: "Allié",
+    inverseLabel: null,
+    symmetric: true,
+    isCustom: false,
+    isHidden: false,
+  };
+
+  it("paire AUTO + declaree = une seule arete declaree, trait libelle depuis la source", () => {
+    const { edges } = buildGraphElements(
+      [SELYNE, ALDRIC],
+      [{ sourceId: ALDRIC.id, targetId: SELYNE.id, origin: RelationOrigin.AUTO }],
+      [{ sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: PARENT }],
+    );
+
+    expect(edges).toEqual([
+      {
+        data: {
+          id: "pair:a-selyne~b-aldric",
+          source: SELYNE.id,
+          target: ALDRIC.id,
+          kind: "declared",
+          arrow: true,
+          label: "Parent de",
+          relationTypes: [
+            {
+              key: "parent",
+              label: "Parent de",
+              inverseLabel: "Enfant de",
+              symmetric: false,
+              sourceId: SELYNE.id,
+            },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("deux types declares sur la paire = une arete, libelles joints par « · »", () => {
+    const { edges } = buildGraphElements(
+      [SELYNE, ALDRIC],
+      [],
+      [
+        { sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: PARENT },
+        { sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: MENTOR },
+      ],
+    );
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.data).toMatchObject({ arrow: true, label: "Parent de · Mentor de" });
+  });
+
+  it("sens opposes : pas de fleche, libelles lus depuis la source de l'arete (plus petit id)", () => {
+    const { edges } = buildGraphElements(
+      [SELYNE, ALDRIC],
+      [],
+      [
+        { sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: PARENT },
+        { sourceId: ALDRIC.id, targetId: SELYNE.id, relationType: MENTOR },
+      ],
+    );
+
+    expect(edges[0]?.data).toMatchObject({
+      source: SELYNE.id,
+      arrow: false,
+      label: "Parent de · Élève de",
+    });
+  });
+
+  it("une symetrique ne donne aucun sens : fleche portee par la seule dirigee", () => {
+    const { edges } = buildGraphElements(
+      [SELYNE, ALDRIC],
+      [],
+      [
+        { sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: ALLY },
+        { sourceId: ALDRIC.id, targetId: SELYNE.id, relationType: MENTOR },
+      ],
+    );
+
+    expect(edges[0]?.data).toMatchObject({
+      source: ALDRIC.id,
+      target: SELYNE.id,
+      arrow: true,
+      label: "Allié · Mentor de",
+    });
+  });
+
+  it("symetrique seule : pas de fleche", () => {
+    const { edges } = buildGraphElements(
+      [SELYNE, ALDRIC],
+      [],
+      [{ sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: ALLY }],
+    );
+
+    expect(edges[0]?.data).toMatchObject({ kind: "declared", arrow: false, label: "Allié" });
+  });
+
+  it("mentions mutuelles : une arete texte sans fleche", () => {
+    const { edges } = buildGraphElements(
+      [SELYNE, ALDRIC],
+      [
+        { sourceId: SELYNE.id, targetId: ALDRIC.id, origin: RelationOrigin.MANUAL },
+        { sourceId: ALDRIC.id, targetId: SELYNE.id, origin: RelationOrigin.AUTO },
+      ],
+    );
+
+    expect(edges).toHaveLength(1);
+    expect(edges[0]?.data).toMatchObject({ kind: "text", arrow: false, label: "" });
+  });
+
+  it("liste accessible : une entree par paire, libelle declare lu depuis la source", () => {
+    const entries = buildAccessibleGraphEntries(
+      [SELYNE, ALDRIC],
+      [{ sourceId: ALDRIC.id, targetId: SELYNE.id, origin: RelationOrigin.AUTO }],
+      [{ sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: PARENT }],
+    );
+
+    expect(entries).toEqual([
+      {
+        id: SELYNE.id,
+        name: "Selyne",
+        typeLabel: "Personnage",
+        outgoing: [
+          {
+            id: ALDRIC.id,
+            name: "Aldric",
+            typeLabel: "Personnage",
+            mutual: false,
+            relationLabel: "Parent de",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("liste accessible : paire sans sens unique rangee sous le premier nom, lue depuis lui", () => {
+    const entries = buildAccessibleGraphEntries(
+      [SELYNE, ALDRIC],
+      [],
+      [{ sourceId: SELYNE.id, targetId: ALDRIC.id, relationType: ALLY }],
+    );
+
+    // « Aldric » < « Selyne » : proprietaire canonique Aldric.
+    expect(entries.map((entry) => entry.id)).toEqual([ALDRIC.id]);
+    expect(entries[0]?.outgoing).toEqual([
+      {
+        id: SELYNE.id,
+        name: "Selyne",
+        typeLabel: "Personnage",
+        mutual: true,
+        relationLabel: "Allié",
+      },
     ]);
   });
 });

@@ -37,9 +37,11 @@ export function GraphAccessibleList({
                     href={`/worlds/${worldSlug}/entities/${target.id}`}
                     className="text-sm text-muted-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
-                    {/* mutual : les deux entites se mentionnent l'une l'autre
-                        - un seul lien pour la paire (graph-elements.ts),
-                        fleche double pour le signaler visuellement. */}
+                    {/* mutual : paire sans sens unique - un seul lien pour
+                        la paire (graph-elements.ts), fleche double pour le
+                        signaler. Libelle declare (KAN-84) en tete, lu depuis
+                        l'entree proprietaire : « Parent de → Aldric ». */}
+                    {target.relationLabel ? `${target.relationLabel} ` : ""}
                     {target.mutual ? "↔" : "→"} {target.name}
                   </Link>
                   <span className="ml-2 text-xs text-muted-foreground">{target.typeLabel}</span>

@@ -126,6 +126,7 @@ export default async function AdminDashboardPage() {
               <Stat label="Mondes, exemples inclus" value={formatNumber(content.worldsTotal)} />
               <Stat label="Liens automatiques" value={formatNumber(content.relationsAuto)} />
               <Stat label="Liens manuels" value={formatNumber(content.relationsManual)} />
+              <Stat label="Relations déclarées" value={formatNumber(content.relationsDeclared)} />
               <Stat label="Liens ignorés" value={formatNumber(content.linksIgnored)} />
               <Stat label="Images" value={formatNumber(content.images)} />
               <Stat label="Volume des images" value={formatMebibytes(content.imagesBytes)} />

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import cytoscape, { type Core, type NodeSingular } from "cytoscape";
+import cytoscape, { type Core, type EdgeSingular, type NodeSingular } from "cytoscape";
 import { ChevronDown } from "lucide-react";
 import type { GraphElements } from "@/lib/graph-elements";
 import { filterableTypes } from "@/lib/entity-types";
@@ -146,14 +146,42 @@ export function GraphView({
           },
         },
         {
+          // Une arete par paire (KAN-84). Fleche lue dans data(arrow) par une
+          // fonction de style : aucun selecteur construit a partir d'une
+          // donnee (jamais de valeur utilisateur dans un selecteur chaine).
           selector: "edge",
           style: {
             width: 1,
             "line-color": "#52525b",
             "line-opacity": 0.6,
             "target-arrow-color": "#52525b",
-            "target-arrow-shape": "triangle",
+            "target-arrow-shape": (edge: EdgeSingular) =>
+              edge.data("arrow") === true ? "triangle" : "none",
             "curve-style": "bezier",
+          },
+        },
+        {
+          // Reflet du texte : pointilles, sans libelle. La forme du trait (et
+          // le libelle des aretes declarees) porte l'information, jamais la
+          // couleur seule. Selecteurs STATIQUES.
+          selector: 'edge[kind = "text"]',
+          style: { "line-style": "dashed" },
+        },
+        {
+          // Relation declaree : trait plein, plus marque, libelle lu depuis la
+          // source de l'arete (« Parent de · Mentor de »). Design au lot C.
+          selector: 'edge[kind = "declared"]',
+          style: {
+            width: 1.5,
+            "line-style": "solid",
+            "line-opacity": 0.9,
+            label: "data(label)",
+            "font-family": interFontFamily,
+            "font-size": 8,
+            color: "#edf2f2",
+            "text-outline-color": LABEL_HALO_COLOR,
+            "text-outline-width": 2,
+            "text-rotation": "autorotate",
           },
         },
       ],

@@ -12,14 +12,24 @@ import {
   listOutgoingLinks,
 } from "@/services/relation-service";
 import { resolveEntityType } from "@/lib/entity-types";
+import { selectableRelationTypes } from "@/lib/relation-types";
 import { getWorldTypeCatalog } from "@/services/entity-type-service";
+import {
+  listDeclaredRelationsForEntity,
+  listIgnoredRelationSuggestions,
+  listRelationSuggestions,
+} from "@/services/declared-relation-service";
+import { getWorldRelationTypeCatalog } from "@/services/relation-type-service";
 import { EMPTY_CONTENT, parseContent } from "@/lib/tiptap-content";
 import { Button } from "@/components/ui/button";
 import { EntityTypeIcon } from "../../entity-type-icon";
+import { AddRelationForm } from "./add-relation-form";
+import { DeclaredRelations } from "./declared-relations";
 import { EntityEditor } from "./entity-editor";
 import { EntitySettingsDialog } from "./entity-settings-dialog";
 import { IgnoredLinks } from "./ignored-links";
 import { LinkedEntities } from "./linked-entities";
+import { RelationSuggestions } from "./relation-suggestions";
 
 // Rotation statique (KAN-19), meme patron que worlds/[slug]/page.tsx : un
 // conseil par jour du mois, deterministe (pas de state client, zero risque
@@ -94,6 +104,10 @@ export default async function EntityPage({
     ignoredTargets,
     worldEntities,
     typeCatalog,
+    declaredRelations,
+    relationSuggestions,
+    ignoredSuggestions,
+    relationTypeCatalog,
   ] = await Promise.all([
     buildDictionary(world.id),
     getIgnoredTargetIds(session.user.id, world.id, entity.id),
@@ -102,6 +116,10 @@ export default async function EntityPage({
     listIgnoredTargets(session.user.id, world.id, entity.id),
     listEntities(session.user.id, world.id),
     getWorldTypeCatalog(session.user.id, world.id),
+    listDeclaredRelationsForEntity(session.user.id, world.id, entity.id),
+    listRelationSuggestions(session.user.id, world.id, entity.id),
+    listIgnoredRelationSuggestions(session.user.id, world.id, entity.id),
+    getWorldRelationTypeCatalog(session.user.id, world.id),
   ]);
   const resolvedType = resolveEntityType(entity, typeCatalog);
   // Mentions manuelles @ (KAN-22) : liste des entites du monde proposees par
@@ -111,6 +129,19 @@ export default async function EntityPage({
     id: worldEntity.id,
     label: worldEntity.name,
   }));
+
+  // Relations declarees (KAN-84) : options du select calculees ici, entrees
+  // cibles reduites a ce que le combobox affiche (type deja resolu, ni la
+  // fiche courante, ni son contenu).
+  const relationTypeOptions = selectableRelationTypes(relationTypeCatalog);
+  const relationTargets = worldEntities
+    .filter((worldEntity) => worldEntity.id !== entity.id)
+    .map((worldEntity) => ({
+      id: worldEntity.id,
+      name: worldEntity.name,
+      typeLabel: resolveEntityType(worldEntity, typeCatalog).label,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "fr"));
 
   const tip = ENTITY_TIPS[new Date().getDate() % ENTITY_TIPS.length];
 
@@ -177,6 +208,50 @@ export default async function EntityPage({
         ignoredTargetIds={ignoredTargetIds}
         entities={mentionSuggestionEntities}
       />
+
+      {/* Relations declarees (KAN-84, ADR-0031) : au-dessus de « Renvois »
+          (reflets du texte, inchanges) - elles survivent a toute sauvegarde. */}
+      <section
+        aria-labelledby="declared-relations-heading"
+        className="flex flex-col gap-4 border-t border-border pt-4"
+      >
+        <h2
+          id="declared-relations-heading"
+          className="font-heading text-sm font-medium text-foreground"
+        >
+          Relations
+        </h2>
+        <DeclaredRelations
+          worldId={world.id}
+          worldSlug={world.slug}
+          relations={declaredRelations}
+        />
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Ajouter une relation
+          </h3>
+          <AddRelationForm
+            worldId={world.id}
+            worldSlug={world.slug}
+            entityId={entity.id}
+            options={relationTypeOptions}
+            entities={relationTargets}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Suggestions
+          </h3>
+          <RelationSuggestions
+            worldId={world.id}
+            worldSlug={world.slug}
+            entityId={entity.id}
+            suggestions={relationSuggestions}
+            ignored={ignoredSuggestions}
+            options={relationTypeOptions}
+          />
+        </div>
+      </section>
 
       <section
         aria-labelledby="linked-entities-heading"

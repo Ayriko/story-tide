@@ -55,29 +55,35 @@ enum PlanSource {
 }
 
 model World {
-  id                String             @id @default(cuid())
-  name              String
-  slug              String
-  ownerId           String
-  owner             User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  origin            WorldOrigin        @default(USER)
+  id                        String                     @id @default(cuid())
+  name                      String
+  slug                      String
+  ownerId                   String
+  owner                     User                       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  origin                    WorldOrigin                @default(USER)
   // Epinglage (quick win 2.5) : proprietaire unique par monde pour le moment
   // (hypothese assumee, cf. commentaire de pinWorld/unpinWorld dans
   // world-service.ts) - nullable, colonne seule dans sa migration, jamais
   // fusionnee avec celle de KAN-38.
-  pinnedAt          DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  entities          Entity[]
-  relations         Relation[]
-  linkIgnores       LinkIgnore[]
-  images            Image[]
-  folders           Folder[]
+  pinnedAt                  DateTime?
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  entities                  Entity[]
+  relations                 Relation[]
+  linkIgnores               LinkIgnore[]
+  images                    Image[]
+  folders                   Folder[]
   // Parametrage des types (KAN-81, ADR-0030) : cles NATIVES (ENTITY_TYPES)
   // non proposees a la creation dans ce monde. Les entrees existantes de ces
   // types les gardent et les affichent.
-  hiddenEntityTypes String[]           @default([])
-  customEntityTypes CustomEntityType[]
+  hiddenEntityTypes         String[]                   @default([])
+  customEntityTypes         CustomEntityType[]
+  // Meme parametrage pour les types de relation (KAN-84, ADR-0031) : cles
+  // NATIVES (RELATION_TYPES) non proposees dans ce monde.
+  hiddenRelationTypes       String[]                   @default([])
+  customRelationTypes       CustomRelationType[]
+  declaredRelations         DeclaredRelation[]
+  relationSuggestionIgnores RelationSuggestionIgnore[]
 
   @@unique([ownerId, slug])
   @@index([ownerId])
@@ -119,11 +125,17 @@ model Entity {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  aliases         Alias[]
-  sourceRelations Relation[]   @relation("RelationSource")
-  targetRelations Relation[]   @relation("RelationTarget")
-  linkIgnoresFrom LinkIgnore[] @relation("LinkIgnoreEntity")
-  linkIgnoresTo   LinkIgnore[] @relation("LinkIgnoreTarget")
+  aliases               Alias[]
+  sourceRelations       Relation[]                 @relation("RelationSource")
+  targetRelations       Relation[]                 @relation("RelationTarget")
+  linkIgnoresFrom       LinkIgnore[]               @relation("LinkIgnoreEntity")
+  linkIgnoresTo         LinkIgnore[]               @relation("LinkIgnoreTarget")
+  // Relations declarees (KAN-84, ADR-0031) - distinctes des reflets du texte
+  // ci-dessus, jamais touchees par la reconciliation ni par le worker.
+  declaredAsSource      DeclaredRelation[]         @relation("DeclaredSource")
+  declaredAsTarget      DeclaredRelation[]         @relation("DeclaredTarget")
+  suggestionIgnoresFrom RelationSuggestionIgnore[] @relation("SuggestionIgnoreEntity")
+  suggestionIgnoresTo   RelationSuggestionIgnore[] @relation("SuggestionIgnoreTarget")
 
   @@unique([worldId, seedRef])
   @@index([worldId])
@@ -227,6 +239,78 @@ model LinkIgnore {
   entity    Entity   @relation("LinkIgnoreEntity", fields: [entityId], references: [id], onDelete: Cascade)
   targetId  String
   target    Entity   @relation("LinkIgnoreTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([entityId, targetId])
+  @@index([worldId])
+}
+
+// Type de relation propre a un monde (KAN-84, ADR-0031, patron ADR-0030). Le
+// registre natif (14 types) reste en code (relation-types.ts) ; une relation
+// d'un type perso porte relationType = "custom" + customRelationTypeId.
+model CustomRelationType {
+  id           String             @id @default(cuid())
+  worldId      String
+  world        World              @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  label        String // NFC (ADR-0020), 1 a 40 caracteres, ex. « Suzerain de »
+  // normalizeForMatch(label) : porte l'unicite du libelle dans le monde (meme
+  // raison que CustomEntityType.labelKey). Les collisions avec les libelles et
+  // inverses natifs, et avec les inverses perso, sont verifiees dans le service.
+  labelKey     String
+  // Requis si dirige, interdit si symetrique (Zod + CHECK SQL dans la migration).
+  inverseLabel String?
+  symmetric    Boolean
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  relations    DeclaredRelation[]
+
+  @@unique([worldId, labelKey])
+  @@index([worldId])
+}
+
+// Relation DECLAREE par l'auteur (KAN-84, ADR-0031), distincte de Relation
+// (AUTO/MANUAL = reflets du texte) : elle survit a toute sauvegarde de texte.
+// Une relation symetrique est stockee une seule fois, (source, cible) ordonnes
+// par id, pour que A<->B et B<->A tombent sur le meme index unique.
+model DeclaredRelation {
+  id                   String              @id @default(cuid())
+  worldId              String
+  world                World               @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  sourceId             String
+  source               Entity              @relation("DeclaredSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetId             String
+  target               Entity              @relation("DeclaredTarget", fields: [targetId], references: [id], onDelete: Cascade)
+  relationType         String // cle native (RELATION_TYPES) ou "custom" - donnee, pas d'enum
+  // Renseigne si et seulement si relationType = "custom" (CHECK SQL).
+  // onDelete: NoAction et PAS Restrict - meme raisonnement que
+  // Entity.customTypeId (KAN-81) : la cascade d'une suppression de monde passe,
+  // la suppression directe d'un type encore utilise echoue.
+  customRelationTypeId String?
+  customRelationType   CustomRelationType? @relation(fields: [customRelationTypeId], references: [id], onDelete: NoAction)
+  // Cle native ou `custom:<id>` : porte l'unicite (un index unique avec une
+  // colonne NULL ne bloquerait pas les doublons natifs). Coherence avec les
+  // deux colonnes ci-dessus garantie par un CHECK SQL.
+  typeKey              String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@unique([sourceId, targetId, typeKey])
+  @@index([worldId])
+  @@index([targetId])
+  @@index([customRelationTypeId])
+}
+
+// Suggestion de relation ecartee par l'auteur sur une fiche (KAN-84) : la
+// cible citee n'est plus proposee comme relation. Patron de LinkIgnore, sans
+// effet sur les liens du texte.
+model RelationSuggestionIgnore {
+  id        String   @id @default(cuid())
+  worldId   String
+  world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity   @relation("SuggestionIgnoreEntity", fields: [entityId], references: [id], onDelete: Cascade)
+  targetId  String
+  target    Entity   @relation("SuggestionIgnoreTarget", fields: [targetId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([entityId, targetId])
