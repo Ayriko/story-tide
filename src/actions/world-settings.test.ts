@@ -13,9 +13,22 @@ import {
   updateCustomType,
 } from "@/services/entity-type-service";
 import {
+  RelationReassignKindError,
+  RelationTypeInUseError,
+  RelationTypeLabelTakenError,
+  createCustomRelationType,
+  deleteCustomRelationType,
+  setNativeRelationTypeHidden,
+  updateCustomRelationType,
+} from "@/services/relation-type-service";
+import {
+  createCustomRelationTypeAction,
   createCustomTypeAction,
+  deleteCustomRelationTypeAction,
   deleteCustomTypeAction,
+  setNativeRelationTypeHiddenAction,
   setNativeTypeHiddenAction,
+  updateCustomRelationTypeAction,
   updateCustomTypeAction,
 } from "./world-settings";
 
@@ -43,6 +56,19 @@ vi.mock("@/services/entity-type-service", async (importOriginal) => {
     updateCustomType: vi.fn(),
     setNativeTypeHidden: vi.fn(),
     deleteCustomType: vi.fn(),
+  };
+});
+
+// Types de relation (KAN-84) : services mockes, jamais la vraie base (skill
+// nonfatal-catch-hides-missing-mock).
+vi.mock("@/services/relation-type-service", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/relation-type-service")>();
+  return {
+    ...actual,
+    createCustomRelationType: vi.fn(),
+    updateCustomRelationType: vi.fn(),
+    setNativeRelationTypeHidden: vi.fn(),
+    deleteCustomRelationType: vi.fn(),
   };
 });
 
@@ -275,5 +301,161 @@ describe("deleteCustomTypeAction", () => {
       deleteCustomTypeAction({}, formData({ worldId: "w1", typeId: "ct-ship" })),
     ).rejects.toThrow("NEXT_REDIRECT");
     expect(mockedDeleteCustomType).not.toHaveBeenCalled();
+  });
+});
+
+describe("types de relation (KAN-84)", () => {
+  const mockedCreate = vi.mocked(createCustomRelationType);
+  const mockedUpdate = vi.mocked(updateCustomRelationType);
+  const mockedSetHidden = vi.mocked(setNativeRelationTypeHidden);
+  const mockedDelete = vi.mocked(deleteCustomRelationType);
+  const SUZERAIN_FIELDS = {
+    worldId: "w1",
+    label: "Suzerain de",
+    symmetric: "false",
+    inverseLabel: "Vassal de",
+  };
+
+  it("cree un type dirige apres Zod et session, puis revalide le layout", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+
+    const result = await createCustomRelationTypeAction({}, formData(SUZERAIN_FIELDS));
+
+    expect(result).toEqual({ ok: true });
+    expect(mockedCreate).toHaveBeenCalledWith("owner-1", "w1", {
+      label: "Suzerain de",
+      symmetric: false,
+      inverseLabel: "Vassal de",
+    });
+    expect(mockedRevalidatePath).toHaveBeenCalledWith("/(app)/worlds/[slug]", "layout");
+  });
+
+  it("sans session : redirige vers /login sans appeler le service", async () => {
+    mockedRequireSession.mockRejectedValueOnce(new Error("UNAUTHENTICATED"));
+
+    await expect(createCustomRelationTypeAction({}, formData(SUZERAIN_FIELDS))).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
+    expect(mockedRedirect).toHaveBeenCalledWith("/login");
+    expect(mockedCreate).not.toHaveBeenCalled();
+  });
+
+  it("monde d'autrui : « introuvable », sans revalidation", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedCreate.mockRejectedValueOnce(new WorldNotFoundError());
+
+    const state = await createCustomRelationTypeAction({}, formData(SUZERAIN_FIELDS));
+
+    expect(state.formError).toBe("Type introuvable.");
+    expect(mockedRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("dirige sans inverse : erreur de champ, ni session ni service", async () => {
+    const result = await createCustomRelationTypeAction(
+      {},
+      formData({ ...SUZERAIN_FIELDS, inverseLabel: "" }),
+    );
+
+    expect(result.errors?.inverseLabel).toBe(
+      "Le libellé inverse est requis pour une relation dirigée.",
+    );
+    expect(mockedRequireSession).not.toHaveBeenCalled();
+    expect(mockedCreate).not.toHaveBeenCalled();
+  });
+
+  it("sens non choisi : erreur sur le champ sens", async () => {
+    const result = await createCustomRelationTypeAction(
+      {},
+      formData({ worldId: "w1", label: "Pacte", inverseLabel: "" }),
+    );
+    expect(result.errors?.symmetric).toBeDefined();
+  });
+
+  it("libelle pris : erreur sur le champ signale par le service (inverse)", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedCreate.mockRejectedValueOnce(new RelationTypeLabelTakenError("inverseLabel"));
+
+    const result = await createCustomRelationTypeAction({}, formData(SUZERAIN_FIELDS));
+
+    expect(result.errors).toEqual({ inverseLabel: "Ce libellé est déjà utilisé dans ce monde." });
+    expect(mockedRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("changement de sens d'un type utilise : erreur sur le champ sens", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedUpdate.mockRejectedValueOnce(new RelationTypeInUseError());
+
+    const result = await updateCustomRelationTypeAction(
+      {},
+      formData({ ...SUZERAIN_FIELDS, typeId: "rt1", symmetric: "true", inverseLabel: "" }),
+    );
+
+    expect(mockedUpdate).toHaveBeenCalledWith("owner-1", "w1", "rt1", {
+      label: "Suzerain de",
+      symmetric: true,
+      inverseLabel: null,
+    });
+    expect(result.errors?.symmetric).toMatch(/son sens ne peut plus changer/);
+  });
+
+  it("panne inattendue : message generique et trace serveur", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    const failure = new Error("db down");
+    mockedCreate.mockRejectedValueOnce(failure);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await createCustomRelationTypeAction({}, formData(SUZERAIN_FIELDS));
+
+    expect(result.formError).toBe("Enregistrement impossible pour le moment. Réessayez.");
+    expect(consoleError).toHaveBeenCalledWith(
+      "[world-settings] Création de type de relation échouée :",
+      failure,
+    );
+    consoleError.mockRestore();
+  });
+
+  it("masque un type natif ; refuse une cle inconnue sans appeler le service", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    await expect(
+      setNativeRelationTypeHiddenAction(
+        {},
+        formData({ worldId: "w1", type: "rival", hidden: "true" }),
+      ),
+    ).resolves.toEqual({ ok: true });
+    expect(mockedSetHidden).toHaveBeenCalledWith("owner-1", "w1", "rival", true);
+
+    await expect(
+      setNativeRelationTypeHiddenAction(
+        {},
+        formData({ worldId: "w1", type: "character", hidden: "true" }),
+      ),
+    ).resolves.toEqual({ formError: "Type invalide." });
+    expect(mockedSetHidden).toHaveBeenCalledOnce();
+  });
+
+  it("supprime avec la carte de reaffectation postee en champs reassign:<id>", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+
+    const result = await deleteCustomRelationTypeAction(
+      {},
+      formData({ worldId: "w1", typeId: "rt1", "reassign:r1": "leads", "reassign:r2": "leads" }),
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(mockedDelete).toHaveBeenCalledWith("owner-1", "w1", "rt1", { r1: "leads", r2: "leads" });
+  });
+
+  it("reaffectation de nature differente : message du service", async () => {
+    mockedRequireSession.mockResolvedValueOnce(SESSION);
+    mockedDelete.mockRejectedValueOnce(new RelationReassignKindError());
+
+    const result = await deleteCustomRelationTypeAction(
+      {},
+      formData({ worldId: "w1", typeId: "rt1", "reassign:r1": "ally" }),
+    );
+
+    expect(result).toEqual({
+      formError: "Le type cible doit être de même nature (symétrique ou dirigée).",
+    });
   });
 });

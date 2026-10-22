@@ -5,6 +5,7 @@ import { requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
 import { listEntities } from "@/services/entity-service";
 import { listWorldRelations } from "@/services/relation-service";
+import { listWorldDeclaredRelations } from "@/services/declared-relation-service";
 import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import { resolveEntityType } from "@/lib/entity-types";
 import { buildAccessibleGraphEntries, buildGraphElements } from "@/lib/graph-elements";
@@ -26,10 +27,11 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
     throw error;
   }
 
-  const [entities, relations, typeCatalog] = await Promise.all([
+  const [entities, relations, typeCatalog, declaredRelations] = await Promise.all([
     listEntities(session.user.id, world.id),
     listWorldRelations(session.user.id, world.id),
     getWorldTypeCatalog(session.user.id, world.id),
+    listWorldDeclaredRelations(session.user.id, world.id),
   ]);
 
   const entityInputs = entities.map((entity) => {
@@ -42,8 +44,8 @@ export default async function GraphPage({ params }: { params: Promise<{ slug: st
       group: resolved.group,
     };
   });
-  const elements = buildGraphElements(entityInputs, relations);
-  const accessibleEntries = buildAccessibleGraphEntries(entityInputs, relations);
+  const elements = buildGraphElements(entityInputs, relations, declaredRelations);
+  const accessibleEntries = buildAccessibleGraphEntries(entityInputs, relations, declaredRelations);
 
   return (
     <div className="flex flex-col gap-6">

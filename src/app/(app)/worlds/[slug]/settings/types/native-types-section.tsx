@@ -10,7 +10,7 @@ import { entryCountLabel } from "./entry-count";
 
 // Curseur active = type propose (retour Aymeric : tout est active par defaut,
 // on desactive ce qu'on veut masquer - plus naturel que « cocher pour cacher »).
-const COLUMN_LABEL = "Proposer le type";
+export const COLUMN_LABEL = "Proposer le type";
 
 // Un curseur = un <form> (KAN-81). <button type="submit" role="switch"> et
 // PAS une case a cocher controlee : React 19 reinitialise le formulaire apres
@@ -20,23 +20,29 @@ const COLUMN_LABEL = "Proposer le type";
 // navigateur, 2026-10-20). Un bouton n'a aucun etat DOM a reinitialiser.
 // useOptimistic : bascule visible des le clic, annulee d'elle-meme si le
 // serveur refuse (dernier type proposable) - son message s'affiche sous la
-// ligne.
-function NativeTypeToggle({
+// ligne. Reutilise par l'onglet des types de relation (KAN-84) : seule
+// l'action change.
+export function NativeTypeToggle({
   worldId,
   type,
   label,
   hidden,
+  action = setNativeTypeHiddenAction,
 }: {
   worldId: string;
   type: string;
   label: string;
   hidden: boolean;
+  action?: (
+    previous: WorldSettingsActionState,
+    formData: FormData,
+  ) => Promise<WorldSettingsActionState>;
 }) {
   const [optimisticHidden, setOptimisticHidden] = useOptimistic(hidden);
   const [state, formAction, pending] = useActionState<WorldSettingsActionState, FormData>(
     async (previous, formData) => {
       setOptimisticHidden(!hidden);
-      return setNativeTypeHiddenAction(previous, formData);
+      return action(previous, formData);
     },
     {},
   );

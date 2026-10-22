@@ -17,6 +17,7 @@ vi.mock("@/db/client", () => ({
     world: { count: vi.fn() },
     entity: { count: vi.fn(), findMany: vi.fn() },
     relation: { count: vi.fn() },
+    declaredRelation: { count: vi.fn() },
     linkIgnore: { count: vi.fn() },
     image: { count: vi.fn(), aggregate: vi.fn() },
   },
@@ -28,6 +29,7 @@ const worldCount = vi.mocked(prisma.world.count);
 const entityCount = vi.mocked(prisma.entity.count);
 const entityFindMany = vi.mocked(prisma.entity.findMany);
 const relationCount = vi.mocked(prisma.relation.count);
+const declaredRelationCount = vi.mocked(prisma.declaredRelation.count);
 const linkIgnoreCount = vi.mocked(prisma.linkIgnore.count);
 const imageCount = vi.mocked(prisma.image.count);
 const imageAggregate = vi.mocked(prisma.image.aggregate);
@@ -123,10 +125,11 @@ describe("getUserStats", () => {
 });
 
 describe("getContentStats", () => {
-  it("separe mondes USER et total, relations AUTO et MANUAL, et somme la taille des images", async () => {
+  it("separe mondes USER et total, relations AUTO, MANUAL et declarees, et somme la taille des images", async () => {
     worldCount.mockResolvedValueOnce(9).mockResolvedValueOnce(6);
     entityCount.mockResolvedValueOnce(140);
     relationCount.mockResolvedValueOnce(80).mockResolvedValueOnce(15);
+    declaredRelationCount.mockResolvedValueOnce(12);
     linkIgnoreCount.mockResolvedValueOnce(3);
     imageCount.mockResolvedValueOnce(7);
     imageAggregate.mockResolvedValueOnce(makeImageAggregate(3_145_728));
@@ -142,6 +145,7 @@ describe("getContentStats", () => {
       entities: 140,
       relationsAuto: 80,
       relationsManual: 15,
+      relationsDeclared: 12,
       linksIgnored: 3,
       images: 7,
       imagesBytes: 3_145_728,
@@ -152,6 +156,7 @@ describe("getContentStats", () => {
     worldCount.mockResolvedValue(0);
     entityCount.mockResolvedValue(0);
     relationCount.mockResolvedValue(0);
+    declaredRelationCount.mockResolvedValue(0);
     linkIgnoreCount.mockResolvedValue(0);
     imageCount.mockResolvedValue(0);
     imageAggregate.mockResolvedValueOnce(makeImageAggregate(null));

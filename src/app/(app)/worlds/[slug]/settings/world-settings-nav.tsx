@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings2, Tags } from "lucide-react";
+import { Settings2, Tags, Waypoints } from "lucide-react";
 import { SegmentedNav } from "@/components/segmented-nav";
 
 // Onglets des parametres du monde (KAN-81) : sous-routes adressables par URL,
@@ -14,6 +14,7 @@ export function WorldSettingsNav({ worldSlug }: { worldSlug: string }) {
       sections={[
         { href: base, label: "Général", icon: Settings2, exact: true },
         { href: `${base}/types`, label: "Types d'entrées", icon: Tags },
+        { href: `${base}/relations`, label: "Types de relations", icon: Waypoints },
       ]}
     />
   );

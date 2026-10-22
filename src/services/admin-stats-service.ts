@@ -63,6 +63,8 @@ export type ContentStats = {
   entities: number;
   relationsAuto: number;
   relationsManual: number;
+  // Relations declarees par les auteurs (KAN-84), distinctes des liens du texte.
+  relationsDeclared: number;
   linksIgnored: number;
   images: number;
   imagesBytes: number;
@@ -77,6 +79,7 @@ export async function getContentStats(): Promise<ContentStats> {
     entities,
     relationsAuto,
     relationsManual,
+    relationsDeclared,
     linksIgnored,
     images,
     imageSizes,
@@ -86,6 +89,7 @@ export async function getContentStats(): Promise<ContentStats> {
     prisma.entity.count(),
     prisma.relation.count({ where: { origin: RelationOrigin.AUTO } }),
     prisma.relation.count({ where: { origin: RelationOrigin.MANUAL } }),
+    prisma.declaredRelation.count(),
     prisma.linkIgnore.count(),
     prisma.image.count(),
     prisma.image.aggregate({ _sum: { size: true } }),
@@ -97,6 +101,7 @@ export async function getContentStats(): Promise<ContentStats> {
     entities,
     relationsAuto,
     relationsManual,
+    relationsDeclared,
     linksIgnored,
     images,
     imagesBytes: imageSizes._sum.size ?? 0,
