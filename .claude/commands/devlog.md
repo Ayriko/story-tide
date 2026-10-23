@@ -21,9 +21,9 @@ qui y reporte l'entrée lui-même (rappelé dans la section « À faire / suite 
 - Les **commandes** non triviales utilisées qui resserviront (avec un commentaire d'usage).
 - L'état des **garde-fous qualité** en fin de session : lint / typecheck / tests /
   couverture — passent ou pas, et le chiffre de couverture si disponible.
-- Le **mapping certification** : quelles compétences C2.x (voire C3.x/C4.x) la session
-  a fait avancer, et quelles docs du repo ont été touchées en conséquence
-  (/docs/*, ADR, CHANGELOG, cahier-recettes).
+- Les **docs du repo** touchées par la session (/docs/*, ADR, CHANGELOG,
+  cahier-recettes), à citer dans « Livrables produits ». Plus aucun rattachement
+  aux compétences de certification : la certification est terminée (23/10/2026).
 - Ce qui reste **ouvert** : tâches non finies, questions à trancher par Aymeric,
   prochaine étape logique.
 
@@ -49,9 +49,6 @@ qui y reporte l'entrée lui-même (rappelé dans la section « À faire / suite 
 **Livrables produits :**
 - <fichiers/features/docs livrés + commits associés + état des gates :
   lint ✅/❌ · typecheck ✅/❌ · tests ✅/❌ · couverture XX %>
-
-**Avancement certification :**
-- <C2.x.y : ce qui a concrètement avancé + doc repo mise à jour en face>
 
 **À faire / suite :**
 - <reste à faire, questions ouvertes pour Aymeric, prochaine étape logique>
