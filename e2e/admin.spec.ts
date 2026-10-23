@@ -46,7 +46,14 @@ async function promouvoirAdmin(email: string) {
 
 async function creerMonde(page: Page, nom: string) {
   await page.goto("/worlds");
-  await page.getByRole("button", { name: "+ Nouveau monde", exact: true }).click();
+  // Apres un goto, le clic peut partir avant l'hydratation et ne jamais
+  // ouvrir la modale : clic et ouverture dans le meme retry.
+  await expect(async () => {
+    if (!(await page.getByLabel("Nom du monde", { exact: true }).isVisible())) {
+      await page.getByRole("button", { name: "+ Nouveau monde", exact: true }).click();
+    }
+    await expect(page.getByLabel("Nom du monde", { exact: true })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Nom du monde", { exact: true }).fill(nom);
   await page.getByRole("button", { name: "Créer le monde", exact: true }).click();
 }
@@ -111,11 +118,16 @@ test("un compte promu ADMIN voit le tableau de bord et la liste des utilisateurs
 
   // Le role est relu en base : pas besoin de se reconnecter apres la promotion.
   await page.goto("/worlds");
-  await page
-    .getByRole("contentinfo")
-    .getByRole("link", { name: "Administration", exact: true })
-    .click();
-  await page.waitForURL("**/admin");
+  // Clic juste apres un goto : clic et navigation dans le meme retry.
+  await expect(async () => {
+    if (!page.url().endsWith("/admin")) {
+      await page
+        .getByRole("contentinfo")
+        .getByRole("link", { name: "Administration", exact: true })
+        .click();
+    }
+    await expect(page).toHaveURL(/\/admin$/, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
 
   await expect(page.getByRole("heading", { name: "Tableau de bord", exact: true })).toBeVisible();
   for (const bloc of ["Utilisateurs", "Contenu", "Activité sur 30 jours", "Quotas"]) {
@@ -138,14 +150,26 @@ test("un compte promu ADMIN voit le tableau de bord et la liste des utilisateurs
   // la cellule du nom, qui ne contient aucun lien. Clic par coordonnees et non
   // locator.click() : le lien etire recouvre la cellule, ce que Playwright
   // refuse comme "intercepte" alors que c'est exactement le comportement voulu.
-  const celluleNom = await page
-    .getByRole("cell", { name: "Admin Vue Test", exact: true })
-    .boundingBox();
-  if (!celluleNom) {
-    throw new Error("cellule du nom introuvable dans la liste");
-  }
-  await page.mouse.click(celluleNom.x + celluleNom.width / 2, celluleNom.y + celluleNom.height / 2);
-  await page.waitForURL(/\/admin\/users\/[^/]+$/);
+  // La recherche est un formulaire GET natif : rechargement complet, et un
+  // clic parti avant l'hydratation peut se perdre (flake CI du 2026-10-23,
+  // skill playwright-reload-topass-click). Clic et navigation dans le meme
+  // retry ; on ne reclique que si la fiche n'est pas encore ouverte.
+  const ficheUrl = /\/admin\/users\/[^/?]+$/;
+  await expect(async () => {
+    if (!ficheUrl.test(page.url())) {
+      const celluleNom = await page
+        .getByRole("cell", { name: "Admin Vue Test", exact: true })
+        .boundingBox();
+      if (!celluleNom) {
+        throw new Error("cellule du nom introuvable dans la liste");
+      }
+      await page.mouse.click(
+        celluleNom.x + celluleNom.width / 2,
+        celluleNom.y + celluleNom.height / 2,
+      );
+    }
+    await expect(page).toHaveURL(ficheUrl, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(page.getByRole("heading", { name: email, exact: true })).toBeVisible();
 });
 
@@ -173,8 +197,14 @@ test("passer un compte FREE en UNLIMITED leve le quota de mondes, et la fiche ga
   // L'administrateur le retrouve parmi les comptes proches du plafond, puis
   // change son plan avec une raison.
   await admin.page.goto("/admin");
-  await admin.page.getByRole("link", { name: emailCible, exact: true }).first().click();
-  await admin.page.waitForURL(/\/admin\/users\/[^/]+$/);
+  // Clic juste apres un goto : clic et navigation dans le meme retry.
+  const ficheCible = /\/admin\/users\/[^/?]+$/;
+  await expect(async () => {
+    if (!ficheCible.test(admin.page.url())) {
+      await admin.page.getByRole("link", { name: emailCible, exact: true }).first().click();
+    }
+    await expect(admin.page).toHaveURL(ficheCible, { timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await expect(admin.page.getByText("Aucune action sur ce compte.")).toBeVisible();
 
   // Raison trop courte : refusee, rien n'est ecrit.
