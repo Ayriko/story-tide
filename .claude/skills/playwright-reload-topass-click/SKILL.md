@@ -87,3 +87,38 @@ l'état post-chargement (clic qui ouvre une modale, assertion qui suit) va dans
 le `toPass`. Quand un flake de ce type est corrigé sur un spec,
 `grep -n "page.reload\|page.goto" e2e/` et durcir les autres dans le même
 commit (le 2026-10-18 : sept specs, huit points).
+
+## Exception : un clic qui NAVIGUE ne se rejoue jamais en boucle
+
+Le reclic dans un `toPass` vaut pour un clic **sans navigation** (ouvrir une
+modale, un menu). Pour un lien vers une autre route, il casse le test. Vu en
+CI le 2026-10-23 sur `e2e/admin.spec.ts` (liste des utilisateurs → fiche),
+avec une boucle `if (!url.test(page.url())) click ; toHaveURL(…, 2 s)` :
+
+```
+Error: expect(page).toHaveURL(expected) failed
+Expected pattern: /\/admin\/users\/[^/?]+$/
+Received string:  ""
+  - waiting for" http://localhost:3100/admin/users/jN0B…" navigation to finish...
+  - navigated to "http://localhost:3100/admin/users?q=ADMIN+VUE"
+Timeout 20000ms exceeded while waiting on the predicate
+```
+
+Le clic part bien et la navigation démarre, mais en CI `next dev` compile la
+route cible à froid (plusieurs secondes, plus encore avec 2 workers qui
+chargent le serveur). Toutes les 2 s, le reclic relance la navigation, qui
+n'aboutit jamais. Jamais reproduit en local.
+
+Patron réel (`e2e/admin.spec.ts`) : hydratation, UN clic, attente large.
+
+```ts
+const NAVIGATION_FROIDE = 60_000;
+
+await page.waitForLoadState("networkidle");
+await page.getByRole("link", { name: email, exact: true }).click();
+await page.waitForURL(/\/admin\/users\/[^/?]+$/, { timeout: NAVIGATION_FROIDE });
+```
+
+Règle : clic sans navigation → `toPass` avec garde `isVisible()` ; clic qui
+navigue → `networkidle` + un seul clic + `waitForURL` avec un délai qui couvre
+une compilation à froid.
