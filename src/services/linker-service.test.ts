@@ -22,6 +22,16 @@ vi.mock("@/db/client", () => ({
       createMany: vi.fn(),
       deleteMany: vi.fn(),
     },
+    // Relations declarees (KAN-84) : mockees UNIQUEMENT pour prouver qu'aucune
+    // reconciliation/scan du texte n'y touche.
+    declaredRelation: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+    },
     $transaction: vi.fn(),
     $executeRaw: vi.fn(),
   },
@@ -34,6 +44,12 @@ const relationFindMany = vi.mocked(prisma.relation.findMany);
 const relationCreateMany = vi.mocked(prisma.relation.createMany);
 const relationDeleteMany = vi.mocked(prisma.relation.deleteMany);
 const transaction = vi.mocked(prisma.$transaction);
+
+function expectDeclaredRelationsUntouched() {
+  for (const method of Object.values(prisma.declaredRelation)) {
+    expect(method).not.toHaveBeenCalled();
+  }
+}
 const executeRaw = vi.mocked(prisma.$executeRaw);
 
 // Sentinelle identifiable du statement de version (KAN-77), pour verifier
@@ -205,6 +221,21 @@ describe("scanAndLinkEntity", () => {
     expect(transaction).not.toHaveBeenCalled();
     // KAN-77 : jamais de scannedVersion ecrit pour une fiche disparue.
     expect(executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("scan d'un texte qui ne cite plus rien : les relations declarees restent intactes (KAN-84)", async () => {
+    entityFindFirst.mockResolvedValue(makeEntity({ id: SOURCE_ID, plainText: "" }));
+    entityFindMany.mockResolvedValue([]);
+    relationFindMany.mockResolvedValue([
+      makeRelation({ sourceId: SOURCE_ID, targetId: "e2", origin: RelationOrigin.AUTO }),
+    ]);
+
+    await scanAndLinkEntity(WORLD_ID, SOURCE_ID);
+
+    // Le worker retire la Relation AUTO devenue orpheline, jamais une
+    // relation declaree.
+    expect(relationDeleteMany).toHaveBeenCalled();
+    expectDeclaredRelationsUntouched();
   });
 
   it("lit contentVersion dans la meme requete que plainText (KAN-77)", async () => {

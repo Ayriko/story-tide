@@ -15,6 +15,11 @@ import { Client } from "pg";
 
 const MOT_DE_PASSE = "mot-de-passe-admin-1234";
 
+// Attente d'une navigation vers une route /admin pas encore compilee : en CI,
+// `next dev` la compile a froid pendant que l'autre worker charge le serveur
+// (meme ordre de grandeur que le timeout global, cf. playwright.config.ts).
+const NAVIGATION_FROIDE = 60_000;
+
 async function inscrire(page: Page, nom: string, email: string) {
   await page.goto("/register");
   await page.getByLabel("Nom", { exact: true }).fill(nom);
@@ -46,7 +51,14 @@ async function promouvoirAdmin(email: string) {
 
 async function creerMonde(page: Page, nom: string) {
   await page.goto("/worlds");
-  await page.getByRole("button", { name: "+ Nouveau monde", exact: true }).click();
+  // Apres un goto, le clic peut partir avant l'hydratation et ne jamais
+  // ouvrir la modale : clic et ouverture dans le meme retry.
+  await expect(async () => {
+    if (!(await page.getByLabel("Nom du monde", { exact: true }).isVisible())) {
+      await page.getByRole("button", { name: "+ Nouveau monde", exact: true }).click();
+    }
+    await expect(page.getByLabel("Nom du monde", { exact: true })).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
   await page.getByLabel("Nom du monde", { exact: true }).fill(nom);
   await page.getByRole("button", { name: "Créer le monde", exact: true }).click();
 }
@@ -111,11 +123,16 @@ test("un compte promu ADMIN voit le tableau de bord et la liste des utilisateurs
 
   // Le role est relu en base : pas besoin de se reconnecter apres la promotion.
   await page.goto("/worlds");
+  // Navigation juste apres un chargement complet : hydratation terminee, UN
+  // seul clic, puis attente large. Jamais de reclic en boucle : en CI la
+  // route cible se compile a froid (plusieurs secondes) et chaque reclic
+  // relancerait la navigation sans qu'elle aboutisse (flake du 2026-10-23).
+  await page.waitForLoadState("networkidle");
   await page
     .getByRole("contentinfo")
     .getByRole("link", { name: "Administration", exact: true })
     .click();
-  await page.waitForURL("**/admin");
+  await page.waitForURL("**/admin", { timeout: NAVIGATION_FROIDE });
 
   await expect(page.getByRole("heading", { name: "Tableau de bord", exact: true })).toBeVisible();
   for (const bloc of ["Utilisateurs", "Contenu", "Activité sur 30 jours", "Quotas"]) {
@@ -138,6 +155,9 @@ test("un compte promu ADMIN voit le tableau de bord et la liste des utilisateurs
   // la cellule du nom, qui ne contient aucun lien. Clic par coordonnees et non
   // locator.click() : le lien etire recouvre la cellule, ce que Playwright
   // refuse comme "intercepte" alors que c'est exactement le comportement voulu.
+  // La recherche est un formulaire GET natif : rechargement complet. Meme
+  // regle qu'au-dessus : hydratation terminee, un seul clic, attente large.
+  await page.waitForLoadState("networkidle");
   const celluleNom = await page
     .getByRole("cell", { name: "Admin Vue Test", exact: true })
     .boundingBox();
@@ -145,7 +165,7 @@ test("un compte promu ADMIN voit le tableau de bord et la liste des utilisateurs
     throw new Error("cellule du nom introuvable dans la liste");
   }
   await page.mouse.click(celluleNom.x + celluleNom.width / 2, celluleNom.y + celluleNom.height / 2);
-  await page.waitForURL(/\/admin\/users\/[^/]+$/);
+  await page.waitForURL(/\/admin\/users\/[^/?]+$/, { timeout: NAVIGATION_FROIDE });
   await expect(page.getByRole("heading", { name: email, exact: true })).toBeVisible();
 });
 
@@ -173,8 +193,10 @@ test("passer un compte FREE en UNLIMITED leve le quota de mondes, et la fiche ga
   // L'administrateur le retrouve parmi les comptes proches du plafond, puis
   // change son plan avec une raison.
   await admin.page.goto("/admin");
+  // Navigation juste apres un goto : hydratation, un seul clic, attente large.
+  await admin.page.waitForLoadState("networkidle");
   await admin.page.getByRole("link", { name: emailCible, exact: true }).first().click();
-  await admin.page.waitForURL(/\/admin\/users\/[^/]+$/);
+  await admin.page.waitForURL(/\/admin\/users\/[^/?]+$/, { timeout: NAVIGATION_FROIDE });
   await expect(admin.page.getByText("Aucune action sur ce compte.")).toBeVisible();
 
   // Raison trop courte : refusee, rien n'est ecrit.

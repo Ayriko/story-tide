@@ -56,7 +56,22 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
   `src/lib/entity-types.ts` (TS pur) résout clé, libellé, groupe et icône d'une entrée,
   native ou personnalisée, à partir du catalogue du monde. Ce catalogue est chargé une
   fois par rendu (`getWorldTypeCatalog`, `cache()`) et posé en contexte client. Aucun
-  affichage ne lit `entity.type` directement.
+  affichage ne lit `entity.type` directement. Depuis KAN-84, les composants reçoivent
+  des DTO à type déjà résolu (`EntityListItem`, `FolderTreeView`) : sidebar, recherche
+  et arborescence ne voient plus ni `type` ni `customTypeId` bruts.
+- **Deux sortes de liens entre entrées** (KAN-84, ADR-0031) :
+  - les **reflets du texte**, table `Relation` : `AUTO` (écrit par le worker) et
+    `MANUAL` (écrit par la sauvegarde d'une fiche, `reconcileManualMentions`). Ils
+    suivent le texte et disparaissent avec la mention ;
+  - les **relations déclarées**, table `DeclaredRelation`, typées (types natifs en
+    code, types personnalisés par monde, résolveur `src/lib/relation-types.ts` sur le
+    patron d'ADR-0030). Écrites seulement par `declared-relation-service.ts`, que ni
+    `relation-service.ts` ni `linker-service.ts` n'importent : une sauvegarde ou un
+    scan ne les touche jamais.
+  Les deux se rejoignent uniquement à l'affichage : `buildGraphElements`
+  (`src/lib/graph-elements.ts`) trace une arête par paire, la relation déclarée
+  prioritaire ; les suggestions d'une fiche partent des reflets du texte pour
+  proposer une relation déclarée.
 - **Schéma de contenu partagé client/serveur** : `src/lib/tiptap-extensions.ts` définit
   une seule fois l'allowlist de nodes/marks de l'éditeur, utilisée à la fois par le
   composant client (`EntityEditor`) et par la validation serveur

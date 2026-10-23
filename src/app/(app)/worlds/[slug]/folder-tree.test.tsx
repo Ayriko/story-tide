@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { moveEntityToFolderAction } from "@/actions/entity";
 import { FolderTree } from "./folder-tree";
 import { buildTreeNodes, type TreeNode } from "./folder-tree-utils";
-import type { FolderTreeNode } from "@/services/folder-service";
+import { resolveEntityType, type FolderTreeView } from "@/lib/entity-types";
 
 vi.mock("@/actions/entity", () => ({
   moveEntityToFolderAction: vi.fn(),
@@ -13,19 +13,8 @@ vi.mock("@/actions/entity", () => ({
 
 const mockedMoveEntityToFolderAction = vi.mocked(moveEntityToFolderAction);
 
-function makeFolderNode(overrides: Partial<FolderTreeNode> = {}): FolderTreeNode {
-  return {
-    id: "f1",
-    worldId: "w1",
-    name: "Dossier",
-    parentId: null,
-    seedRef: null,
-    createdAt: new Date("2026-09-01T00:00:00.000Z"),
-    updatedAt: new Date("2026-09-01T00:00:00.000Z"),
-    children: [],
-    entities: [],
-    ...overrides,
-  };
+function makeFolderNode(overrides: Partial<FolderTreeView> = {}): FolderTreeView {
+  return { id: "f1", name: "Dossier", children: [], entities: [], ...overrides };
 }
 
 // Royaumes (dossier, 1 enfant) > Nord (dossier, 1 enfant) > Capitales
@@ -42,15 +31,21 @@ function buildFixtureTree(): TreeNode[] {
           makeFolderNode({
             id: "f2",
             name: "Nord",
-            parentId: "f1",
-            children: [
-              makeFolderNode({ id: "f3", name: "Capitales", parentId: "f2", children: [] }),
-            ],
+            children: [makeFolderNode({ id: "f3", name: "Capitales", children: [] })],
           }),
         ],
       }),
     ],
-    [{ id: "e1", name: "Aeliana", type: "character", customTypeId: null }],
+    [
+      {
+        id: "e1",
+        name: "Aeliana",
+        resolvedType: resolveEntityType(
+          { type: "character", customTypeId: null },
+          { custom: [], hidden: [] },
+        ),
+      },
+    ],
   );
 }
 

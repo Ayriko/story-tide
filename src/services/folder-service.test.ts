@@ -51,6 +51,7 @@ function makeWorld(overrides: Partial<World> = {}): World {
     origin: WorldOrigin.USER,
     pinnedAt: null,
     hiddenEntityTypes: [],
+    hiddenRelationTypes: [],
     createdAt: new Date("2026-07-01T00:00:00.000Z"),
     updatedAt: new Date("2026-07-01T00:00:00.000Z"),
     ...overrides,

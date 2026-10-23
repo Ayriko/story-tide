@@ -9,7 +9,13 @@ import {
   searchEntitiesSchema,
   updateEntitySchema,
 } from "@/lib/entity-schemas";
-import { CUSTOM_ENTITY_TYPE, customTypeKey } from "@/lib/entity-types";
+import {
+  CUSTOM_ENTITY_TYPE,
+  customTypeKey,
+  toEntityListItem,
+  type EntityListItem,
+} from "@/lib/entity-types";
+import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import {
   EntityNotFoundError,
   EntityQuotaExceededError,
@@ -20,7 +26,6 @@ import {
   moveEntityToFolder,
   searchEntities,
   updateEntity,
-  type EntitySearchResult,
 } from "@/services/entity-service";
 import { FolderNotFoundError } from "@/services/folder-service";
 import { WorldNotFoundError } from "@/services/world-service";
@@ -43,7 +48,7 @@ export type MoveEntityState = {
 };
 
 export type SearchEntitiesResult =
-  { ok: true; entities: EntitySearchResult[] } | { ok: false; error: string };
+  { ok: true; entities: EntityListItem[] } | { ok: false; error: string };
 
 function stringField(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -59,7 +64,9 @@ function aliasesFromField(formData: FormData): string[] {
 }
 
 // Le combobox de type (KAN-81) poste deux champs : "type" (cle native ou la
-// sentinelle "custom") et "customTypeId" (vide pour un natif).
+// sentinelle "custom") et "customTypeId" (vide pour un natif). Exception
+// assumee au blindage des affichages (KAN-84) : un formulaire d'ecriture
+// manipule la valeur stockee, jamais un affichage.
 function typeFields(formData: FormData): { type: string; customTypeId: string | null } {
   const customTypeId = stringField(formData, "customTypeId");
   return { type: stringField(formData, "type"), customTypeId: customTypeId || null };
@@ -309,8 +316,17 @@ export async function searchEntitiesAction(
   }
 
   try {
-    const entities = await searchEntities(session.user.id, worldId, parsed.data.query);
-    return { ok: true, entities };
+    // Types resolus avant de traverser la frontiere (KAN-84) : la sidebar ne
+    // recoit jamais type/customTypeId. getWorldTypeCatalog revalide aussi
+    // l'appartenance du monde (meme erreur qu'un monde inexistant).
+    const [entities, typeCatalog] = await Promise.all([
+      searchEntities(session.user.id, worldId, parsed.data.query),
+      getWorldTypeCatalog(session.user.id, worldId),
+    ]);
+    return {
+      ok: true,
+      entities: entities.map((entity) => toEntityListItem(entity, typeCatalog)),
+    };
   } catch (error) {
     if (error instanceof WorldNotFoundError) {
       return { ok: false, error: "Monde introuvable." };
