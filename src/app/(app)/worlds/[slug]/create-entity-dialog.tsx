@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactElement } from "react";
 import { cn } from "@/lib/utils";
 import { Button, type buttonVariants } from "@/components/ui/button";
 import {
@@ -18,6 +19,9 @@ import { CreateEntityForm } from "./create-entity-form";
 // monde, d'ou triggerLabel/triggerVariant distincts par appelant et
 // triggerTestId stable (evite une collision getByRole "strict mode" entre
 // les 8 specs e2e qui ciblaient auparavant le texte du bouton).
+// Constellation (KAN-87) : `trigger` remplace le bouton par defaut (bouton
+// rond + infobulle) et `open`/`onOpenChange` rendent la boite pilotable par
+// le raccourci N ; sans eux, comportement inchange (sidebar).
 export function CreateEntityDialog({
   worldId,
   worldSlug,
@@ -25,6 +29,9 @@ export function CreateEntityDialog({
   triggerLabel = "+ Nouvelle entrée",
   triggerVariant = "outline",
   triggerTestId = "create-entity-trigger",
+  trigger,
+  open,
+  onOpenChange,
 }: {
   worldId: string;
   worldSlug: string;
@@ -32,18 +39,23 @@ export function CreateEntityDialog({
   triggerLabel?: string;
   triggerVariant?: VariantProps<typeof buttonVariants>["variant"];
   triggerTestId?: string;
+  trigger?: ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant={triggerVariant}
-          className={cn("w-full", triggerClassName)}
-          data-testid={triggerTestId}
-        >
-          {triggerLabel}
-        </Button>
+        {trigger ?? (
+          <Button
+            type="button"
+            variant={triggerVariant}
+            className={cn("w-full", triggerClassName)}
+            data-testid={triggerTestId}
+          >
+            {triggerLabel}
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

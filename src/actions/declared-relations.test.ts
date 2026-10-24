@@ -80,8 +80,8 @@ describe("createDeclaredRelationAction", () => {
     });
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/eldoria/entities/e-aldric");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/eldoria/entities/e-selyne");
-    expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/eldoria/graph");
     expect(mockedRevalidatePath).toHaveBeenCalledWith("/worlds/eldoria");
+    expect(mockedRevalidatePath).not.toHaveBeenCalledWith("/worlds/eldoria/graph");
   });
 
   it("ni type ni entree : erreurs de champ, ni session ni service", async () => {

@@ -181,12 +181,12 @@ test("Constellation : une paire citee ET declaree n'a qu'une arete, au libelle d
   await declarerRelation(page, { label: "Parent de" }, aldric);
   await attendreRelation(page, "Parent de", aldric);
 
-  await page.goto(`${worldUrl}/graph`);
+  await page.goto(worldUrl);
   await expect(page.getByTestId("graph-canvas").locator("canvas").first()).toBeVisible();
   // La liste accessible est construite par la meme fonction de paires que
   // les aretes Cytoscape (graph-elements.ts) : un seul lien vers Aldric, au
   // libelle declare - pas de second lien « → Aldric » pour la mention.
-  await page.getByRole("button", { name: "Observer les fils", exact: true }).click();
+  await page.getByRole("button", { name: "Fils", exact: true }).click();
   const liste = page.getByRole("navigation", {
     name: "Liste des liens de la constellation",
     exact: true,

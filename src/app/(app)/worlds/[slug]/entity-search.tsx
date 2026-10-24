@@ -48,10 +48,6 @@ function setViewModePersisted(mode: ViewMode) {
   window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
   window.dispatchEvent(new Event(VIEW_MODE_EVENT));
 }
-// Evenement DOM prive (KAN-36 P3) : le dashboard (chip "Rechercher") demande
-// le focus sur ce champ sans le tenir directement (compose depuis un autre
-// composant, meme patron que COLLAPSE_EVENT dans world-shell.tsx).
-export const FOCUS_SEARCH_EVENT = "story-tide:focus-search";
 
 // Meme patron de debounce que l'auto-save de l'editeur (entity-editor.tsx,
 // scheduleSave) : useRef+setTimeout, pas de dependance externe. Requete vide
@@ -129,17 +125,6 @@ export function EntitySearch({
         clearTimeout(timeoutRef.current);
       }
     };
-  }, []);
-
-  // Chip "Rechercher" du dashboard (KAN-36 P3) : deplie la sidebar (ecoute
-  // dans world-shell.tsx) puis emet cet evenement pour deporter le focus ici,
-  // sans qu'aucun composant ne tienne de reference directe sur l'autre.
-  useEffect(() => {
-    function onFocusSearch() {
-      inputRef.current?.focus();
-    }
-    window.addEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
-    return () => window.removeEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
   }, []);
 
   function toggleGroup(group: EntityTypeGroup) {

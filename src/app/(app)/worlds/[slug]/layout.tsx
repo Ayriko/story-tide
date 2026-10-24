@@ -16,7 +16,7 @@ import { WorldTypeCatalogProvider } from "./world-type-catalog";
 // fiches avant d'avoir choisi un monde - voir worlds/page.tsx.
 //
 // getWorldBySlug/requireSessionOrRedirect sont deja appeles par chaque page
-// enfant (worlds/[slug]/page.tsx, entities/[entityId]/page.tsx, graph/page.tsx)
+// enfant (worlds/[slug]/page.tsx, entities/[entityId]/page.tsx)
 // - re-appeles ici pour le besoin propre du layout (nom du monde pour le fil
 // d'ariane, liste des fiches pour la sidebar). Meme patron deja en place
 // avant KAN-36 (layout + page appelaient deja chacun requireSessionOrRedirect) ;

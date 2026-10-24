@@ -63,31 +63,70 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   await page.keyboard.press("Enter");
   await expect(page.getByText("Enregistré.")).toBeVisible({ timeout: 10_000 });
 
-  // 4. Visiter le graphe.
+  // 4. Visiter le graphe : /graph redirige vers la page du monde (KAN-87).
   await page.goto(`${worldUrl}/graph`);
+  await page.waitForURL(worldUrl);
 
   // 5. Le canvas Cytoscape s'est bien monte (element <canvas> reel, pas
   // seulement le conteneur React).
   const graphCanvas = page.getByTestId("graph-canvas");
   await expect(graphCanvas.locator("canvas").first()).toBeVisible();
 
+  // 5 bis. Clic sur une etoile = carte de selection ; double-clic = fiche
+  // (KAN-87). Position lue par le crochet de test (NEXT_PUBLIC_E2E_HOOKS).
+  await expect
+    .poll(() => page.evaluate(() => window.__storyTideConstellation?.nodes().length ?? 0))
+    .toBe(2);
+  // Positions a l'ecran stables : la sidebar s'ouvre apres l'hydratation
+  // (preference memorisee, transition) et decale le canvas ; un clic lu
+  // avant ce decalage tomberait a cote de l'etoile.
+  let previous = "";
+  await expect
+    .poll(async () => {
+      const current = await page.evaluate(() =>
+        JSON.stringify(
+          (window.__storyTideConstellation?.nodes() ?? []).map(({ clientX, clientY }) => [
+            Math.round(clientX),
+            Math.round(clientY),
+          ]),
+        ),
+      );
+      const stable = current === previous;
+      previous = current;
+      return stable;
+    })
+    .toBe(true);
+  const star = await page.evaluate(
+    (label) => window.__storyTideConstellation?.nodes().find((node) => node.label === label),
+    targetName,
+  );
+  if (!star) {
+    throw new Error("etoile cible introuvable");
+  }
+  await page.mouse.click(star.clientX, star.clientY);
+  const card = page.getByRole("region", { name: targetName, exact: true });
+  await expect(card.getByRole("link", { name: "Ouvrir la fiche", exact: true })).toBeVisible();
+  await page.mouse.dblclick(star.clientX, star.clientY);
+  await page.waitForURL(/\/worlds\/[^/]+\/entities\/[^/]+$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
+  await page.goto(worldUrl);
+
   // 6. Filtres par type : chips a etat (KAN-36 P5b), pressees par defaut
-  // (= type visible). Panneau FERME par defaut (retour Aymeric) - ouverture
-  // explicite requise avant d'atteindre les chips.
-  await page.getByRole("button", { name: "Filtres" }).click();
-  // exact:true necessaire - "Lieu" matcherait sinon aussi le bouton de repli
-  // du groupe "Lieux" de la sidebar (nom accessible different mais englobant).
-  const placeFilter = page.getByRole("button", { name: "Lieu", exact: true, pressed: true });
+  // (= type visible), nommees libelle + nombre (KAN-87). Panneau ferme par
+  // defaut, ouvert par sa pilule « Filtres ».
+  await page.getByRole("button", { name: "Filtres", exact: true }).click();
+  const placeFilter = page.getByRole("button", { name: "Lieu · 1", exact: true, pressed: true });
   await placeFilter.click();
-  await expect(
-    page.getByRole("button", { name: "Lieu", exact: true, pressed: false }),
-  ).toBeVisible();
+  const hiddenPlace = page.getByRole("button", { name: "Lieu · 1", exact: true, pressed: false });
+  await expect(hiddenPlace).toBeVisible();
+  // Filtre memorise par monde : on le retire avant de lire la liste (la
+  // cible est un lieu, elle en disparaitrait).
+  await hiddenPlace.click();
 
   // 7. Liste accessible (chemin clavier/lecteur d'ecran) : reflete la
-  // relation MANUAL cree a l'etape 3, navigation reelle verifiee. Masquee
-  // derriere un disclosure FERME par defaut (retour Aymeric) - ouverture
-  // explicite requise.
-  await page.getByRole("button", { name: "Observer les fils" }).click();
+  // relation MANUAL cree a l'etape 3, navigation reelle verifiee. Panneau
+  // « Fils » ferme par defaut, ouvert par sa pilule (KAN-87).
+  await page.getByRole("button", { name: "Fils", exact: true }).click();
   const accessibleList = page.getByRole("navigation", {
     name: "Liste des liens de la constellation",
   });
