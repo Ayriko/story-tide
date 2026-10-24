@@ -1,5 +1,4 @@
 import type { EntityTypeGroup } from "./entity-schemas";
-import type { ResolvedEntityType } from "./entity-types";
 import {
   allRelationTypes,
   type RelationChoice,
@@ -39,12 +38,16 @@ const SUGGESTION_RULES: readonly SuggestionRule[] = [
   { source: "Lieux", target: "Lieux", choice: { key: "located", viewpoint: "source" } },
 ];
 
+// Seuls le groupe et la cle du type resolu comptent : appelable aussi depuis
+// la Constellation (KAN-87), dont les etoiles ne portent que ces deux champs.
+type SuggestionEntityType = { key: string; group: string };
+
 // null si aucune regle ne s'applique, ou si le type pre-selectionne est
 // masque (ou inconnu) dans ce monde : on ne propose jamais un type que le
 // select n'offre pas.
 export function suggestRelationChoice(
-  source: ResolvedEntityType,
-  target: ResolvedEntityType,
+  source: SuggestionEntityType,
+  target: SuggestionEntityType,
   catalog: WorldRelationTypeCatalog,
 ): RelationChoice | null {
   const rule = SUGGESTION_RULES.find(

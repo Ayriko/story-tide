@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { RelationOrigin } from "@/generated/prisma/client";
-import { buildAccessibleGraphEntries, buildGraphElements } from "./graph-elements";
+import { buildAccessibleGraphEntries, buildGraphElements, pairEdgeId } from "./graph-elements";
 
 describe("buildGraphElements", () => {
   it("retourne des tableaux vides sans entite ni relation", () => {
@@ -441,5 +441,12 @@ describe("buildGraphElements - relations declarees (KAN-84)", () => {
         relationLabel: "Allié",
       },
     ]);
+  });
+});
+
+describe("pairEdgeId", () => {
+  it("meme id quel que soit l'ordre des extremites (KAN-87)", () => {
+    expect(pairEdgeId("b", "a")).toBe("pair:a~b");
+    expect(pairEdgeId("a", "b")).toBe("pair:a~b");
   });
 });
