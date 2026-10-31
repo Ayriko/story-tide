@@ -11,6 +11,8 @@
     "start": "next start",
     "worker": "node --env-file=.env --import tsx src/worker/index.ts",
     "seed:intro": "node --env-file=.env --import tsx prisma/seed/run.ts",
+    "seed:perf": "node --env-file=.env --import tsx prisma/seed/perf.ts",
+    "perf:constellation": "node --env-file=.env --import tsx scripts/perf-constellation.ts",
     "admin:promote": "node --env-file=.env --import tsx scripts/admin-promote.ts",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
