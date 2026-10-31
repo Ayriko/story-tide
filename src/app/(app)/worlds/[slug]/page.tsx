@@ -10,7 +10,6 @@ import { getDefaultBoardLayout } from "@/services/board-service";
 import { getWorldRelationTypeCatalog } from "@/services/relation-type-service";
 import { buildAccessibleGraphEntries, buildGraphElements } from "@/lib/graph-elements";
 import { ENTITY_TYPE_GROUPS } from "@/lib/entity-schemas";
-import type { EntityTypeGroup } from "@/lib/entity-schemas";
 import { resolveEntityType } from "@/lib/entity-types";
 import { EntityTypeIcon } from "./entity-type-icon";
 import { Constellation } from "./graph/constellation";
@@ -24,16 +23,6 @@ const RECENT_LIMIT = 5;
 // pluriel/collectif ("Personnages", "Organisation") impropres a un accord
 // grammatical direct. Table locale a cet usage textuel, aucune modification
 // de entity-schemas.ts.
-const GROUP_LABEL: Record<EntityTypeGroup, { singular: string; plural: string }> = {
-  Personnages: { singular: "personnage", plural: "personnages" },
-  Écologie: { singular: "être vivant", plural: "êtres vivants" },
-  Lieux: { singular: "lieu", plural: "lieux" },
-  Organisation: { singular: "organisation", plural: "organisations" },
-  Magie: { singular: "élément magique", plural: "éléments magiques" },
-  Lore: { singular: "élément de lore", plural: "éléments de lore" },
-  Objets: { singular: "objet", plural: "objets" },
-  Divers: { singular: "entrée diverse", plural: "entrées diverses" },
-};
 
 // Page d'un monde = la Constellation en plein cadre (KAN-87, ADR-0032). Le
 // contenu de l'ancien tableau de bord (KAN-36 P3/P3-bis, reference-vvd.md
@@ -83,6 +72,7 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
     typeKey: resolved.key,
     typeLabel: resolved.label,
     group: resolved.group,
+    icon: resolved.icon,
   }));
   const elements = buildGraphElements(entityInputs, relations, declaredRelations);
   const accessibleEntries = buildAccessibleGraphEntries(entityInputs, relations, declaredRelations);
@@ -93,31 +83,26 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
     y,
   }));
 
+  // Total sous le titre et legende du ciel (une ligne par groupe non vide)
+  // dans le menu du titre (KAN-85).
   const countsByGroup = new Map<string, number>();
   for (const { resolved } of resolvedEntities) {
     countsByGroup.set(resolved.group, (countsByGroup.get(resolved.group) ?? 0) + 1);
   }
-  const countSegments: string[] = [];
-  if (entities.length > 0) {
-    countSegments.push(`${entities.length} ${entities.length === 1 ? "entrée" : "entrées"}`);
-    for (const group of ENTITY_TYPE_GROUPS) {
-      const count = countsByGroup.get(group) ?? 0;
-      if (count === 0) {
-        continue;
-      }
-      const label = count === 1 ? GROUP_LABEL[group].singular : GROUP_LABEL[group].plural;
-      countSegments.push(`${count} ${label}`);
-    }
-  }
+  const legend = ENTITY_TYPE_GROUPS.map((group) => ({
+    group,
+    count: countsByGroup.get(group) ?? 0,
+  })).filter(({ count }) => count > 0);
 
-  // Titre du monde pose sur le canvas (haut gauche) avec ses compteurs en
-  // petit, et liste des dernieres entrees pour le panneau « Recents ».
-  const counts = countSegments.join(" · ");
+  // Titre du monde pose sur le canvas (haut gauche) ; liste des dernieres
+  // entrees pour le panneau « Recents ».
   const title = (
-    <div className="flex flex-col">
-      <WorldTitleMenu worldName={world.name} worldSlug={world.slug} />
-      {counts ? <p className="text-xs text-foreground">{counts}</p> : null}
-    </div>
+    <WorldTitleMenu
+      worldName={world.name}
+      worldSlug={world.slug}
+      total={entities.length}
+      legend={legend}
+    />
   );
   const recentList =
     recent.length === 0 ? (
@@ -143,7 +128,12 @@ export default async function WorldPage({ params }: { params: Promise<{ slug: st
       worldId={world.id}
       worldSlug={world.slug}
       elements={elements}
-      entities={entityInputs.map(({ id, name, typeLabel }) => ({ id, name, typeLabel }))}
+      entities={entityInputs.map(({ id, name, typeLabel, icon }) => ({
+        id,
+        name,
+        typeLabel,
+        icon,
+      }))}
       accessibleEntries={accessibleEntries}
       initialViewport={layout.viewport}
       initialPositions={initialPositions}

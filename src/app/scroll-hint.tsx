@@ -23,7 +23,13 @@ import { FOOTER_ID } from "./footer";
 // viewport - sinon la detection serait fausse dans un panneau imbrique),
 // donc reste correct meme si l'utilisateur defile a la molette plutot qu'en
 // cliquant.
-export function ScrollHint() {
+//
+// placement « sky » (page d'un monde, KAN-85) : bande de hauteur nulle,
+// collee au bas du conteneur, la fleche relevee au-dessus du fondu du ciel -
+// dans le ciel en haut de page comme une fois le pied de page atteint (la
+// bande reste alors a la jointure, la fleche au-dessus), jamais a cheval sur
+// la jointure, et sans ajouter de hauteur a la page.
+export function ScrollHint({ placement = "default" }: { placement?: "default" | "sky" }) {
   const [footerVisible, setFooterVisible] = useState(false);
 
   useEffect(() => {
@@ -59,11 +65,19 @@ export function ScrollHint() {
   // recouvrait les controles poses en bas de la Constellation (« Reorganiser
   // automatiquement », bottom-3) : un clic n'y faisait rien (KAN-85).
   return (
-    <div className="pointer-events-none sticky bottom-3 z-10 mb-4 flex justify-center">
+    <div
+      className={cn(
+        "pointer-events-none sticky z-10 flex justify-center",
+        placement === "sky" ? "bottom-0 h-0" : "bottom-3 mb-4",
+      )}
+    >
       <button
         type="button"
         onClick={handleClick}
-        className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-lg backdrop-blur-sm transition-colors hover:border-primary hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className={cn(
+          placement === "sky" && "-translate-y-[calc(100%+var(--sky-fade-height)+0.5rem)]",
+          "pointer-events-auto flex size-8 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-lg backdrop-blur-sm transition-colors hover:border-primary hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        )}
       >
         <ChevronDown
           aria-hidden="true"

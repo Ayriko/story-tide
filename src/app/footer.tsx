@@ -25,11 +25,22 @@ export const FOOTER_ID = "site-footer";
 // src/lib/auth-session.ts), jamais depuis la session ; faux par defaut, donc
 // absent des pages publiques ((auth), mentions legales). Le lien n'est qu'un
 // raccourci : la garde reelle est sur /admin lui-meme.
-export function Footer({ showAdminLink = false }: { showAdminLink?: boolean }) {
+// bordered : bordure haute (separation nette) ; absente sous le ciel de la
+// page d'un monde, qui se fond dans le pied de page (KAN-85).
+export function Footer({
+  showAdminLink = false,
+  bordered = true,
+}: {
+  showAdminLink?: boolean;
+  bordered?: boolean;
+}) {
   const year = new Date().getFullYear();
 
   return (
-    <footer id={FOOTER_ID} className="border-t border-border px-4 py-6 lg:px-6">
+    <footer
+      id={FOOTER_ID}
+      className={bordered ? "border-t border-border px-4 py-6 lg:px-6" : "px-4 py-6 lg:px-6"}
+    >
       <div className="mx-auto flex max-w-[1150px] flex-col items-center gap-3 text-sm sm:flex-row sm:justify-between">
         <p className="text-muted-foreground">© {year} Tidemark Studio</p>
         <nav aria-label="Liens légaux et support" className="flex items-center gap-4">

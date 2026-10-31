@@ -1,6 +1,7 @@
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
 import dotenv from "dotenv";
+import { SIDEBAR_COOKIE } from "./src/lib/sidebar-preference";
 
 // Charge .env.e2e ICI (pas seulement dans globalSetup) : webServer.env a
 // besoin des valeurs au moment ou ce fichier de config est evalue, sans
@@ -56,15 +57,22 @@ export default defineConfig({
     // des specs creent leurs entrees par son bouton juste apres la creation
     // du monde. Preference posee une fois ici plutot que dans chaque spec ;
     // le repli par defaut est verifie par constellation.spec.ts, qui repart
-    // d'un stockage vide.
+    // d'un stockage vide. Cookie lu cote serveur depuis KAN-85
+    // (src/lib/sidebar-preference.ts) : la page arrive deja depliee.
     storageState: {
-      cookies: [],
-      origins: [
+      cookies: [
         {
-          origin: baseURL,
-          localStorage: [{ name: "story-tide:sidebar-collapsed:constellation", value: "0" }],
+          name: SIDEBAR_COOKIE.constellation,
+          value: "0",
+          domain: "localhost",
+          path: "/",
+          expires: -1,
+          httpOnly: false,
+          secure: false,
+          sameSite: "Lax",
         },
       ],
+      origins: [],
     },
   },
   // intro-world.spec.ts (KAN-35) enfile 25 jobs de liaison reels sur la MEME

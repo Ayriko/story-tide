@@ -14,7 +14,7 @@ import { saveNodePositionsAction, saveViewportAction } from "@/actions/board";
 import type { BoardPosition, BoardViewport } from "@/lib/board-schemas";
 import { MAX_POSITIONS_PER_CALL } from "@/lib/board-schemas";
 import { diffGraphElements, isEmptyDiff } from "@/lib/graph-diff";
-import type { GraphElements } from "@/lib/graph-elements";
+import { pairEdgeId, type GraphElements } from "@/lib/graph-elements";
 import type { GraphVisibility } from "@/lib/graph-filters";
 import {
   MAX_ZOOM,
@@ -23,42 +23,25 @@ import {
   separateFromStars,
   fcoseOptions,
   fitViewport,
+  largestFreeRect,
+  type ReservedCorners,
   planPlacement,
   type NodePosition,
 } from "@/lib/graph-layout";
+import { arrangeSky, skyCommunities } from "@/lib/sky-arrange";
+import { edgeLabelsFollowZoom, isNameVisible, relativeZoom } from "@/lib/sky-detail";
+import { buildSkyStylesheet } from "@/lib/sky-stylesheet";
+import { isBrightnessTier, type BrightnessTier } from "@/lib/star-brightness";
+import { DEFAULT_SKY_PALETTE, readSkyPalette, type SkyPalette } from "@/lib/sky-theme";
 import { cn } from "@/lib/utils";
-
-// Couleur PAR GROUPE (KAN-18, 26 types groupes en 8 familles), pas par type
-// individuel : 26 teintes distinctes seraient illisibles et intenables cote
-// contraste (C2.2.3). Palette categorique validee par le skill dataviz du
-// projet (8 teintes, ordre fixe, jamais recycle) - valeurs colonne "dark"
-// (app en dark mode par defaut) :
-// `node scripts/validate_palette.js "<8 hex>" --mode dark` -> tous les
-// controles passent (bande de luminosite, plancher de chroma, separation CVD,
-// plancher vision normale, contraste). Le CVD reste en bande 6-8 pour les
-// paires non adjacentes (disposition de graphe = "toutes paires", pas une
-// liste de barres adjacentes) : legal uniquement avec un encodage secondaire
-// - assure ici par les libelles textuels du filtre groupe et de la liste
-// accessible (GraphAccessibleList), jamais la couleur seule.
-const NODE_COLOR_BY_GROUP: Record<string, string> = {
-  Personnages: "#3987e5",
-  Écologie: "#008300",
-  Lieux: "#d55181",
-  Organisation: "#c98500",
-  Magie: "#199e70",
-  Lore: "#d95926",
-  Objets: "#9085e9",
-  Divers: "#e66767",
-};
-const DEFAULT_NODE_COLOR = "#a1a1aa";
-// Accent periwinkle (--primary, ADR-0027) : survol et selection d'une etoile.
-// Cytoscape ne lit pas les variables CSS (tableau `style:` reserve par
-// ADR-0012) - constante dupliquee depuis --primary, a resynchroniser
-// manuellement si le token change encore.
-const HOVER_COLOR = "#667ec7";
-// Halo sombre (--background, NAVY) derriere le libelle : lisibilite du texte
-// quel que soit le noeud/fond survole, sans dependre de la couleur du noeud.
-const LABEL_HALO_COLOR = "#122a3a";
+import {
+  createConstellationLight,
+  NO_ARRIVAL,
+  playArrival,
+  prefersReducedMotion,
+  traceNewRelation,
+  type ArrivalHandle,
+} from "./sky-animations";
 
 // Poignee de liaison (KAN-87) : un noeud technique pose au-dessus de l'etoile
 // survolee (edgehandles v4 n'en fournit plus). Ce n'est jamais une entree :
@@ -69,13 +52,9 @@ const HANDLE_HIDE_DELAY_MS = 250;
 const POSITIONS_SAVE_DELAY_MS = 400;
 const VIEWPORT_SAVE_DELAY_MS = 800;
 const ZOOM_STEP = 1.25;
-const FIT_PADDING = 80;
 // Plafond du zoom apres « ajuster » (retour de recette) : un petit monde ne
 // s'affiche jamais en gros plan.
 const FIT_MAX_ZOOM = 1.2;
-// Bande haute du canvas occupee par la barre haute flottante puis le titre du
-// monde et ses compteurs (constellation.tsx) : exclue du cadrage « ajuster ».
-const TITLE_RESERVED_HEIGHT = 150;
 // Libelles d'arete visibles sans survol a partir de ce zoom (retour de
 // recette : 1) ; en dessous, seulement au survol de l'arete ou d'une de ses
 // etoiles. Seuil
@@ -84,8 +63,12 @@ const TITLE_RESERVED_HEIGHT = 150;
 // devicePixelRatio (verifie dans cytoscape.esm.mjs, eleTextBiggerThanMin) -
 // le seuil reel varierait d'un ecran a l'autre.
 const EDGE_LABEL_MIN_ZOOM = 1;
+
 // Milieu d'arete compte comme obstacle pour la carte de selection.
 const EDGE_OBSTACLE_SIZE = 24;
+// Trace a la creation d'une relation (KAN-85) : attente maximale de l'arete
+// apres la fermeture de la boite (le rafraichissement serveur l'apporte).
+const TRACE_WAIT_MS = 5000;
 
 let extensionsRegistered = false;
 function registerExtensions() {
@@ -117,6 +100,14 @@ function entityNodes(cy: Core): NodeSingular[] {
 function entityCollection(cy: Core, visibleOnly = false) {
   return cy.nodes().filter((node) => isEntityNode(node) && (!visibleOnly || node.visible()));
 }
+function worldEdges(cy: Core) {
+  return cy.edges().filter((edge) => isWorldEdge(edge));
+}
+
+// Etoiles et lignes du monde (sans poignee ni fantomes d'edgehandles).
+function worldCollection(cy: Core) {
+  return cy.elements().filter((element) => isEntityNode(element) || isWorldEdge(element));
+}
 
 function currentPositions(cy: Core): BoardPosition[] {
   return entityNodes(cy).map((node) => ({
@@ -130,26 +121,52 @@ function clampZoom(level: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, level));
 }
 
-// Ajuster a l'ecran puis reculer d'un cran, sans depasser FIT_MAX_ZOOM
-// (retour de recette : ciel aere), sous la bande haute reservee au titre du
-// monde (aucune etoile sous le titre).
-function fitWithBreathingRoom(cy: Core, visibleOnly = false) {
+// Coins de la scene occupes par l'interface posee sur le ciel (titre,
+// pilules, controles, compteurs, sidebar en verre) : mesures par la
+// Constellation (prop getReservedCorners), enregistres sur l'instance au
+// montage et lus a chaque cadrage.
+function reservedCorners(cy: Core): ReservedCorners {
+  const read: unknown = cy.scratch("_skyCorners");
+  if (typeof read !== "function") {
+    return {};
+  }
+  const corners: unknown = read();
+  return typeof corners === "object" && corners !== null ? corners : {};
+}
+
+// Cadrage « ajuster a l'ecran » (KAN-85) : les etoiles occupent ~85 % du plus
+// favorable des rectangles libres de la scene (seuls les coins occupes sont
+// reserves, fitViewport), sans depasser FIT_MAX_ZOOM.
+function computeFitView(cy: Core, { visibleOnly = false, includeLabels = true } = {}) {
   const nodes = entityCollection(cy, visibleOnly);
   if (nodes.empty()) {
-    return;
+    return null;
   }
-  const box = nodes.boundingBox({ includeLabels: true });
-  const view = fitViewport({
+  const box = nodes.boundingBox({ includeLabels });
+  return fitViewport({
     bounds: { x1: box.x1, y1: box.y1, x2: box.x2, y2: box.y2 },
     width: cy.width(),
     height: cy.height(),
-    padding: FIT_PADDING,
-    topInset: TITLE_RESERVED_HEIGHT,
+    corners: reservedCorners(cy),
     minZoom: MIN_ZOOM,
     maxZoom: FIT_MAX_ZOOM,
-    zoomFactor: 1 / ZOOM_STEP,
   });
-  cy.viewport({ zoom: view.zoom, pan: view.pan });
+}
+
+function fitWithBreathingRoom(cy: Core, visibleOnly = false) {
+  const view = computeFitView(cy, { visibleOnly });
+  if (view) {
+    cy.viewport({ zoom: view.zoom, pan: view.pan });
+  }
+}
+
+const ALL_TIERS: BrightnessTier[] = [0, 1, 2, 3];
+
+// Zoom de reference du niveau de detail (KAN-85) : le zoom « ajuster » de
+// TOUT le monde, sans les libelles (sinon il dependrait des noms affiches).
+// Recalcule quand la disposition ou la taille du canvas change.
+function updateFitReference(cy: Core) {
+  cy.scratch("_skyFitZoom", computeFitView(cy, { includeLabels: false })?.zoom ?? cy.zoom());
 }
 
 // Visibilite (filtres, KAN-87) : on itere sur les elements et on compare les
@@ -169,13 +186,35 @@ function applyVisibility(cy: Core, visibility: GraphVisibility) {
   });
 }
 
-// Classe de zoom posee sur toutes les aretes du monde (bascule en lot).
-function syncZoomedLabels(cy: Core) {
-  const zoomedIn = cy.zoom() >= EDGE_LABEL_MIN_ZOOM;
+// Niveau de detail selon le zoom (KAN-85, sky-detail.ts), applique par
+// classes en lot :
+// - is-named sur les etoiles dont le palier est nomme au zoom relatif courant
+//   (toutes dans un petit monde) ;
+// - is-zoomed-in sur les aretes au-dela du seuil de C1, seulement si le monde
+//   a peu de lignes visibles (sinon survol et selection uniquement).
+// Pendant un zoom, rien n'est reparcouru tant que l'etat ne change pas ;
+// `force` (diff, filtres, nouvelle reference) reapplique tout.
+function syncZoomedLabels(cy: Core, force = false) {
+  const stars = entityCollection(cy, true);
+  const visibleEdges = worldEdges(cy).filter((edge) => edge.visible()).length;
+  const rel = relativeZoom(cy.zoom(), Number(cy.scratch("_skyFitZoom")));
+  const edgesZoomed = edgeLabelsFollowZoom(visibleEdges) && cy.zoom() >= EDGE_LABEL_MIN_ZOOM;
+  const namedTiers = ALL_TIERS.filter((tier) => isNameVisible(tier, rel, stars.length));
+  const state = `${edgesZoomed}:${namedTiers.join("")}`;
+  if (!force && cy.scratch("_skyZoomState") === state) {
+    return;
+  }
+  cy.scratch("_skyZoomState", state);
   cy.batch(() => {
     cy.edges().forEach((edge) => {
       if (isWorldEdge(edge)) {
-        edge.toggleClass("is-zoomed-in", zoomedIn);
+        edge.toggleClass("is-zoomed-in", edgesZoomed);
+      }
+    });
+    cy.nodes().forEach((node) => {
+      if (isEntityNode(node)) {
+        const tier: unknown = node.data("tier");
+        node.toggleClass("is-named", namedTiers.includes(isBrightnessTier(tier) ? tier : 0));
       }
     });
   });
@@ -188,6 +227,24 @@ function showAll(cy: Core) {
         element.style("display", "element");
       }
     });
+  });
+}
+
+// « Ponts » : lignes entre deux constellations, plus discretes que les
+// lignes internes (sky-stylesheet.ts, jeton --sky-line-bridge-opacity).
+// Recalcule a chaque changement des elements, quelle que soit la
+// disposition (une disposition memorisee garde ses ponts lisibles).
+function syncBridges(cy: Core) {
+  const communities = skyCommunities(cy);
+  cy.batch(() => {
+    worldEdges(cy)
+      .edges()
+      .forEach((edge) => {
+        edge.toggleClass(
+          "is-bridge",
+          communities.get(edge.source().id()) !== communities.get(edge.target().id()),
+        );
+      });
   });
 }
 
@@ -210,10 +267,16 @@ function placeNewNodes(
     return [];
   }
   showAll(cy);
-  const worldElements = cy
-    .elements()
-    .filter((element) => isEntityNode(element) || isWorldEdge(element));
-  worldElements.layout(fcoseOptions(plan)).run();
+  if (plan.mode === "full") {
+    // Proportions du plus grand rectangle libre de la scene.
+    const free = largestFreeRect(cy.width(), cy.height(), reservedCorners(cy));
+    arrangeSky(cy, (free.x2 - free.x1) / Math.max(free.y2 - free.y1, 1));
+  } else {
+    const worldElements = cy
+      .elements()
+      .filter((element) => isEntityNode(element) || isWorldEdge(element));
+    worldElements.layout(fcoseOptions(plan, nodes.length)).run();
+  }
   if (plan.mode === "incremental") {
     // Dans le champ, et jamais sur une autre etoile (BUG-019) : chaque
     // nouvelle etoile evite toutes les autres, y compris celles placees juste
@@ -242,6 +305,10 @@ export type GraphViewHandle = {
   reorganize: () => BoardPosition[];
   // Fin de la boite de liaison : les deux etoiles cessent d'etre mises en avant.
   clearLinkHighlight: () => void;
+  // Relation creee depuis le graphe (KAN-85) : la ligne se trace de `fromId`
+  // vers `toId` des que l'arete declaree est la (tout de suite, ou a l'arrivee
+  // des elements rafraichis).
+  traceRelation: (fromId: string, toId: string) => void;
 };
 
 // Boite englobante a l'ecran (pixels du conteneur).
@@ -259,7 +326,15 @@ type E2EConstellationHook = {
     y: number;
     clientX: number;
     clientY: number;
+    // Ciel (KAN-85) : opacite effective (transitions comprises) et
+    // attenuation au survol.
+    opacity: number;
+    dimmed: boolean;
+    // Niveau de detail (KAN-85) : nom affiche.
+    named: boolean;
   }[];
+  // Arrivee animee en cours ou terminee.
+  arrival: () => "running" | "done";
 };
 
 declare global {
@@ -295,6 +370,7 @@ export function GraphView({
   onLinkRequest,
   onSaveError,
   onSelectionAnchor,
+  getReservedCorners,
   className,
 }: {
   ref?: Ref<GraphViewHandle>;
@@ -311,6 +387,8 @@ export function GraphView({
   // Position a l'ecran de l'etoile selectionnee, a chaque deplacement, zoom ou
   // panoramique (null : pas de selection).
   onSelectionAnchor: (anchor: SelectionAnchor | null) => void;
+  // Coins de la scene occupes par l'interface (pixels du conteneur).
+  getReservedCorners?: () => ReservedCorners;
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -319,6 +397,11 @@ export function GraphView({
   // Derniers elements appliques a l'instance : base du diff.
   const appliedElementsRef = useRef<GraphElements | null>(null);
   const pendingPositionsRef = useRef(new Map<string, BoardPosition>());
+  // Ciel (KAN-85) : palette lue au montage, trace en attente de son arete.
+  const paletteRef = useRef<SkyPalette>(DEFAULT_SKY_PALETTE);
+  const pendingTraceRef = useRef<{ edgeId: string; fromId: string; expiresAt: number } | null>(
+    null,
+  );
 
   const reportSaveError = useEffectEvent((message: string) => onSaveError(message));
   const selectNode = useEffectEvent((nodeId: string | null) => onSelectNode(nodeId));
@@ -333,6 +416,7 @@ export function GraphView({
     visibility,
   }));
   const readVisibility = useEffectEvent(() => visibility);
+  const readCorners = useEffectEvent(() => getReservedCorners?.() ?? {});
   const reportAnchor = useEffectEvent((anchor: SelectionAnchor | null) =>
     onSelectionAnchor(anchor),
   );
@@ -385,12 +469,34 @@ export function GraphView({
       getComputedStyle(document.documentElement).getPropertyValue("--font-inter").trim() ||
       "Inter, sans-serif";
 
+    // Jetons du ciel lus sur le conteneur (principe 7 : une surcharge par
+    // monde n'aura qu'a poser les variables plus haut) ; icones du type lues
+    // dans le sprite cache rendu par ce composant.
+    const palette = readSkyPalette(container);
+    paletteRef.current = palette;
+
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const buildStyle = () =>
+      buildSkyStylesheet({
+        palette,
+        fontFamily: interFontFamily,
+        reducedMotion: motionQuery.matches,
+      });
+
+    // Le ciel s'allume a l'arrivee (KAN-85) : une seule fois par montage -
+    // l'instance n'est jamais recreee, ni router.refresh ni le diff ne la
+    // rejouent. Jamais si l'onglet est cache ou en reduced-motion. Etoiles et
+    // lignes sont CREEES eteintes (aucune transition de depart).
+    const animateArrival = document.visibilityState === "visible" && !motionQuery.matches;
+    const unlit = animateArrival ? "is-unlit" : undefined;
     const definitions: ElementDefinition[] = [
       ...initial.elements.nodes.map((node) => {
         const position = known.get(node.data.id);
-        return position ? { data: node.data, position: { ...position } } : { data: node.data };
+        return position
+          ? { data: node.data, position: { ...position }, classes: unlit }
+          : { data: node.data, classes: unlit };
       }),
-      ...initial.elements.edges,
+      ...initial.elements.edges.map((edge) => ({ data: edge.data, classes: unlit })),
     ];
 
     const cy = cytoscape({
@@ -401,144 +507,12 @@ export function GraphView({
       // Positions posees telles quelles (preset) ; les nouvelles sont
       // placees juste apres par placeNewNodes.
       layout: { name: "preset", fit: false },
-      style: [
-        {
-          selector: "node",
-          style: {
-            "background-color": (node: NodeSingular) =>
-              NODE_COLOR_BY_GROUP[node.data("group") as string] ?? DEFAULT_NODE_COLOR,
-            label: "data(label)",
-            "font-family": interFontFamily,
-            "font-size": 10,
-            color: "#edf2f2",
-            "text-valign": "bottom",
-            "text-margin-y": 6,
-            // Halo (text-outline) : le libelle reste lisible quel que soit le
-            // fond survole/la couleur du noeud - encodage textuel du type,
-            // jamais la couleur seule (C2.2.3).
-            "text-outline-color": LABEL_HALO_COLOR,
-            "text-outline-width": 2,
-            width: 24,
-            height: 24,
-            "border-width": 0,
-          },
-        },
-        {
-          // Survol / selection : Cytoscape n'a pas de pseudo-classe :hover,
-          // classes basculees par les ecouteurs ci-dessous.
-          selector: "node.is-hovered, node.is-selected",
-          style: {
-            "border-width": 2,
-            "border-color": HOVER_COLOR,
-            color: HOVER_COLOR,
-          },
-        },
-        {
-          selector: "node.is-selected",
-          style: { "border-width": 3 },
-        },
-        {
-          // Liaison (retour de recette) : AUCUNE ligne pendant le trace ni
-          // apres le lacher. Retour visuel : l'etoile source et l'etoile cible
-          // survolee sont mises en avant (contour epais), le curseur devient
-          // une croix ; les deux restent marquees tant que la boite est ouverte.
-          selector:
-            "node.eh-source, node.eh-hover, node.eh-target, node.link-source, node.link-target",
-          style: {
-            "border-width": 4,
-            "border-color": HOVER_COLOR,
-            color: HOVER_COLOR,
-          },
-        },
-        {
-          // Une arete par paire (KAN-84). Fleche lue dans data(arrow) par une
-          // fonction de style : aucun selecteur construit a partir d'une
-          // donnee.
-          selector: "edge",
-          style: {
-            width: 1,
-            "line-color": "#52525b",
-            "line-opacity": 0.6,
-            "target-arrow-color": "#52525b",
-            "target-arrow-shape": (edge: EdgeSingular) =>
-              edge.data("arrow") === true ? "triangle" : "none",
-            "curve-style": "bezier",
-          },
-        },
-        {
-          // Reflet du texte : pointilles, sans libelle. La forme du trait (et
-          // le libelle des aretes declarees) porte l'information, jamais la
-          // couleur seule. Selecteurs STATIQUES.
-          selector: 'edge[kind = "text"]',
-          style: { "line-style": "dashed" },
-        },
-        {
-          // Relation declaree : trait plein, libelle lu depuis la source de
-          // l'arete. Libelle masque a zoom normal pour ne pas charger le ciel
-          // (visible a partir de EDGE_LABEL_MIN_ZOOM), et toujours
-          // visible au survol de l'arete ou d'une de ses etoiles.
-          selector: 'edge[kind = "declared"]',
-          style: {
-            width: 1.5,
-            "line-style": "solid",
-            "line-opacity": 0.9,
-            label: "data(label)",
-            "font-family": interFontFamily,
-            "font-size": 8,
-            "text-opacity": 0,
-            color: "#edf2f2",
-            "text-outline-color": LABEL_HALO_COLOR,
-            "text-outline-width": 2,
-            "text-rotation": "autorotate",
-          },
-        },
-        {
-          selector: "edge.is-label-visible, edge.is-zoomed-in",
-          style: { "text-opacity": 1 },
-        },
-        {
-          // Poignee de liaison : petit disque contour, au-dessus de l'etoile.
-          selector: "node.link-handle",
-          style: {
-            label: "",
-            width: 12,
-            height: 12,
-            "background-color": LABEL_HALO_COLOR,
-            "border-width": 2,
-            "border-color": HOVER_COLOR,
-          },
-        },
-        {
-          selector: "node.link-handle.is-dragging",
-          style: { opacity: 0 },
-        },
-        {
-          // Trace d'une liaison (retour de recette) : UNE seule ligne, celle
-          // tenue a la souris (arete fantome d'edgehandles vers le curseur).
-          // L'arete de previsualisation source -> cible, qui apparait en plus
-          // au survol de la cible, est masquee ; l'aimantation est coupee
-          // (snap: false). Trait discontinu : jamais la couleur seule.
-          selector: "edge.eh-ghost-edge",
-          style: {
-            width: 1.5,
-            "line-style": "dashed",
-            "line-dash-pattern": [6, 4],
-            "line-color": HOVER_COLOR,
-            "target-arrow-shape": "none",
-            label: "",
-          },
-        },
-        {
-          selector: "edge.eh-preview",
-          style: { display: "none" },
-        },
-        {
-          selector: "node.eh-ghost-node",
-          style: { opacity: 0, width: 1, height: 1, label: "" },
-        },
-      ],
+      // Ciel d'histoires (KAN-85) : palette lue sur les jetons CSS une fois
+      // au montage (sky-theme.ts), aucune couleur en dur ici.
+      style: buildStyle(),
     });
     cyRef.current = cy;
+    cy.scratch("_skyCorners", () => readCorners());
 
     // Cadrage enregistre restaure AVANT le placement : les nouvelles etoiles
     // sont ramenees dans la zone visible de ce cadrage. Sans cadrage (ou au
@@ -557,6 +531,9 @@ export function GraphView({
       fitWithBreathingRoom(cy);
     }
     appliedElementsRef.current = initial.elements;
+    const arrival: ArrivalHandle = animateArrival
+      ? playArrival(cy, entityCollection(cy), worldEdges(cy))
+      : NO_ARRIVAL;
     container.classList.remove("invisible");
     if (placed.length > 0) {
       persistPositions(placed);
@@ -593,8 +570,33 @@ export function GraphView({
     });
 
     // Fin de mouvement du cadrage (molette, glisser le fond, boutons).
-    syncZoomedLabels(cy);
+    syncBridges(cy);
+    updateFitReference(cy);
+    syncZoomedLabels(cy, true);
     cy.on("zoom", () => syncZoomedLabels(cy));
+    cy.on("resize", () => {
+      updateFitReference(cy);
+      syncZoomedLabels(cy, true);
+    });
+
+    // L'arrivee ne bloque rien : le premier geste sur le canvas (clic,
+    // glisser) la termine aussitot - l'etoile visee est pleinement visible.
+    // Zoom et deplacement de la vue la laissent se jouer.
+    cy.on("tapstart grab", () => arrival.finish());
+    function onVisibilityChange() {
+      if (document.visibilityState === "hidden") {
+        arrival.finish();
+      }
+    }
+    // Reduced-motion active pendant la visite : etat final, transitions a 0.
+    function onMotionChange() {
+      if (motionQuery.matches) {
+        arrival.finish();
+      }
+      cy.style(buildStyle());
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    motionQuery.addEventListener("change", onMotionChange);
     cy.on("viewport", () => {
       if (!ready) {
         return;
@@ -633,6 +635,13 @@ export function GraphView({
       noEdgeEventsInDraw: true,
       disableBrowserGestures: true,
     });
+
+    // Liaison en cours (edgehandles) ou glisser d'une etoile : pas
+    // d'eclairage au survol (le pointeur croise d'autres etoiles pendant le
+    // geste - les eclairer relancerait des transitions a chaque croisement).
+    let linking = false;
+    let dragging = false;
+    const constellationLight = createConstellationLight(cy, () => worldCollection(cy));
 
     function removeHandle() {
       clearTimeout(handleHideTimer);
@@ -676,6 +685,11 @@ export function GraphView({
       }
       node.addClass("is-hovered");
       node.connectedEdges().addClass("is-label-visible");
+      // Eclairage de sa constellation (KAN-85), sauf pendant une liaison
+      // (trace en cours ou boite ouverte) ou le glisser d'une etoile.
+      if (!linking && !dragging && linkEndsRef.current.length === 0) {
+        constellationLight.light(node);
+      }
       if (!node.grabbed()) {
         showHandle(node);
       }
@@ -691,11 +705,17 @@ export function GraphView({
       }
       node.removeClass("is-hovered");
       node.connectedEdges().removeClass("is-label-visible");
+      constellationLight.scheduleClear();
       scheduleHandleRemoval();
     });
-    cy.on("grab", "node", () => removeHandle());
+    cy.on("grab", "node", () => {
+      dragging = true;
+      removeHandle();
+      constellationLight.clear();
+    });
     // Relachee (clic ou deplacement) sous le pointeur : la poignee revient.
     cy.on("free", "node", (event) => {
+      dragging = false;
       const node = event.target as NodeSingular;
       if (isEntityNode(node) && node.hasClass("is-hovered")) {
         showHandle(node);
@@ -720,9 +740,12 @@ export function GraphView({
       }
     });
     cy.on("ehstart", () => {
+      linking = true;
+      constellationLight.clear();
       container.style.cursor = "crosshair";
     });
     cy.on("ehstop", () => {
+      linking = false;
       removeHandle();
       container.style.cursor = drawMode ? "crosshair" : "";
     });
@@ -784,13 +807,24 @@ export function GraphView({
             y: node.position("y"),
             clientX: rect.left + node.renderedPosition().x,
             clientY: rect.top + node.renderedPosition().y,
+            // Opacite VISIBLE : celle de l'element (attenuation au survol)
+            // fois celle de son image (coeur et lueur, KAN-85 : 0 tant que
+            // l'arrivee ne l'a pas allumee ; le disque de fond reste a 0).
+            opacity: node.numericStyle("opacity") * node.numericStyle("background-image-opacity"),
+            dimmed: node.hasClass("is-dimmed"),
+            named: String(node.style("label")) !== "",
           }));
         },
+        arrival: () => (arrival.running() ? "running" : "done"),
       };
     }
 
     return () => {
       ready = false;
+      arrival.finish();
+      constellationLight.clear();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      motionQuery.removeEventListener("change", onMotionChange);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onWindowBlur);
@@ -843,9 +877,25 @@ export function GraphView({
     });
     const placed = placeNewNodes(cy, known, readVisibility());
     applyVisibility(cy, readVisibility());
-    syncZoomedLabels(cy);
+    syncBridges(cy);
+    updateFitReference(cy);
+    syncZoomedLabels(cy, true);
     if (placed.length > 0) {
       persistPositions(placed);
+    }
+    // Relation creee depuis le graphe : sa ligne arrive avec ces elements.
+    const pending = pendingTraceRef.current;
+    if (pending) {
+      const changed = [...diff.addEdges, ...diff.updateEdges].some(
+        (edge) => edge.data.id === pending.edgeId,
+      );
+      if (changed || Date.now() > pending.expiresAt) {
+        pendingTraceRef.current = null;
+      }
+      const edge = cy.getElementById(pending.edgeId);
+      if (changed && edge.nonempty() && edge.isEdge() && edge.data("kind") === "declared") {
+        traceNewRelation(edge, pending.fromId, paletteRef.current);
+      }
     }
   }, [elements]);
 
@@ -853,6 +903,7 @@ export function GraphView({
     const cy = cyRef.current;
     if (cy) {
       applyVisibility(cy, visibility);
+      syncZoomedLabels(cy, true);
     }
   }, [visibility]);
 
@@ -863,11 +914,11 @@ export function GraphView({
     }
     cy.batch(() => {
       entityNodes(cy).forEach((node) => {
-        if (node.id() === selectedNodeId) {
-          node.addClass("is-selected");
-        } else {
-          node.removeClass("is-selected");
-        }
+        // Libelles des relations de l'etoile selectionnee (KAN-85) : classe
+        // propre, jamais retiree par la sortie du survol.
+        const selected = node.id() === selectedNodeId;
+        node.toggleClass("is-selected", selected);
+        node.connectedEdges().toggleClass("is-selected-edge", selected);
       });
     });
   }, [selectedNodeId, elements]);
@@ -960,6 +1011,8 @@ export function GraphView({
             cy.getElementById(entityId).position({ x, y });
           }
         });
+        updateFitReference(cy);
+        syncZoomedLabels(cy, true);
       },
       reorganize: () => {
         const cy = cyRef.current;
@@ -968,7 +1021,9 @@ export function GraphView({
         }
         pendingPositionsRef.current.clear();
         placeNewNodes(cy, new Map(), visibility);
+        updateFitReference(cy);
         fitWithBreathingRoom(cy);
+        syncZoomedLabels(cy, true);
         return currentPositions(cy);
       },
       clearLinkHighlight: () => {
@@ -977,17 +1032,33 @@ export function GraphView({
         }
         linkEndsRef.current = [];
       },
+      traceRelation: (fromId, toId) => {
+        const cy = cyRef.current;
+        if (!cy || prefersReducedMotion()) {
+          return;
+        }
+        const edgeId = pairEdgeId(fromId, toId);
+        const edge = cy.getElementById(edgeId);
+        // Elements deja rafraichis avant la fermeture de la boite : l'arete
+        // declaree est la, on trace tout de suite ; sinon, a son arrivee.
+        if (edge.nonempty() && edge.isEdge() && edge.data("kind") === "declared") {
+          traceNewRelation(edge, fromId, paletteRef.current);
+          return;
+        }
+        pendingTraceRef.current = { edgeId, fromId, expiresAt: Date.now() + TRACE_WAIT_MS };
+      },
     };
   }, [visibility]);
 
-  // Fond navy uni (--background) ; la trame celeste viendra au lot C2.
+  // Canvas transparent : le ciel (fond, trame, etoiles lointaines) est peint
+  // dessous en pseudo-elements (.sky-chart / .sky-far-stars, globals.css).
   // `invisible` jusqu'a ce que les positions soient posees (aucun saut).
   return (
     <div
       ref={containerRef}
       aria-hidden="true"
       data-testid="graph-canvas"
-      className={cn("invisible relative overflow-hidden bg-background", className)}
+      className={cn("invisible relative overflow-hidden", className)}
     />
   );
 }

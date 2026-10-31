@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Sparkle, X } from "lucide-react";
 import { replaceLayoutAction } from "@/actions/board";
@@ -10,6 +10,8 @@ import type { BoardPosition, BoardViewport } from "@/lib/board-schemas";
 import { ENTITY_TYPE_GROUPS } from "@/lib/entity-schemas";
 import { chooseCardPlacement } from "@/lib/graph-card-placement";
 import { pairEdgeId, type AccessibleGraphEntry, type GraphElements } from "@/lib/graph-elements";
+import type { ReservedCorners } from "@/lib/graph-layout";
+import { skyBackdropStyle } from "@/lib/sky-backdrop";
 import {
   computeVisibility,
   depthLabel,
@@ -17,11 +19,13 @@ import {
   graphFiltersStorageKey,
   hasActiveFilters,
   parseStoredFilters,
+  isolatedEntryIds,
   relationFilterOptions,
   type FocusDepth,
   type GraphFilters,
   type GraphFocus,
 } from "@/lib/graph-filters";
+import type { EntityTypeIconKey } from "@/lib/entity-types";
 import type { WorldRelationTypeCatalog } from "@/lib/relation-types";
 import { cn } from "@/lib/utils";
 import { CreateEntityDialog } from "../create-entity-dialog";
@@ -50,7 +54,14 @@ type ToolId = (typeof TOOLS)[number]["id"];
 const GLASS_SURFACE =
   "border border-glass-border bg-glass-surface shadow-lg backdrop-blur-(--glass-blur)";
 
-export type ConstellationEntity = { id: string; name: string; typeLabel: string };
+// icon : icone du type, affichee dans la carte de selection (KAN-85 : plus
+// dans le canvas).
+export type ConstellationEntity = {
+  id: string;
+  name: string;
+  typeLabel: string;
+  icon: EntityTypeIconKey;
+};
 
 // Raccourcis de la zone du graphe, SANS modificateur (retour de recette :
 // Ctrl++ / Ctrl+- / Ctrl+0 restent toujours au zoom du navigateur). Actifs
@@ -106,6 +117,55 @@ export function Constellation({
   const graphRef = useRef<GraphViewHandle>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const pillsRef = useRef<HTMLDivElement>(null);
+  const controlsRef = useRef<HTMLDivElement>(null);
+
+  // Coins de la scene occupes par l'interface (KAN-85) : « ajuster » n'evite
+  // qu'eux (fitViewport), jamais une bande sur toute la largeur. Mesures au
+  // moment du cadrage, en pixels de la zone ; la sidebar en verre ouverte
+  // (world-shell.tsx, sous la zone du titre) occupe le coin bas gauche.
+  const getReservedCorners = useCallback((): ReservedCorners => {
+    const zone = zoneRef.current?.getBoundingClientRect();
+    if (!zone) {
+      return {};
+    }
+    const gap = 16;
+    const box = (element: Element | null | undefined) => {
+      const rect = element?.getBoundingClientRect();
+      return rect && rect.width > 0 && rect.height > 0 ? rect : null;
+    };
+    const title = box(titleRef.current);
+    const pills = box(pillsRef.current);
+    const controls = box(controlsRef.current);
+    const sidebar = box(document.querySelector("[data-world-sidebar-overlay]:not([inert])"));
+    const corners: ReservedCorners = {};
+    if (title) {
+      corners.topLeft = {
+        width: title.right - zone.left + gap,
+        height: title.bottom - zone.top + gap,
+      };
+    }
+    if (pills) {
+      corners.topRight = {
+        width: zone.right - pills.left + gap,
+        height: pills.bottom - zone.top + gap,
+      };
+    }
+    if (controls) {
+      corners.bottomRight = {
+        width: zone.right - controls.left + gap,
+        height: zone.bottom - controls.top + gap,
+      };
+    }
+    if (sidebar) {
+      corners.bottomLeft = {
+        width: sidebar.right - zone.left + gap,
+        height: zone.bottom - sidebar.top + gap,
+      };
+    }
+    return corners;
+  }, []);
   const { toasts, show, dismiss } = useConstellationToasts();
 
   const [filtersRaw, setFiltersRaw] = useStoredString(graphFiltersStorageKey(worldId));
@@ -127,6 +187,7 @@ export function Constellation({
     [elements],
   );
   const visibility = useMemo(() => computeVisibility(elements, filters), [elements, filters]);
+  const backdropStyle = useMemo(() => skyBackdropStyle(worldId), [worldId]);
   const filtersActive = hasActiveFilters(filters);
 
   // Types filtrables : seulement ceux qui ont au moins une entree, avec
@@ -144,6 +205,7 @@ export function Constellation({
     [elements, entityById],
   );
   const relationOptions = useMemo(() => relationFilterOptions(elements), [elements]);
+  const isolatedCount = useMemo(() => isolatedEntryIds(elements).size, [elements]);
 
   // Liste accessible : memes filtres que le canvas (entree visible, cible
   // visible, arete de la paire visible).
@@ -284,6 +346,7 @@ export function Constellation({
         <GraphFiltersPanel
           filterGroups={filterGroups}
           relationOptions={relationOptions}
+          isolatedCount={isolatedCount}
           filters={filters}
           focusEntityName={focusEntity?.name ?? null}
           onChange={setFilters}
@@ -309,7 +372,7 @@ export function Constellation({
   const linkB = pendingLink ? endpoint(pendingLink.bId) : null;
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="sky-scene relative h-full w-full overflow-hidden">
       {/* Zone du graphe focusable : porte les raccourcis clavier. Le canvas
           lui-meme reste aria-hidden (affordance souris, ADR-0012) ; le chemin
           accessible est la liste du panneau « Fils ». */}
@@ -318,12 +381,33 @@ export function Constellation({
         tabIndex={0}
         role="group"
         aria-label="Constellation. Touches + et - : zoom, 0 : ajuster à l'écran, N : nouvelle entrée."
-        onKeyDown={onZoneKeyDown}
+        onKeyDown={(event) => {
+          // Interaction clavier : le contour de focus redevient visible.
+          delete event.currentTarget.dataset.pointerFocus;
+          onZoneKeyDown(event);
+        }}
         // Cytoscape retire le focus du document a chaque mousedown sur son
         // canvas (constate : focusout vers <body>) : la zone le reprend au
         // relachement, pour que + / - / 0 agissent apres un clic dans le graphe.
-        onPointerUpCapture={() => zoneRef.current?.focus({ preventScroll: true })}
-        className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        // Focus rendu apres un geste de pointeur : marque, pour que le contour
+        // ne s'affiche jamais apres un clic ou un glisser (Chrome le tient
+        // pour « visible » quand il est donne par script) - seulement a la
+        // navigation clavier (KAN-85).
+        onPointerUpCapture={() => {
+          const zone = zoneRef.current;
+          if (zone) {
+            zone.dataset.pointerFocus = "";
+            zone.focus({ preventScroll: true });
+          }
+        }}
+        onBlur={(event) => {
+          delete event.currentTarget.dataset.pointerFocus;
+        }}
+        // Ciel de fond propre au monde (KAN-85) : masques SVG deterministes
+        // poses en variables CSS, consommes par .sky-chart (arcs, graduation)
+        // et .sky-far-stars (etoiles lointaines, sur le conteneur du canvas).
+        style={backdropStyle}
+        className="sky-chart sky-scene-fade absolute inset-0 [&[data-pointer-focus]]:outline-none [&:focus-visible:not([data-pointer-focus])]:outline [&:focus-visible:not([data-pointer-focus])]:outline-2 [&:focus-visible:not([data-pointer-focus])]:-outline-offset-2 [&:focus-visible:not([data-pointer-focus])]:outline-ring"
       >
         <GraphView
           ref={graphRef}
@@ -338,14 +422,23 @@ export function Constellation({
           onLinkRequest={(aId, bId) => setPendingLink({ aId, bId })}
           onSaveError={(message) => show({ message })}
           onSelectionAnchor={onSelectionAnchor}
-          className="h-full w-full"
+          getReservedCorners={getReservedCorners}
+          className="sky-far-stars h-full w-full"
         />
       </div>
 
-      {/* Titre du monde et compteurs (haut gauche), poses sur le canvas, sous
-          la barre haute flottante ; chip de focus juste dessous. */}
+      {/* Titre du monde (haut gauche), pose sur le canvas sous la barre haute
+          flottante ; chip de focus juste dessous. Il ne bouge jamais : la
+          sidebar en verre s'ouvre SOUS sa zone (world-shell.tsx). */}
       <div className="pointer-events-none absolute left-4 top-16 z-10 flex max-w-[50%] flex-col items-start gap-2">
-        <div className="pointer-events-auto [text-shadow:var(--canvas-text-shadow)]">{title}</div>
+        {/* Voile radial doux derriere le titre (KAN-85) : AA garanti meme
+            quand une etoile passe dessous. */}
+        <div
+          ref={titleRef}
+          className="sky-title-veil pointer-events-auto [text-shadow:var(--canvas-text-shadow)]"
+        >
+          {title}
+        </div>
         {focus && focusEntity ? (
           <div
             className={cn(
@@ -386,7 +479,7 @@ export function Constellation({
           }
         }}
       >
-        <div className="pointer-events-auto flex gap-1.5">
+        <div ref={pillsRef} className="pointer-events-auto flex gap-1.5">
           {TOOLS.map((tool) => (
             <Button
               key={tool.id}
@@ -400,7 +493,10 @@ export function Constellation({
               className={cn(
                 "rounded-full text-foreground",
                 GLASS_SURFACE,
-                openTool === tool.id && "border-foreground",
+                // Panneau ouvert (KAN-85) : etat actif visible, distinct du
+                // focus (qui garde son contour) - fond d'accent et barre basse.
+                openTool === tool.id &&
+                  "border-primary bg-primary/30 shadow-[inset_0_-2px_0_var(--primary)] hover:bg-primary/40",
               )}
             >
               {tool.label}
@@ -427,7 +523,10 @@ export function Constellation({
 
       {/* Creation (bas droite) : bouton rond d'accent, plus grand que les
           controles de vue et centre sur leur colonne. */}
-      <div className="absolute bottom-3 right-3 z-10 flex flex-col items-center gap-2">
+      <div
+        ref={controlsRef}
+        className="absolute bottom-3 right-3 z-10 flex flex-col items-center gap-2"
+      >
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <CreateEntityDialog
@@ -489,7 +588,15 @@ export function Constellation({
           a={linkA}
           b={linkB}
           onClose={closeLink}
-          onCreated={closeLink}
+          // La nouvelle ligne se trace de l'etoile de depart du geste vers
+          // celle d'arrivee (KAN-85).
+          onCreated={() => {
+            const ends = pendingLink;
+            closeLink();
+            if (ends) {
+              graphRef.current?.traceRelation(ends.aId, ends.bId);
+            }
+          }}
         />
       ) : null}
     </div>

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { SELECT_CLASS } from "../settings/types/custom-type-form";
 
 const SECTION_BUTTON_CLASS =
-  "text-muted-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "text-(--glass-text-muted) hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 function toggled(list: readonly string[], key: string): string[] {
   return list.includes(key) ? list.filter((item) => item !== key) : [...list, key];
@@ -23,7 +23,8 @@ function toggled(list: readonly string[], key: string): string[] {
 // se lit sans la couleur (retour de recette) : pressee = pastille PLEINE avec
 // une coche, non pressee = simple contour sans coche. Couples de couleurs
 // deja valides ailleurs (bouton par defaut : bg-primary /
-// text-primary-foreground ; contour : text-muted-foreground).
+// text-primary-foreground ; contour : --glass-text-muted, gris AA sur le
+// verre au-dessus du ciel, KAN-85).
 function FilterChip({
   label,
   pressed,
@@ -42,7 +43,7 @@ function FilterChip({
         "inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 text-[10px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         pressed
           ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-transparent text-muted-foreground hover:bg-accent",
+          : "border-border bg-transparent text-(--glass-text-muted) hover:bg-accent",
       )}
     >
       {pressed ? <Check aria-hidden="true" className="size-2.5 shrink-0" /> : null}
@@ -58,12 +59,15 @@ function FilterChip({
 export function GraphFiltersPanel({
   filterGroups,
   relationOptions,
+  isolatedCount,
   filters,
   focusEntityName,
   onChange,
 }: {
   filterGroups: EntryTypeFilterGroup[];
   relationOptions: RelationFilterOption[];
+  // Entrees sans aucun lien dans le monde (KAN-85) : 0 = section masquee.
+  isolatedCount: number;
   filters: GraphFilters;
   focusEntityName: string | null;
   onChange: (next: GraphFilters) => void;
@@ -87,14 +91,14 @@ export function GraphFiltersPanel({
       <section aria-labelledby="graph-filters-entry-types" className="flex flex-col gap-2">
         <h3
           id="graph-filters-entry-types"
-          className="text-[11px] font-semibold uppercase text-muted-foreground"
+          className="text-[11px] font-semibold uppercase text-(--glass-text-muted)"
         >
           Types d&apos;entrée
         </h3>
         {filterGroups.map(({ group, types }) => (
           <fieldset key={group} className="flex flex-col gap-1">
             <legend className="flex w-full items-center justify-between gap-2">
-              <span className="text-[11px] font-semibold text-muted-foreground">{group}</span>
+              <span className="text-[11px] font-semibold text-(--glass-text-muted)">{group}</span>
               <span className="flex items-center gap-1 text-[10px]">
                 <button
                   type="button"
@@ -108,7 +112,7 @@ export function GraphFiltersPanel({
                 >
                   Tout
                 </button>
-                <span aria-hidden="true" className="text-muted-foreground">
+                <span aria-hidden="true" className="text-(--glass-text-muted)">
                   /
                 </span>
                 <button
@@ -148,7 +152,7 @@ export function GraphFiltersPanel({
         <section aria-labelledby="graph-filters-relation-types" className="flex flex-col gap-1">
           <h3
             id="graph-filters-relation-types"
-            className="text-[11px] font-semibold uppercase text-muted-foreground"
+            className="text-[11px] font-semibold uppercase text-(--glass-text-muted)"
           >
             Types de relation
           </h3>
@@ -170,16 +174,34 @@ export function GraphFiltersPanel({
         </section>
       ) : null}
 
+      {isolatedCount > 0 ? (
+        <section aria-labelledby="graph-filters-stars" className="flex flex-col gap-1">
+          <h3
+            id="graph-filters-stars"
+            className="text-[11px] font-semibold uppercase text-(--glass-text-muted)"
+          >
+            Étoiles
+          </h3>
+          <div className="flex flex-wrap gap-1">
+            <FilterChip
+              label={`Étoiles sans lien · ${isolatedCount}`}
+              pressed={!filters.hideIsolated}
+              onClick={() => onChange({ ...filters, hideIsolated: !filters.hideIsolated })}
+            />
+          </div>
+        </section>
+      ) : null}
+
       {focus ? (
         <section aria-labelledby="graph-filters-focus" className="flex flex-col gap-1.5">
           <h3
             id="graph-filters-focus"
-            className="text-[11px] font-semibold uppercase text-muted-foreground"
+            className="text-[11px] font-semibold uppercase text-(--glass-text-muted)"
           >
             {focus.mode === "isolate" ? "Isolement" : "Masquage"}
             {focusEntityName ? ` : ${focusEntityName}` : ""}
           </h3>
-          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+          <label className="flex flex-col gap-1 text-[11px] text-(--glass-text-muted)">
             Mode
             <select
               value={focus.mode}
@@ -198,7 +220,7 @@ export function GraphFiltersPanel({
               <option value="hide">Masquer</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
+          <label className="flex flex-col gap-1 text-[11px] text-(--glass-text-muted)">
             Profondeur
             <select
               value={String(focus.depth)}

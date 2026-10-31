@@ -23,13 +23,28 @@ export type GraphFilters = {
   hiddenTypeKeys: string[];
   hiddenRelationKeys: string[];
   focus: GraphFocus | null;
+  // « Etoiles sans lien » (KAN-85) : entrees sans aucune relation dans le
+  // monde (ni declaree ni du texte). Affichees par defaut.
+  hideIsolated: boolean;
 };
 
 export const DEFAULT_GRAPH_FILTERS: GraphFilters = {
   hiddenTypeKeys: [],
   hiddenRelationKeys: [],
   focus: null,
+  hideIsolated: false,
 };
+
+// Entrees sans aucun lien dans le monde (toutes aretes confondues, avant
+// filtres) : stables quels que soient les autres filtres.
+export function isolatedEntryIds(elements: GraphElements): Set<string> {
+  const linked = new Set<string>();
+  for (const edge of elements.edges) {
+    linked.add(edge.data.source);
+    linked.add(edge.data.target);
+  }
+  return new Set(elements.nodes.map((node) => node.data.id).filter((id) => !linked.has(id)));
+}
 
 export type GraphVisibility = {
   nodeIds: ReadonlySet<string>;
@@ -65,7 +80,7 @@ function neighbourhood(
   return reached;
 }
 
-// Trois etapes : 1) types d'entree, 2) types de relation (une arete declaree
+// Trois etapes : 1) types d'entree (et etoiles sans lien), 2) types de relation (une arete declaree
 // a plusieurs types reste visible si au moins un l'est ; ses deux extremites
 // doivent etre visibles), 3) focus (isoler / masquer) parcouru sur les seules
 // aretes visibles a l'issue de 2.
@@ -73,9 +88,10 @@ export function computeVisibility(elements: GraphElements, filters: GraphFilters
   const hiddenTypes = new Set(filters.hiddenTypeKeys);
   const hiddenRelations = new Set(filters.hiddenRelationKeys);
 
+  const isolated = filters.hideIsolated ? isolatedEntryIds(elements) : new Set<string>();
   const typeVisible = new Set(
     elements.nodes
-      .filter((node) => !hiddenTypes.has(node.data.typeKey))
+      .filter((node) => !hiddenTypes.has(node.data.typeKey) && !isolated.has(node.data.id))
       .map((node) => node.data.id),
   );
   const relationVisibleEdges = elements.edges.filter((edge) => {
@@ -128,7 +144,8 @@ export function hasActiveFilters(filters: GraphFilters): boolean {
   return (
     filters.hiddenTypeKeys.length > 0 ||
     filters.hiddenRelationKeys.length > 0 ||
-    filters.focus !== null
+    filters.focus !== null ||
+    filters.hideIsolated
   );
 }
 
@@ -163,6 +180,8 @@ const storedFiltersSchema = z.object({
       depth: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal("all")]),
     })
     .nullable(),
+  // Absent d'une valeur memorisee avant KAN-85 : etoiles affichees.
+  hideIsolated: z.boolean().default(false),
 });
 
 // Valeur lue dans le navigateur : toute valeur absente, illisible ou

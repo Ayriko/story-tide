@@ -13,7 +13,9 @@ export function GraphAccessibleList({
   entries: AccessibleGraphEntry[];
 }) {
   if (entries.length === 0) {
-    return <p className="text-sm text-muted-foreground">Aucune relation pour l&apos;instant.</p>;
+    return (
+      <p className="text-sm text-(--glass-text-muted)">Aucune relation pour l&apos;instant.</p>
+    );
   }
 
   return (
@@ -29,13 +31,13 @@ export function GraphAccessibleList({
             </Link>
             {/* Type resolu (KAN-81), hors du nom accessible du lien : ce nom
                 reste le seul nom de l'entree. */}
-            <span className="ml-2 text-xs text-muted-foreground">{entry.typeLabel}</span>
+            <span className="ml-2 text-xs text-(--glass-text-muted)">{entry.typeLabel}</span>
             <ul className="mt-1 flex flex-col gap-1 pl-4">
               {entry.outgoing.map((target) => (
                 <li key={target.id}>
                   <Link
                     href={`/worlds/${worldSlug}/entities/${target.id}`}
-                    className="text-sm text-muted-foreground hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="text-sm text-(--glass-text-muted) hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     {/* mutual : paire sans sens unique - un seul lien pour
                         la paire (graph-elements.ts), fleche double pour le
@@ -44,7 +46,7 @@ export function GraphAccessibleList({
                     {target.relationLabel ? `${target.relationLabel} ` : ""}
                     {target.mutual ? "↔" : "→"} {target.name}
                   </Link>
-                  <span className="ml-2 text-xs text-muted-foreground">{target.typeLabel}</span>
+                  <span className="ml-2 text-xs text-(--glass-text-muted)">{target.typeLabel}</span>
                 </li>
               ))}
             </ul>

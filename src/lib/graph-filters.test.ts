@@ -7,13 +7,14 @@ import {
   entryTypeFilterGroups,
   graphFiltersStorageKey,
   hasActiveFilters,
+  isolatedEntryIds,
   parseStoredFilters,
   relationFilterOptions,
   type GraphFilters,
 } from "./graph-filters";
 
 function node(id: string, typeKey = "character"): GraphNodeElement {
-  return { data: { id, label: id, typeKey, group: "Personnages" } };
+  return { data: { id, label: id, typeKey, group: "Personnages", icon: "user", tier: 0 } };
 }
 
 function relationType(key: string, label: string) {
@@ -177,15 +178,49 @@ describe("relationFilterOptions", () => {
   });
 });
 
+describe("etoiles sans lien (KAN-85)", () => {
+  const WITH_LONELY: GraphElements = {
+    nodes: [...ELEMENTS.nodes, node("seule"), node("perdue", "place")],
+    edges: ELEMENTS.edges,
+  };
+
+  it("isolatedEntryIds : entrees sans aucune arete", () => {
+    expect([...isolatedEntryIds(WITH_LONELY)].sort()).toEqual(["perdue", "seule"]);
+    expect(isolatedEntryIds(ELEMENTS).size).toBe(0);
+  });
+
+  it("affichees par defaut, masquees par le filtre, sans toucher aux autres", () => {
+    const shown = computeVisibility(WITH_LONELY, DEFAULT_GRAPH_FILTERS);
+    expect(shown.nodeIds.has("seule")).toBe(true);
+    const hidden = computeVisibility(WITH_LONELY, filters({ hideIsolated: true }));
+    expect([...hidden.nodeIds].sort()).toEqual(["aldric", "kael", "mira", "port", "selyne"]);
+    expect(hidden.edgeIds.size).toBe(ELEMENTS.edges.length);
+  });
+
+  it("une entree devenue isolee par un filtre de relation n'est pas une etoile sans lien", () => {
+    const visibility = computeVisibility(
+      WITH_LONELY,
+      filters({ hideIsolated: true, hiddenRelationKeys: ["ally"] }),
+    );
+    expect(visibility.nodeIds.has("kael")).toBe(true);
+  });
+});
+
 describe("parseStoredFilters", () => {
   it("valeur valide : restituee", () => {
     const stored: GraphFilters = {
       hiddenTypeKeys: ["place"],
       hiddenRelationKeys: ["text"],
       focus: { mode: "hide", entityId: "selyne", depth: "all" },
+      hideIsolated: true,
     };
 
     expect(parseStoredFilters(JSON.stringify(stored))).toEqual(stored);
+  });
+
+  it("valeur memorisee avant KAN-85 (sans hideIsolated) : etoiles sans lien affichees", () => {
+    const legacy = { hiddenTypeKeys: ["place"], hiddenRelationKeys: [], focus: null };
+    expect(parseStoredFilters(JSON.stringify(legacy))).toEqual({ ...legacy, hideIsolated: false });
   });
 
   it.each([
@@ -213,6 +248,7 @@ describe("utilitaires", () => {
   it("filtres actifs", () => {
     expect(hasActiveFilters(DEFAULT_GRAPH_FILTERS)).toBe(false);
     expect(hasActiveFilters(filters({ hiddenRelationKeys: ["text"] }))).toBe(true);
+    expect(hasActiveFilters(filters({ hideIsolated: true }))).toBe(true);
     expect(hasActiveFilters(filters({ focus: { mode: "isolate", entityId: "a", depth: 1 } }))).toBe(
       true,
     );

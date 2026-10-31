@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { isAdmin, requireSessionOrRedirect } from "@/lib/auth-session";
 import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
@@ -5,6 +6,7 @@ import { listEntities } from "@/services/entity-service";
 import { getFolderTree, getUnfiledEntities } from "@/services/folder-service";
 import { getWorldTypeCatalog } from "@/services/entity-type-service";
 import { toEntityListItem, toFolderTreeView } from "@/lib/entity-types";
+import { parseCollapsed, SIDEBAR_COOKIE } from "@/lib/sidebar-preference";
 import { WorldShell } from "./world-shell";
 import { WorldTypeCatalogProvider } from "./world-type-catalog";
 
@@ -46,13 +48,21 @@ export default async function WorldLayout({
   // monde via son propre getWorld interne) - KAN-57.
   // Catalogue des types (KAN-81) : une requete, partagee par cache() avec
   // les pages serveur du meme rendu, posee en contexte client autour du shell.
-  const [entities, folderTree, unfiledEntities, admin, typeCatalog] = await Promise.all([
-    listEntities(session.user.id, world.id),
-    getFolderTree(session.user.id, world.id),
-    getUnfiledEntities(session.user.id, world.id),
-    isAdmin(session.user.id),
-    getWorldTypeCatalog(session.user.id, world.id),
-  ]);
+  const [entities, folderTree, unfiledEntities, admin, typeCatalog, cookieStore] =
+    await Promise.all([
+      listEntities(session.user.id, world.id),
+      getFolderTree(session.user.id, world.id),
+      getUnfiledEntities(session.user.id, world.id),
+      isAdmin(session.user.id),
+      getWorldTypeCatalog(session.user.id, world.id),
+      cookies(),
+    ]);
+  // Preference de repli de la sidebar lue cote serveur (KAN-85) : la page
+  // arrive directement dans le bon etat, sans saut apres l'hydratation.
+  const sidebarPreference = {
+    default: parseCollapsed(cookieStore.get(SIDEBAR_COOKIE.default)?.value),
+    constellation: parseCollapsed(cookieStore.get(SIDEBAR_COOKIE.constellation)?.value),
+  };
 
   return (
     <WorldTypeCatalogProvider catalog={typeCatalog}>
@@ -69,6 +79,7 @@ export default async function WorldLayout({
         userName={session.user.name}
         userEmail={session.user.email}
         userIsAdmin={admin}
+        sidebarPreference={sidebarPreference}
       >
         {children}
       </WorldShell>

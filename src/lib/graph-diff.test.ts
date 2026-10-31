@@ -3,7 +3,7 @@ import { diffGraphElements, isEmptyDiff } from "./graph-diff";
 import type { GraphEdgeElement, GraphElements, GraphNodeElement } from "./graph-elements";
 
 function node(id: string, label = id, typeKey = "character"): GraphNodeElement {
-  return { data: { id, label, typeKey, group: "Personnages" } };
+  return { data: { id, label, typeKey, group: "Personnages", icon: "user", tier: 0 } };
 }
 
 function edge(

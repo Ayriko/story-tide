@@ -111,6 +111,26 @@ test("graphe : rendu Cytoscape + liste accessible + filtres par type", async ({ 
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(targetName);
   await page.goto(worldUrl);
 
+  // 5 ter. Total sous le titre et legende du ciel (KAN-85) : la legende est
+  // une liste du panneau du menu, HORS du role="menu" (ARIA strict), qui ne
+  // contient que les deux actions.
+  await expect(page.getByText("2 entrées", { exact: true })).toBeVisible();
+  const worldMenu = page.getByRole("menu", { name: "Menu du monde", exact: true });
+  // Apres un goto, le clic peut partir avant l'hydratation : clic et
+  // ouverture dans le meme retry, sans refermer un menu deja ouvert.
+  await expect(async () => {
+    if (!(await worldMenu.isVisible())) {
+      await page.getByRole("button", { name: "Menu du monde", exact: true }).click();
+    }
+    await expect(worldMenu).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 20_000 });
+  const legend = page.getByRole("list", { name: "Légende du ciel", exact: true });
+  await expect(legend.getByRole("listitem")).toHaveText(["Personnages1", "Lieux1"]);
+  await expect(worldMenu.getByRole("menuitem")).toHaveCount(2);
+  await expect(worldMenu.getByRole("list")).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(worldMenu).toBeHidden();
+
   // 6. Filtres par type : chips a etat (KAN-36 P5b), pressees par defaut
   // (= type visible), nommees libelle + nombre (KAN-87). Panneau ferme par
   // defaut, ouvert par sa pilule « Filtres ».

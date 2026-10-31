@@ -12,7 +12,17 @@ import { expect, test, type Page } from "@playwright/test";
 
 const MOT_DE_PASSE = "mot-de-passe-constellation-1234";
 
-type Star = { id: string; label: string; x: number; y: number; clientX: number; clientY: number };
+type Star = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  clientX: number;
+  clientY: number;
+  opacity: number;
+  dimmed: boolean;
+  named: boolean;
+};
 
 async function inscrireEtCreerMonde(page: Page, prefixe: string): Promise<string> {
   const suffixe = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
@@ -296,4 +306,182 @@ test("isoler une entree a 1 saut : seuls elle et ses voisins restent dans la lis
   await ouvrirConstellation(page, worldUrl, 3);
   await expect(page.getByText(`Isolé : ${selyne} · 1 saut`, { exact: true })).toBeVisible();
   await verifierListe();
+});
+
+/**
+ * Ciel d'histoires (KAN-85, ADR-0033) : arrivee animee, eclairage au survol,
+ * reduced-motion et absence de saut a l'hydratation. Etat lu par le crochet
+ * de test (opacite effective, attenuation, etat de l'arrivee).
+ */
+async function mondeATroisEtoiles(page: Page, prefixe: string) {
+  const worldUrl = await inscrireEtCreerMonde(page, prefixe);
+  const id = Date.now();
+  const noms = { a: `Astrid ${id}`, b: `Brann ${id}`, c: `Cael ${id}` };
+  const ficheA = await creerEntree(page, worldUrl, noms.a);
+  await creerEntree(page, worldUrl, noms.b);
+  await creerEntree(page, worldUrl, noms.c);
+  await declarerRelation(page, ficheA, "Allié", noms.b);
+  return { worldUrl, noms };
+}
+
+async function arrivee(page: Page): Promise<string> {
+  return page.evaluate(() => window.__storyTideConstellation?.arrival() ?? "absent");
+}
+
+test.describe("ciel d'histoires, reduced-motion", () => {
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
+
+  test("a l'arrivee, toutes les etoiles sont visibles immediatement", async ({ page }) => {
+    const { worldUrl } = await mondeATroisEtoiles(page, "ciel-calme");
+
+    await page.goto(worldUrl);
+    await expect
+      .poll(() => page.evaluate(() => window.__storyTideConstellation?.nodes().length ?? 0))
+      .toBe(3);
+    // Premiere lecture : opacite finale, aucune arrivee jouee.
+    const premieres = await etoiles(page);
+    expect(premieres.map((star) => star.opacity)).toEqual([1, 1, 1]);
+    expect(await arrivee(page)).toBe("done");
+  });
+});
+
+// Sidebar repliee (stockage vide, defaut de la page du monde) : l'etoile
+// visee ne peut pas se trouver sous le panneau en verre de la sidebar.
+test.describe("ciel d'histoires, sidebar repliee", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("un clic sur une etoile pendant l'arrivee animee ouvre sa carte", async ({ page }) => {
+    const { worldUrl, noms } = await mondeATroisEtoiles(page, "ciel-clic");
+
+    await page.goto(worldUrl);
+    await expect
+      .poll(() => page.evaluate(() => window.__storyTideConstellation?.nodes().length ?? 0))
+      .toBe(3);
+    // Positions a l'ecran stables avant tout clic par coordonnees (skill
+    // playwright-stable-positions-before-click) ; pas de networkidle ici :
+    // l'arrivee (~1 s) serait finie avant le clic.
+    await attendrePositionsStables(page);
+    // Lecture de l'etat ET clic dans la meme evaluation : le clic part
+    // pendant l'arrivee, sans dependre d'un delai entre deux allers-retours.
+    const pendantArrivee = await page.evaluate((label) => {
+      const hook = window.__storyTideConstellation;
+      const star = hook?.nodes().find((node) => node.label === label);
+      if (!hook || !star) {
+        return "etoile absente";
+      }
+      const state = hook.arrival();
+      const target = document.elementFromPoint(star.clientX, star.clientY);
+      for (const type of ["mousedown", "mouseup"]) {
+        target?.dispatchEvent(
+          new MouseEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            clientX: star.clientX,
+            clientY: star.clientY,
+            button: 0,
+          }),
+        );
+      }
+      return state;
+    }, noms.c);
+
+    expect(pendantArrivee).toBe("running");
+    await expect(page.getByRole("region", { name: noms.c, exact: true })).toBeVisible();
+    // L'interaction a termine l'arrivee : ciel entierement allume.
+    expect(await arrivee(page)).toBe("done");
+    expect((await etoiles(page)).every((star) => star.opacity === 1)).toBe(true);
+  });
+});
+
+test("survol d'une etoile : ses voisins restent lumineux, une etoile non liee s'attenue", async ({
+  page,
+}) => {
+  const { worldUrl, noms } = await mondeATroisEtoiles(page, "ciel-survol");
+
+  await ouvrirConstellation(page, worldUrl, 3);
+  await expect.poll(() => arrivee(page)).toBe("done");
+  const a = await etoile(page, noms.a);
+  await page.mouse.move(a.clientX, a.clientY);
+
+  await expect
+    .poll(async () => {
+      const ciel = await etoiles(page);
+      const lire = (label: string) => ciel.find((star) => star.label === label);
+      return {
+        voisin: lire(noms.b)?.dimmed,
+        voisinNomme: lire(noms.b)?.named,
+        voisinOpacite: lire(noms.b)?.opacity,
+        nonLiee: lire(noms.c)?.dimmed,
+        nonLieeAttenuee: (lire(noms.c)?.opacity ?? 1) < 1,
+      };
+    })
+    .toEqual({
+      voisin: false,
+      voisinNomme: true,
+      voisinOpacite: 1,
+      nonLiee: true,
+      nonLieeAttenuee: true,
+    });
+
+  // Sortie : tout le ciel revient.
+  await page.mouse.move(5, 300);
+  await expect
+    .poll(async () => (await etoiles(page)).every((star) => !star.dimmed && star.opacity === 1))
+    .toBe(true);
+});
+
+test("sidebar ouverte en preference : aucune variation de position des etoiles apres hydratation", async ({
+  page,
+}) => {
+  // Preference « sidebar depliee » : cookie pose par playwright.config.ts,
+  // lu cote serveur (KAN-85).
+  const { worldUrl } = await mondeATroisEtoiles(page, "ciel-sidebar");
+
+  await page.goto(worldUrl);
+  await expect(
+    page.getByRole("button", { name: "Masquer la liste des entrées", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => window.__storyTideConstellation?.nodes().length ?? 0))
+    .toBe(3);
+  const premiere = (await etoiles(page)).map(({ id, clientX, clientY }) => ({
+    id,
+    clientX,
+    clientY,
+  }));
+
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(500);
+  const apres = (await etoiles(page)).map(({ id, clientX, clientY }) => ({ id, clientX, clientY }));
+  expect(apres).toEqual(premiere);
+});
+
+test("contour de focus de la zone : visible au clavier, jamais apres un clic", async ({ page }) => {
+  const worldUrl = await inscrireEtCreerMonde(page, "const-focus");
+  await creerEntree(page, worldUrl, `Selyne ${Date.now()}`);
+  await ouvrirConstellation(page, worldUrl, 1);
+  const zone = page.getByRole("group", { name: /^Constellation\./ });
+  const contour = () => zone.evaluate((el) => getComputedStyle(el).outlineStyle);
+
+  // Navigation clavier jusqu'a la zone : contour visible.
+  for (let i = 0; i < 40; i += 1) {
+    if (await zone.evaluate((el) => el === document.activeElement)) {
+      break;
+    }
+    await page.keyboard.press("Tab");
+  }
+  await expect(zone).toBeFocused();
+  expect(await contour()).not.toBe("none");
+
+  // Clic dans le ciel, sur du fond vide : focus garde, sans contour. Aux
+  // trois quarts de la largeur, en bas : hors de la sidebar en verre (bas
+  // gauche, depliee par le cookie des e2e), de la fleche du pied de page
+  // (centre) et des controles (bas droite).
+  const boite = await zone.boundingBox();
+  if (!boite) {
+    throw new Error("zone invisible");
+  }
+  await page.mouse.click(boite.x + boite.width * 0.75, boite.y + boite.height - 60);
+  await expect(zone).toBeFocused();
+  expect(await contour()).toBe("none");
 });
