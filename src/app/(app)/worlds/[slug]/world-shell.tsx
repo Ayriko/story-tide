@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -100,6 +100,18 @@ export function WorldShell({
     () => fullBleed,
   );
 
+  // Sidebar repliee hors d'atteinte du clavier (fix a11y, KAN-85) : `inert`
+  // sur la colonne repliee ; si le focus etait dedans au moment du repli, il
+  // revient au bouton qui la deplie (jamais perdu sur <body>).
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  function setCollapsed(next: boolean) {
+    if (next && sidebarRef.current?.contains(document.activeElement)) {
+      toggleRef.current?.focus();
+    }
+    setCollapsedPersisted(fullBleed, next);
+  }
+
   // Ctrl/Cmd+B replie/deplie (convention vvd §7) - sauf si le focus est dans
   // l'editeur Tiptap (son propre Ctrl+B bascule le gras, cf. entity-editor.tsx
   // useEditor/toggleBold - il ne faut jamais lui voler le raccourci). Lit
@@ -115,7 +127,11 @@ export function WorldShell({
         return;
       }
       event.preventDefault();
-      setCollapsedPersisted(fullBleed, !readCollapsed(fullBleed));
+      const next = !readCollapsed(fullBleed);
+      if (next && sidebarRef.current?.contains(document.activeElement)) {
+        toggleRef.current?.focus();
+      }
+      setCollapsedPersisted(fullBleed, next);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -124,6 +140,8 @@ export function WorldShell({
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
       <div
+        ref={sidebarRef}
+        inert={collapsed}
         className={cn(
           "flex h-full shrink-0 overflow-hidden py-4 pl-4 transition-[width] duration-200",
           collapsed ? "w-0 pl-0" : "w-72",
@@ -148,10 +166,11 @@ export function WorldShell({
             left={
               <div className="pointer-events-auto flex items-center gap-2">
                 <Button
+                  ref={toggleRef}
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCollapsedPersisted(fullBleed, !collapsed)}
+                  onClick={() => setCollapsed(!collapsed)}
                   aria-label={
                     collapsed ? "Afficher la liste des entrées" : "Masquer la liste des entrées"
                   }
