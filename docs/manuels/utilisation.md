@@ -99,13 +99,30 @@ manuelle n'est jamais écrasée par une détection automatique ultérieure.
 ### 2.3 La Constellation (graphe de relations)
 
 La page d'un monde (`/worlds/[slug]`) est la **Constellation** : l'univers en
-plein écran, chaque entrée une étoile (colorée par famille de type), chaque
-lien une arête (trait plein pour une relation déclarée, pointillés pour un
-lien du texte). L'ancienne adresse `/worlds/[slug]/graph` y redirige.
+plein écran, comme un ciel de nuit. Chaque entrée est une étoile, colorée
+selon son groupe de types. Plus elle est liée, plus elle brille. Les relations
+déclarées forment des constellations en trait plein ; les liens du texte
+restent en pointillés discrets. L'ancienne adresse `/worlds/[slug]/graph` y
+redirige.
+
+- **Titre et légende** : le nombre d'entrées s'affiche sous le titre du
+  monde. Le menu du titre montre la **légende du ciel** : pour chaque groupe,
+  sa couleur, son icône et son nombre d'entrées.
+- **Noms des étoiles** : sur un grand monde, seules les étoiles les plus
+  liées sont nommées en vue d'ensemble ; zoomez pour voir apparaître les
+  autres noms. Jusqu'à 50 étoiles visibles, tous les noms s'affichent.
+  Survolez une étoile pour éclairer sa constellation (ses voisins et leurs
+  liens, avec leurs libellés).
+- **Arrivée** : à l'ouverture, les étoiles s'allument puis les constellations
+  se tracent, en une seconde environ. Si vous avez demandé à votre système de
+  réduire les animations, le ciel s'affiche directement.
 
 - **Disposition mémorisée** : déplacez une étoile, elle garde sa place ; le
   zoom et le cadrage sont gardés aussi. Une nouvelle entrée est placée près de
   ses voisines, dans le champ, sans déplacer les autres.
+  Au premier affichage d'un monde et avec « Réorganiser automatiquement », les
+  étoiles sont regroupées en constellations ; les étoiles sans lien forment
+  un arc sous le ciel.
 - **Contrôles** (bas droite) : bouton rond « Nouvelle entrée », zoom avant et
   arrière, « Ajuster à l'écran », « Réorganiser automatiquement » (annulable
   depuis la notification). Quand le graphe a le focus : `+`, `-`, `0` et `N`.
@@ -116,11 +133,15 @@ lien du texte). L'ancienne adresse `/worlds/[slug]/graph` y redirige.
   autre. Choisissez le type, puis le sens s'il s'agit d'une relation dirigée.
   Au clavier, déclarez la relation depuis la section « Relations » de la fiche.
 - **Outils** (haut droite) : **« Filtres »** (types d'entrée avec leur nombre,
-  types de relation, « Liens du texte », réglage de l'isolement), **« Récents »**
+  types de relation, « Liens du texte », « Étoiles sans lien », réglage de
+  l'isolement), **« Récents »**
   (dernières entrées modifiées) et **« Fils »**, la liste des liens accessible
   au clavier et aux lecteurs d'écran, qui applique les mêmes filtres.
 - Les filtres et l'isolement sont mémorisés par monde dans le navigateur ; un
   badge « Isolé : … » permet d'en sortir.
+- **Sidebar** : sur cette page, elle s'ouvre en panneau sur le ciel, sous le
+  titre, sans le déplacer (`Ctrl+B` ou le bouton en haut à gauche). Son état
+  ouvert ou replié est retenu.
 
 ### 2.4 La recherche
 

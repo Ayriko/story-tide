@@ -6,9 +6,11 @@ import {
   useOptimistic,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   DndContext,
   DragOverlay,
@@ -81,6 +83,17 @@ export function FolderTree({
     icon: EntityTypeIconKey;
   } | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // Apercu du glisser rendu dans <body> (KAN-85) : DragOverlay est en
+  // position fixed, et un ancetre a backdrop-filter (sidebar en verre posee
+  // sur le ciel) devient son bloc conteneur - l'apercu se decalait sous le
+  // pointeur et dnd-kit, qui teste la collision sur son rectangle, manquait
+  // le dossier vise. Portail cote client seulement (pas de document au rendu
+  // serveur) : useSyncExternalStore, sans setState dans un effet.
+  const canPortal = useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
 
   // Le deplacement de focus DOM impuratif ne vit jamais en plein rendu : cet
   // effet s'execute apres que React a deja recommis les nouveaux tabIndex
@@ -258,16 +271,26 @@ export function FolderTree({
         </p>
       ) : null}
 
-      <DragOverlay>
-        {activeDrag ? (
-          <div className="flex items-center gap-2 rounded-md bg-card px-2 py-1.5 text-sm text-foreground shadow-lg ring-1 ring-foreground/10">
-            <EntityTypeIcon icon={activeDrag.icon} />
-            <span className="truncate">{activeDrag.name}</span>
-          </div>
-        ) : null}
-      </DragOverlay>
+      {canPortal
+        ? createPortal(
+            <DragOverlay>
+              {activeDrag ? (
+                <div className="flex items-center gap-2 rounded-md bg-card px-2 py-1.5 text-sm text-foreground shadow-lg ring-1 ring-foreground/10">
+                  <EntityTypeIcon icon={activeDrag.icon} />
+                  <span className="truncate">{activeDrag.name}</span>
+                </div>
+              ) : null}
+            </DragOverlay>,
+            document.body,
+          )
+        : null}
     </DndContext>
   );
+}
+
+// Aucun changement a suivre : seule la difference serveur / client compte.
+function subscribeNever() {
+  return () => {};
 }
 
 function TreeItem({

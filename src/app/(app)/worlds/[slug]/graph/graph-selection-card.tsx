@@ -4,8 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { EntityTypeIconKey } from "@/lib/entity-types";
 import { FOCUS_DEPTHS, depthLabel, type FocusDepth, type GraphFocus } from "@/lib/graph-filters";
 import { cn } from "@/lib/utils";
+import { EntityTypeIcon } from "../entity-type-icon";
 import { SELECT_CLASS } from "../settings/types/custom-type-form";
 
 // Carte de selection compacte (KAN-87) : un clic sur une etoile la
@@ -19,7 +21,7 @@ export function GraphSelectionCard({
   onClose,
 }: {
   worldSlug: string;
-  entity: { id: string; name: string; typeLabel: string };
+  entity: { id: string; name: string; typeLabel: string; icon: EntityTypeIconKey };
   onFocus: (mode: GraphFocus["mode"], depth: FocusDepth) => void;
   onClose: () => void;
 }) {
@@ -36,7 +38,12 @@ export function GraphSelectionCard({
           <h2 id="graph-selection-title" className="truncate text-sm font-medium text-foreground">
             {entity.name}
           </h2>
-          <span className="shrink-0 text-xs text-muted-foreground">{entity.typeLabel}</span>
+          {/* Icone du type (KAN-85 : retiree du canvas, gardee ici), toujours
+              accompagnee de son libelle - jamais l'icone seule. */}
+          <span className="flex shrink-0 items-center gap-1 text-xs text-(--glass-text-muted)">
+            <EntityTypeIcon icon={entity.icon} className="size-3.5 text-(--glass-text-muted)" />
+            {entity.typeLabel}
+          </span>
         </div>
         <Button
           type="button"

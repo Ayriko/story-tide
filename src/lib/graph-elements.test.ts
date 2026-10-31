@@ -16,15 +16,41 @@ describe("buildGraphElements", () => {
           typeKey: "character",
           typeLabel: "Personnage",
           group: "Personnages",
+          icon: "user",
         },
-        { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
+        {
+          id: "e2",
+          name: "Valombre",
+          typeKey: "place",
+          typeLabel: "Lieu",
+          group: "Lieux",
+          icon: "map-pin",
+        },
       ],
       [],
     );
 
     expect(result.nodes).toEqual([
-      { data: { id: "e1", label: "Aeliana", typeKey: "character", group: "Personnages" } },
-      { data: { id: "e2", label: "Valombre", typeKey: "place", group: "Lieux" } },
+      {
+        data: {
+          id: "e1",
+          label: "Aeliana",
+          typeKey: "character",
+          group: "Personnages",
+          icon: "user",
+          tier: 0,
+        },
+      },
+      {
+        data: {
+          id: "e2",
+          label: "Valombre",
+          typeKey: "place",
+          group: "Lieux",
+          icon: "map-pin",
+          tier: 0,
+        },
+      },
     ]);
   });
 
@@ -37,8 +63,16 @@ describe("buildGraphElements", () => {
           typeKey: "character",
           typeLabel: "Personnage",
           group: "Personnages",
+          icon: "user",
         },
-        { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
+        {
+          id: "e2",
+          name: "Valombre",
+          typeKey: "place",
+          typeLabel: "Lieu",
+          group: "Lieux",
+          icon: "map-pin",
+        },
       ],
       [{ sourceId: "e1", targetId: "e2", origin: RelationOrigin.AUTO }],
     );
@@ -67,8 +101,16 @@ describe("buildGraphElements", () => {
           typeKey: "character",
           typeLabel: "Personnage",
           group: "Personnages",
+          icon: "user",
         },
-        { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
+        {
+          id: "e2",
+          name: "Valombre",
+          typeKey: "place",
+          typeLabel: "Lieu",
+          group: "Lieux",
+          icon: "map-pin",
+        },
       ],
       [
         { sourceId: "e1", targetId: "e2", origin: RelationOrigin.AUTO },
@@ -89,6 +131,7 @@ describe("buildGraphElements", () => {
           typeKey: "character",
           typeLabel: "Personnage",
           group: "Personnages",
+          icon: "user",
         },
       ],
       [{ sourceId: "e1", targetId: "e2-supprime", origin: RelationOrigin.AUTO }],
@@ -106,14 +149,23 @@ describe("buildAccessibleGraphEntries", () => {
       typeKey: "character",
       typeLabel: "Personnage",
       group: "Personnages",
+      icon: "user",
     },
-    { id: "e2", name: "Valombre", typeKey: "place", typeLabel: "Lieu", group: "Lieux" },
+    {
+      id: "e2",
+      name: "Valombre",
+      typeKey: "place",
+      typeLabel: "Lieu",
+      group: "Lieux",
+      icon: "map-pin",
+    },
     {
       id: "e3",
       name: "Robert",
       typeKey: "character",
       typeLabel: "Personnage",
       group: "Personnages",
+      icon: "user",
     },
   ];
 
@@ -186,6 +238,7 @@ describe("buildAccessibleGraphEntries", () => {
         typeKey: "character",
         typeLabel: "Personnage",
         group: "Personnages",
+        icon: "user",
       },
       {
         id: "e2",
@@ -193,6 +246,7 @@ describe("buildAccessibleGraphEntries", () => {
         typeKey: "character",
         typeLabel: "Personnage",
         group: "Personnages",
+        icon: "user",
       },
     ];
     const result = buildAccessibleGraphEntries(sameNameEntities, [
@@ -251,12 +305,22 @@ describe("buildGraphElements - type personnalise (KAN-81)", () => {
           typeKey: "custom:ct1",
           typeLabel: "Vaisseau",
           group: "Objets",
+          icon: "package",
         },
       ],
       [],
     );
     expect(nodes).toEqual([
-      { data: { id: "e1", label: "Aube Grise", typeKey: "custom:ct1", group: "Objets" } },
+      {
+        data: {
+          id: "e1",
+          label: "Aube Grise",
+          typeKey: "custom:ct1",
+          group: "Objets",
+          icon: "package",
+          tier: 0,
+        },
+      },
     ]);
   });
 });
@@ -270,6 +334,7 @@ describe("buildGraphElements - relations declarees (KAN-84)", () => {
     typeKey: "character",
     typeLabel: "Personnage",
     group: "Personnages",
+    icon: "user",
   };
   const ALDRIC = {
     id: "b-aldric",
@@ -277,6 +342,7 @@ describe("buildGraphElements - relations declarees (KAN-84)", () => {
     typeKey: "character",
     typeLabel: "Personnage",
     group: "Personnages",
+    icon: "user",
   };
   const PARENT = {
     key: "parent",
@@ -448,5 +514,51 @@ describe("pairEdgeId", () => {
   it("meme id quel que soit l'ordre des extremites (KAN-87)", () => {
     expect(pairEdgeId("b", "a")).toBe("pair:a~b");
     expect(pairEdgeId("a", "b")).toBe("pair:a~b");
+  });
+});
+
+// KAN-85 : eclat de l'etoile = palier du nombre de voisins DISTINCTS,
+// relations declarees et liens du texte confondus (une arete par paire).
+describe("buildGraphElements - eclat des etoiles (KAN-85)", () => {
+  const entity = (id: string) => ({
+    id,
+    name: id,
+    typeKey: "character",
+    typeLabel: "Personnage",
+    group: "Personnages",
+    icon: "user",
+  });
+  const ALLY = {
+    key: "ally",
+    label: "Allié",
+    inverseLabel: null,
+    symmetric: true,
+    isCustom: false,
+    isHidden: false,
+  };
+
+  it("compte une paire une seule fois et l'entree isolee reste au palier 0", () => {
+    const ids = ["hub", "a", "b", "c", "d", "e", "seule"];
+    const { nodes } = buildGraphElements(
+      ids.map(entity),
+      [
+        { sourceId: "hub", targetId: "a", origin: RelationOrigin.AUTO },
+        { sourceId: "a", targetId: "hub", origin: RelationOrigin.MANUAL },
+        { sourceId: "hub", targetId: "b", origin: RelationOrigin.AUTO },
+        { sourceId: "c", targetId: "hub", origin: RelationOrigin.AUTO },
+        { sourceId: "e", targetId: "hub", origin: RelationOrigin.AUTO },
+      ],
+      [
+        { sourceId: "hub", targetId: "c", relationType: ALLY },
+        { sourceId: "hub", targetId: "d", relationType: ALLY },
+      ],
+    );
+    const tierOf = (id: string) => nodes.find((node) => node.data.id === id)?.data.tier;
+    // hub : a, b, c, d, e = 5 voisins distincts -> palier 2.
+    expect(tierOf("hub")).toBe(2);
+    expect(tierOf("a")).toBe(1);
+    expect(tierOf("d")).toBe(1);
+    expect(tierOf("seule")).toBe(0);
+    expect(nodes.every((node) => node.data.icon === "user")).toBe(true);
   });
 });

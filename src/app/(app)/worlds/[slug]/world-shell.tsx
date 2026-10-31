@@ -1,13 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { EntityListItem, FolderTreeView } from "@/lib/entity-types";
+import {
+  LEGACY_SIDEBAR_STORAGE_KEY,
+  parseCollapsed,
+  readCookieValue,
+  resolveCollapsed,
+  serializeSidebarCookie,
+  SIDEBAR_COOKIE,
+  sidebarScope,
+  type SidebarScope,
+} from "@/lib/sidebar-preference";
 import { isWorldRootPath } from "@/lib/world-routes";
 import { Footer } from "../../../footer";
 import { LocalClock } from "../../local-clock";
@@ -16,48 +26,48 @@ import { TopBar } from "../../top-bar";
 import { UserMenu } from "../../user-menu";
 import { Sidebar } from "./sidebar";
 
-const COLLAPSE_STORAGE_KEY = "story-tide:sidebar-collapsed";
-// Page racine du monde (Constellation, KAN-87) : etat de repli PROPRE, replie
-// par defaut tant que l'utilisateur n'a pas deplie la sidebar sur cette page.
-const ROOT_COLLAPSE_STORAGE_KEY = "story-tide:sidebar-collapsed:constellation";
-// Evenement DOM prive (pas "storage", qui ne se declenche que dans les
-// AUTRES onglets, jamais celui qui ecrit) : notifie useSyncExternalStore
-// immediatement apres une ecriture localStorage dans CET onglet.
+// Preference de repli (KAN-85) : un cookie par portee (page racine du monde
+// = Constellation, repliee par defaut ; autres pages, depliees), lu par le
+// layout serveur ET ici. Le cookie est le « systeme externe » de
+// useSyncExternalStore : l'instantane serveur (prop du layout) et le premier
+// instantane client (document.cookie) sont identiques - aucun saut de la
+// sidebar ni du canvas apres l'hydratation.
+// Evenement DOM prive : notifie useSyncExternalStore juste apres une
+// ecriture du cookie dans CET onglet.
 const COLLAPSE_EVENT = "story-tide:sidebar-collapsed-change";
 
 function subscribe(callback: () => void) {
   window.addEventListener(COLLAPSE_EVENT, callback);
   return () => window.removeEventListener(COLLAPSE_EVENT, callback);
 }
-// Lecture/ecriture protegees (stockage bloque, navigation privee) : en cas
-// d'echec, la valeur par defaut s'applique, sans erreur.
-function readCollapsed(onWorldRoot: boolean): boolean {
-  let stored: string | null = null;
-  try {
-    stored = window.localStorage.getItem(
-      onWorldRoot ? ROOT_COLLAPSE_STORAGE_KEY : COLLAPSE_STORAGE_KEY,
-    );
-  } catch {
-    stored = null;
-  }
-  return stored === null ? onWorldRoot : stored === "1";
+
+function readStoredCollapsed(scope: SidebarScope): boolean | null {
+  return parseCollapsed(readCookieValue(document.cookie, SIDEBAR_COOKIE[scope]));
 }
-// Premier rendu serveur : depliee, sauf sur la page racine du monde (repliee
-// par defaut) - meme valeur que le premier rendu client sans preference,
-// aucun hydration mismatch. useSyncExternalStore est le mecanisme React
-// dedie a une valeur pilotee par un systeme externe (ici : localStorage),
-// sans setState synchrone dans un effet (regle react-hooks/
-// set-state-in-effect, meme raisonnement que local-clock.tsx).
-function setCollapsedPersisted(onWorldRoot: boolean, next: boolean) {
-  try {
-    window.localStorage.setItem(
-      onWorldRoot ? ROOT_COLLAPSE_STORAGE_KEY : COLLAPSE_STORAGE_KEY,
-      next ? "1" : "0",
-    );
-  } catch {
-    // Stockage indisponible : le choix ne survit pas au rechargement.
-  }
+
+function setCollapsedPersisted(scope: SidebarScope, next: boolean) {
+  document.cookie = serializeSidebarCookie(scope, next, window.location.protocol === "https:");
   window.dispatchEvent(new Event(COLLAPSE_EVENT));
+}
+
+// Migration transparente (KAN-85) : une preference encore en localStorage
+// (KAN-87) devient le cookie, une seule fois, puis la cle est retiree. Seule
+// cette toute premiere visite peut encore basculer apres l'hydratation.
+function migrateLegacyPreference() {
+  for (const scope of ["default", "constellation"] as const) {
+    let legacy: string | null = null;
+    try {
+      legacy = window.localStorage.getItem(LEGACY_SIDEBAR_STORAGE_KEY[scope]);
+      window.localStorage.removeItem(LEGACY_SIDEBAR_STORAGE_KEY[scope]);
+    } catch {
+      // Stockage indisponible (navigation privee, bloque) : rien a migrer.
+      legacy = null;
+    }
+    const value = parseCollapsed(legacy);
+    if (value !== null && readStoredCollapsed(scope) === null) {
+      setCollapsedPersisted(scope, value);
+    }
+  }
 }
 
 // Coquille cliente du monde (KAN-36 P1-ter) : porte l'etat de repli de la
@@ -77,6 +87,7 @@ export function WorldShell({
   userName,
   userEmail,
   userIsAdmin,
+  sidebarPreference,
   children,
 }: {
   worldId: string;
@@ -88,22 +99,42 @@ export function WorldShell({
   userName: string;
   userEmail: string;
   userIsAdmin: boolean;
+  // Preference lue dans le cookie par le layout serveur (null : jamais
+  // choisie, defaut de la page).
+  sidebarPreference: Record<SidebarScope, boolean | null>;
   children: ReactNode;
 }) {
   // Page racine du monde = la Constellation en plein cadre (KAN-87) : EGALITE
   // EXACTE sur /worlds/<slug> (world-routes.ts) - fiches et parametres
   // gardent la coquille normale (carte centrale).
   const fullBleed = isWorldRootPath(usePathname(), worldSlug);
+  const scope = sidebarScope(fullBleed);
   const collapsed = useSyncExternalStore(
     subscribe,
-    () => readCollapsed(fullBleed),
-    () => fullBleed,
+    () => resolveCollapsed(readStoredCollapsed(scope), fullBleed),
+    () => resolveCollapsed(sidebarPreference[scope], fullBleed),
   );
+
+  useEffect(() => {
+    migrateLegacyPreference();
+  }, []);
+
+  // Sidebar repliee hors d'atteinte du clavier (fix a11y, KAN-85) : `inert`
+  // sur la colonne repliee ; si le focus etait dedans au moment du repli, il
+  // revient au bouton qui la deplie (jamais perdu sur <body>).
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  function setCollapsed(next: boolean) {
+    if (next && sidebarRef.current?.contains(document.activeElement)) {
+      toggleRef.current?.focus();
+    }
+    setCollapsedPersisted(scope, next);
+  }
 
   // Ctrl/Cmd+B replie/deplie (convention vvd §7) - sauf si le focus est dans
   // l'editeur Tiptap (son propre Ctrl+B bascule le gras, cf. entity-editor.tsx
   // useEditor/toggleBold - il ne faut jamais lui voler le raccourci). Lit
-  // `readCollapsed()` au moment du toggle (pas une valeur fermee/perimee).
+  // `readStoredCollapsed()` au moment du toggle (pas une valeur fermee/perimee).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const isModB = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b";
@@ -115,21 +146,47 @@ export function WorldShell({
         return;
       }
       event.preventDefault();
-      setCollapsedPersisted(fullBleed, !readCollapsed(fullBleed));
+      const next = !resolveCollapsed(readStoredCollapsed(scope), fullBleed);
+      if (next && sidebarRef.current?.contains(document.activeElement)) {
+        toggleRef.current?.focus();
+      }
+      setCollapsedPersisted(scope, next);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [fullBleed]);
+  }, [scope, fullBleed]);
 
+  // Page du monde (KAN-85) : la sidebar depliee est un panneau en verre pose
+  // AU-DESSUS du ciel, SOUS la zone du titre (titre, menu et pilules ne
+  // bougent jamais), qui ne le pousse plus : le canvas garde toute la
+  // largeur. Ailleurs : colonne, sans changement. UNE SEULE instance de
+  // <Sidebar>, a la meme place dans l'arbre sur toutes les pages du monde :
+  // seul son conteneur change de forme. Deux instances (colonne / verre)
+  // remontaient la sidebar en passant d'une fiche a la page du monde, et
+  // perdaient l'etat replie/deplie de ses groupes et dossiers (BUG-008).
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden">
+    <div className="relative flex min-h-0 flex-1 overflow-hidden">
       <div
+        ref={sidebarRef}
+        inert={collapsed}
+        data-world-sidebar-overlay={fullBleed ? "" : undefined}
         className={cn(
-          "flex h-full shrink-0 overflow-hidden py-4 pl-4 transition-[width] duration-200",
-          collapsed ? "w-0 pl-0" : "w-72",
+          fullBleed
+            ? // Gris secondaire du verre (--glass-text-muted) : AA au-dessus
+              // du ciel, comme les autres panneaux de la Constellation.
+              // Repliee : retiree de l'affichage (et de l'ordre de tabulation).
+              cn(
+                "absolute bottom-4 left-4 top-32 z-[25] flex [--muted-foreground:var(--glass-text-muted)]",
+                collapsed && "hidden",
+              )
+            : cn(
+                "flex h-full shrink-0 overflow-hidden py-4 pl-4 transition-[width] duration-200",
+                collapsed ? "w-0 pl-0" : "w-72",
+              ),
         )}
       >
         <Sidebar
+          glass={fullBleed}
           worldId={worldId}
           worldSlug={worldSlug}
           entities={entities}
@@ -137,7 +194,6 @@ export function WorldShell({
           unfiledEntities={unfiledEntities}
         />
       </div>
-
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {/* Page racine du monde (KAN-87) : la barre haute flotte, transparente,
             au-dessus de la Constellation (qui occupe toute la hauteur) ; seuls
@@ -148,10 +204,11 @@ export function WorldShell({
             left={
               <div className="pointer-events-auto flex items-center gap-2">
                 <Button
+                  ref={toggleRef}
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setCollapsedPersisted(fullBleed, !collapsed)}
+                  onClick={() => setCollapsed(!collapsed)}
                   aria-label={
                     collapsed ? "Afficher la liste des entrées" : "Masquer la liste des entrées"
                   }
@@ -255,8 +312,11 @@ export function WorldShell({
               </Card>
             </main>
           )}
-          <ScrollHint />
-          <Footer showAdminLink={userIsAdmin} />
+          {/* Page du monde (KAN-85) : la fleche se pose dans le ciel, au-dessus
+              du fondu vers le pied de page, et le pied de page n'a pas de
+              bordure - aucune coupure franche a la jointure. */}
+          <ScrollHint placement={fullBleed ? "sky" : "default"} />
+          <Footer showAdminLink={userIsAdmin} bordered={!fullBleed} />
         </div>
       </div>
     </div>

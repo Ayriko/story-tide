@@ -1,5 +1,6 @@
 import type { RelationOrigin } from "@/generated/prisma/client";
 import { labelFrom, type ResolvedRelationType } from "./relation-types";
+import { brightnessTier, neighbourCounts, type BrightnessTier } from "./star-brightness";
 
 // Fonction pure (KAN-25) : aucune dependance a cytoscape ni au DOM - testable
 // isolement, meme patron que resolveLinks/filterMentionSuggestions (logique
@@ -15,6 +16,9 @@ export interface GraphEntityInput {
   typeKey: string;
   typeLabel: string;
   group: string;
+  // Cle d'icone du type resolu (EntityTypeIconKey) : icone de l'etoile au
+  // survol et au-dela du seuil de zoom (KAN-85).
+  icon: string;
 }
 
 export interface GraphRelationInput {
@@ -33,8 +37,17 @@ export interface GraphDeclaredInput {
 
 export interface GraphNodeElement {
   // typeKey : cle resolue (native ou `custom:<id>`) lue par le filtre ;
-  // group : couleur du noeud (par groupe, inchange).
-  data: { id: string; label: string; typeKey: string; group: string };
+  // group : couleur du noeud (par groupe, inchange) ; tier : eclat selon le
+  // nombre de voisins distincts (star-brightness.ts, KAN-85) ; icon : cle
+  // d'icone du type.
+  data: {
+    id: string;
+    label: string;
+    typeKey: string;
+    group: string;
+    icon: string;
+    tier: BrightnessTier;
+  };
 }
 
 // Type porte par une arete declaree : tout ce qu'il faut au lot C pour styler
@@ -170,13 +183,22 @@ export function buildGraphElements(
   relations: GraphRelationInput[],
   declared: GraphDeclaredInput[] = [],
 ): GraphElements {
-  const nodes = entities.map((entity) => ({
-    data: { id: entity.id, label: entity.name, typeKey: entity.typeKey, group: entity.group },
-  }));
-
   // UNE arete par paire non ordonnee (KAN-84) : une relation declaree sur la
   // paire masque ses reflets du texte, et AUTO + MANUAL ne font qu'un trait.
-  const edges = buildPairEdges(entities, relations, declared).map((edge) => ({
+  const pairs = buildPairEdges(entities, relations, declared);
+  const counts = neighbourCounts(pairs);
+  const nodes = entities.map((entity) => ({
+    data: {
+      id: entity.id,
+      label: entity.name,
+      typeKey: entity.typeKey,
+      group: entity.group,
+      icon: entity.icon,
+      tier: brightnessTier(counts.get(entity.id) ?? 0),
+    },
+  }));
+
+  const edges = pairs.map((edge) => ({
     data: {
       id: pairEdgeId(edge.a, edge.b),
       source: edge.source,

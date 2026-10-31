@@ -39,3 +39,4 @@
 | 0029 | Rôle et plan utilisateur, journal d'administration | accepté | 2026-10-13 |
 | 0030 | Types d'entrées personnalisés par monde | accepté | 2026-10-20 |
 | 0031 | Relations déclarées et typées | accepté | 2026-10-22 |
+| 0033 | Le ciel d'histoires : thème, rendu et disposition de la Constellation | accepté | 2026-10-31 |

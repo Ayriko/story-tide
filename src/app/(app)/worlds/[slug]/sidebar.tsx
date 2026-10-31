@@ -27,15 +27,24 @@ export function Sidebar({
   entities,
   folderTree,
   unfiledEntities,
+  glass = false,
 }: {
   worldId: string;
   worldSlug: string;
   entities: EntityListItem[];
   folderTree: FolderTreeView[];
   unfiledEntities: EntityListItem[];
+  // Panneau en verre pose sur le ciel de la page du monde (KAN-85).
+  glass?: boolean;
 }) {
   return (
-    <Card className="flex h-full w-72 flex-col gap-4 border-none bg-card/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl">
+    <Card
+      className={
+        glass
+          ? "flex h-full w-72 flex-col gap-4 border border-glass-border bg-glass-surface p-4 shadow-lg backdrop-blur-(--glass-blur)"
+          : "flex h-full w-72 flex-col gap-4 border-none bg-card/70 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl"
+      }
+    >
       <nav
         aria-label="Entrées du monde"
         // -mx-1 px-1 : overflow-y-auto force overflow-x a "auto" aussi (regle

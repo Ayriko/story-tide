@@ -116,6 +116,55 @@
   /* Texte pose directement sur le canvas (titre du monde, KAN-87) : ombre
      legere pour detacher le texte des etoiles qui passeraient dessous. */
   --canvas-text-shadow: 0 1px 3px rgb(0 0 0 / 0.7);
+  /* Gris secondaire du texte des panneaux en verre de la Constellation
+     (KAN-85) : --muted-foreground y tombait a 3,85:1 au pire (verre INK 85 %
+     au-dessus d'une etoile pleine). 5,2:1 au pire, 6,34:1 sur INK. Utilise
+     uniquement dans les panneaux du graphe : --muted-foreground global
+     inchange. */
+  --glass-text-muted: #adc0c7;
+
+  /* Ciel d'histoires (KAN-85, ADR-0033) : toute l'ambiance de la
+     Constellation. Lus par src/lib/sky-theme.ts (style Cytoscape, une fois
+     au montage) ou directement en CSS (fond carte celeste, voile du titre).
+     Principe 7 : une surcharge par monde n'aura qu'a redefinir ces variables
+     sur le conteneur de la Constellation. Format : hex ou rgb() pour les
+     couleurs, nombre 0-1 pour les opacites (valeur invalide = defaut sur).
+     Contrastes mesures (WCAG) : --sky-label 14,2:1 sur --sky-bg, 12,3:1 au
+     pire avec son contour au-dessus d'une etoile ; lignes declarees 6,96:1
+     sur le fond. */
+  --sky-bg: #0f2333; /* navy profond, un cran sous NAVY */
+  --sky-chart: #94a5d8; /* trame de carte celeste (arcs, graduations) */
+  --sky-chart-opacity: 0.12;
+  --sky-far-star: #dfe7f2; /* etoiles lointaines du fond */
+  --sky-far-star-opacity: 0.55;
+  /* Teinte des etoiles par groupe : palette categorique validee en C1
+     (scripts/validate_palette.js, mode dark), inchangee. */
+  --sky-star-personnages: #3987e5;
+  --sky-star-ecologie: #008300;
+  --sky-star-lieux: #d55181;
+  --sky-star-organisation: #c98500;
+  --sky-star-magie: #199e70;
+  --sky-star-lore: #d95926;
+  --sky-star-objets: #9085e9;
+  --sky-star-divers: #e66767;
+  --sky-star-default: #a1a1aa;
+  --sky-halo-opacity: 0.35; /* halo du palier le plus brillant */
+  --sky-label: #edf2f2;
+  --sky-label-halo: #0f2333; /* contour du libelle (pas de text-shadow dans Cytoscape) */
+  --sky-label-halo-opacity: 0.9;
+  --sky-line-declared: #c3cdea; /* relation declaree : trait qui dessine la constellation */
+  --sky-line-declared-opacity: 0.8;
+  --sky-line-bridge-opacity: 0.3; /* relation declaree entre deux constellations */
+  --sky-line-text: #7d90b3; /* lien du texte : pointille tres discret */
+  --sky-line-text-opacity: 0.22;
+  --sky-line-text-width: 0.75; /* px du graphe ; les declarees : 1,25 */
+  --sky-line-label: #edf2f2;
+  --sky-accent: var(--primary); /* survol, selection, liaison */
+  --sky-dim-opacity: 0.22; /* reste du ciel au survol d'une etoile */
+  --sky-title-veil: #0b1a26; /* voile radial derriere le titre du monde */
+  --sky-fade-height: 48px; /* fondu du ciel vers le pied de page */
+  --sky-total: #9fb3bd; /* total des entrees sous le titre, attenue */
+  --sky-title-veil-opacity: 0.85;
   --input: oklch(1 0 0 / 15%);
   --ring: var(--foreground); /* #edf2f2 - focus, cf. commentaire --primary/--link ci-dessus */
   --chart-1: #1fb39a;
@@ -255,4 +304,87 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Ciel d'histoires (KAN-85, ADR-0033) : fond « carte celeste » de la
+   Constellation, en pseudo-elements ::before (skill
+   fond-decoratif-pseudo-element : peints AVANT les enfants reels, donc sous
+   le canvas Cytoscape, sans z-index et sans capter le pointeur). Les formes
+   sont des masques SVG propres a chaque monde (src/lib/sky-backdrop.ts,
+   variables --sky-*-mask posees sur la zone) ; couleur et intensite restent
+   des jetons. Statique en C2 : une parallaxe future n'aura qu'a faire varier
+   --sky-parallax-x / -y (aucun recalcul du ciel).
+   - .sky-chart : arcs de carte du ciel + graduation fine des bords haut,
+     gauche et droit (le bas se fond dans le pied de page) ;
+   - .sky-far-stars : etoiles lointaines, tuile de 1024 px repetee (un
+     redimensionnement devoile plus de tuile, sans saut). */
+.sky-chart::before,
+.sky-far-stars::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.sky-chart::before {
+  background-color: var(--sky-chart);
+  opacity: var(--sky-chart-opacity);
+  /* Pas de graduation sur le bord bas : il se fond dans le pied de page. */
+  mask-image:
+    var(--sky-chart-mask), var(--sky-ticks-top-mask), var(--sky-ticks-left-mask),
+    var(--sky-ticks-right-mask);
+  mask-size:
+    100% 100%,
+    auto,
+    auto,
+    auto;
+  mask-repeat: no-repeat, repeat-x, repeat-y, repeat-y;
+  mask-position:
+    0 0,
+    0 0,
+    0 0,
+    100% 0;
+}
+
+/* Fondu du ciel vers le pied de page (KAN-85) : le fond du ciel s'efface sur
+   --sky-fade-height et laisse voir le fond de l'application, celui du pied de
+   page ; le contenu du ciel (canvas, trame, etoiles lointaines) s'efface de
+   meme. Aucun changement de fond net a la jointure. */
+.sky-scene {
+  background: linear-gradient(
+    to bottom,
+    var(--sky-bg) calc(100% - var(--sky-fade-height)),
+    transparent
+  );
+}
+.sky-scene-fade {
+  mask-image: linear-gradient(to bottom, black calc(100% - var(--sky-fade-height)), transparent);
+}
+.sky-far-stars::before {
+  background-color: var(--sky-far-star);
+  opacity: var(--sky-far-star-opacity);
+  mask-image: var(--sky-stars-mask);
+  mask-size: 1024px 1024px;
+  mask-repeat: repeat;
+  mask-position: var(--sky-parallax-x, 0px) var(--sky-parallax-y, 0px);
+}
+
+/* Voile du titre du monde sur le ciel (KAN-85, note de validation C1) : un
+   halo sombre tres doux derriere le titre et ses compteurs - pas une carte.
+   Garantit l'AA quand une etoile passe sous le titre (mesure :
+   docs/accessibilite-rgaa.md). Fond plein floute : opaque au centre du
+   bloc de texte, fondu sur les bords. */
+.sky-title-veil {
+  position: relative;
+  isolation: isolate;
+}
+.sky-title-veil::before {
+  content: "";
+  position: absolute;
+  inset: -28px -40px -28px -36px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 48px;
+  background-color: var(--sky-title-veil);
+  opacity: var(--sky-title-veil-opacity);
+  filter: blur(20px);
 }
