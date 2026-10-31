@@ -20,6 +20,7 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   clampIntoView,
+  separateFromStars,
   fcoseOptions,
   fitViewport,
   planPlacement,
@@ -214,10 +215,16 @@ function placeNewNodes(
     .filter((element) => isEntityNode(element) || isWorldEdge(element));
   worldElements.layout(fcoseOptions(plan)).run();
   if (plan.mode === "incremental") {
+    // Dans le champ, et jamais sur une autre etoile (BUG-019) : chaque
+    // nouvelle etoile evite toutes les autres, y compris celles placees juste
+    // avant elle.
     const extent = cy.extent();
     for (const nodeId of plan.newNodeIds) {
       const node = cy.getElementById(nodeId);
-      node.position(clampIntoView(node.position(), extent));
+      const others = nodes
+        .filter((other) => other.id() !== nodeId)
+        .map((other) => ({ x: other.position("x"), y: other.position("y") }));
+      node.position(separateFromStars(clampIntoView(node.position(), extent), others, extent));
     }
   }
   applyVisibility(cy, visibility);

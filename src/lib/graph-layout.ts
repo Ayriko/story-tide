@@ -79,6 +79,55 @@ export function clampIntoView(
   };
 }
 
+// Ecart minimal entre deux etoiles placees automatiquement (unites du
+// modele), au-dela du diametre d'un astre et de sa lueur.
+export const MIN_STAR_GAP = 60;
+// Anneaux de recherche d'une place libre (rayon = n x MIN_STAR_GAP).
+const SEPARATION_RINGS = 12;
+
+// Une nouvelle etoile ne se pose jamais SUR une autre (BUG-019) : fcose, avec
+// les etoiles connues figees, pose une etoile sans lien a un point fixe, meme
+// occupe - l'etoile du dessous devenait invisible et impossible a cliquer.
+// Position deja libre : rendue telle quelle. Sinon, la place libre la plus
+// proche sur des anneaux successifs autour d'elle (8 x n points sur le n-ieme,
+// ordre fixe : deterministe), DANS la zone de clampIntoView. Aucune place
+// libre dans le champ : position inchangee.
+export function separateFromStars(
+  position: NodePosition,
+  others: readonly NodePosition[],
+  extent: ViewExtent,
+  minGap = MIN_STAR_GAP,
+  insetRatio = 0.1,
+): NodePosition {
+  const isFree = (candidate: NodePosition) =>
+    others.every((other) => Math.hypot(other.x - candidate.x, other.y - candidate.y) >= minGap);
+  if (isFree(position)) {
+    return position;
+  }
+  const insetX = (extent.x2 - extent.x1) * insetRatio;
+  const insetY = (extent.y2 - extent.y1) * insetRatio;
+  const inView = (candidate: NodePosition) =>
+    candidate.x >= extent.x1 + insetX &&
+    candidate.x <= extent.x2 - insetX &&
+    candidate.y >= extent.y1 + insetY &&
+    candidate.y <= extent.y2 - insetY;
+  for (let ring = 1; ring <= SEPARATION_RINGS; ring += 1) {
+    const radius = ring * minGap;
+    const steps = 8 * ring;
+    for (let step = 0; step < steps; step += 1) {
+      const angle = (2 * Math.PI * step) / steps;
+      const candidate = {
+        x: position.x + radius * Math.cos(angle),
+        y: position.y + radius * Math.sin(angle),
+      };
+      if (inView(candidate) && isFree(candidate)) {
+        return candidate;
+      }
+    }
+  }
+  return position;
+}
+
 // Cadrage « ajuster a l'ecran » (KAN-87) : comme cy.fit, mais dans la zone
 // utile du canvas, sous une bande haute reservee (titre du monde pose sur le
 // canvas, en haut a gauche) - aucune etoile ne passe sous le titre. Le zoom

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import cytoscape from "cytoscape";
 import fcose from "cytoscape-fcose";
-import { clampIntoView, fcoseOptions, fitViewport, planPlacement } from "./graph-layout";
+import {
+  clampIntoView,
+  fcoseOptions,
+  fitViewport,
+  MIN_STAR_GAP,
+  planPlacement,
+  separateFromStars,
+} from "./graph-layout";
 
 cytoscape.use(fcose);
 
@@ -116,6 +123,61 @@ describe("clampIntoView", () => {
 
   it("retrait personnalise", () => {
     expect(clampIntoView({ x: 2000, y: 250 }, extent, 0)).toEqual({ x: 1000, y: 250 });
+  });
+});
+
+describe("separateFromStars (BUG-019)", () => {
+  const extent = { x1: -500, y1: -500, x2: 500, y2: 500 };
+  const distance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.hypot(a.x - b.x, a.y - b.y);
+
+  it("place deja libre : position inchangee", () => {
+    const position = { x: 200, y: 0 };
+    expect(separateFromStars(position, [{ x: 0, y: 0 }], extent)).toBe(position);
+  });
+
+  it("posee sur une autre etoile : deplacee a l'ecart, dans le champ", () => {
+    const others = [
+      { x: 128, y: 72 },
+      { x: 0, y: 0 },
+    ];
+    const moved = separateFromStars({ x: 128, y: 72 }, others, extent);
+    others.forEach((other) => expect(distance(moved, other)).toBeGreaterThanOrEqual(MIN_STAR_GAP));
+    expect(clampIntoView(moved, extent)).toEqual(moved);
+    // Place libre la plus proche : premier anneau.
+    expect(distance(moved, { x: 128, y: 72 })).toBeCloseTo(MIN_STAR_GAP, 6);
+  });
+
+  it("deterministe : meme entree, meme place", () => {
+    const others = [{ x: 10, y: 10 }];
+    expect(separateFromStars({ x: 10, y: 10 }, others, extent)).toEqual(
+      separateFromStars({ x: 10, y: 10 }, others, extent),
+    );
+  });
+
+  it("premier anneau plein : cherche plus loin", () => {
+    const center = { x: 0, y: 0 };
+    const ring = Array.from({ length: 8 }, (_, step) => ({
+      x: MIN_STAR_GAP * Math.cos((2 * Math.PI * step) / 8),
+      y: MIN_STAR_GAP * Math.sin((2 * Math.PI * step) / 8),
+    }));
+    const others = [center, ...ring];
+    const moved = separateFromStars(center, others, extent);
+    others.forEach((other) => expect(distance(moved, other)).toBeGreaterThanOrEqual(MIN_STAR_GAP));
+    expect(distance(moved, center)).toBeGreaterThan(MIN_STAR_GAP);
+  });
+
+  it("au bord du champ : la place choisie reste dans la zone", () => {
+    const edge = { x: 400, y: 400 };
+    const moved = separateFromStars(edge, [edge], extent);
+    expect(clampIntoView(moved, extent)).toEqual(moved);
+    expect(distance(moved, edge)).toBeGreaterThanOrEqual(MIN_STAR_GAP);
+  });
+
+  it("aucune place libre dans le champ : position inchangee", () => {
+    const tiny = { x1: 0, y1: 0, x2: 10, y2: 10 };
+    const position = { x: 5, y: 5 };
+    expect(separateFromStars(position, [position], tiny)).toBe(position);
   });
 });
 
