@@ -54,12 +54,16 @@ export function ScrollHint() {
     });
   }
 
+  // Bande sticky de toute la largeur : elle laisse passer le pointeur
+  // (pointer-events-none), seul le bouton le capte. Sans cela, elle
+  // recouvrait les controles poses en bas de la Constellation (« Reorganiser
+  // automatiquement », bottom-3) : un clic n'y faisait rien (KAN-85).
   return (
-    <div className="sticky bottom-3 z-10 mb-4 flex justify-center">
+    <div className="pointer-events-none sticky bottom-3 z-10 mb-4 flex justify-center">
       <button
         type="button"
         onClick={handleClick}
-        className="flex size-8 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-lg backdrop-blur-sm transition-colors hover:border-primary hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-border bg-card/90 text-muted-foreground shadow-lg backdrop-blur-sm transition-colors hover:border-primary hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <ChevronDown
           aria-hidden="true"

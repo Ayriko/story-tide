@@ -17,6 +17,15 @@ function renderInScrollContainer() {
 }
 
 describe("ScrollHint", () => {
+  it("la bande sticky laisse passer le pointeur, seul le bouton le capte (KAN-85)", () => {
+    renderInScrollContainer();
+    const button = screen.getByRole("button", { name: "Aller au pied de page" });
+    // Non-regression : la bande pleine largeur recouvrait le bouton
+    // « Reorganiser automatiquement » de la Constellation.
+    expect(button.parentElement).toHaveClass("pointer-events-none");
+    expect(button).toHaveClass("pointer-events-auto");
+  });
+
   it("expose un bouton (pas un lien) avec un nom accessible explicite", () => {
     renderInScrollContainer();
 
