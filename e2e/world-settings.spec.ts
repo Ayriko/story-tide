@@ -83,9 +83,10 @@ test("un type personnalise se cree, s'utilise et apparait dans la sidebar et le 
   await expect(sidebar.getByRole("button", { name: "Objets", exact: true })).toBeVisible();
   await expect(sidebar.getByRole("link", { name: `${nom} Vaisseau`, exact: true })).toBeVisible();
 
-  await page.goto(`${worldUrl}/graph`);
+  await page.goto(worldUrl);
   await page.getByRole("button", { name: "Filtres", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Vaisseau", exact: true })).toHaveAttribute(
+  // Pastille = libelle + nombre d'entrees du type (KAN-87).
+  await expect(page.getByRole("button", { name: "Vaisseau · 1", exact: true })).toHaveAttribute(
     "aria-pressed",
     "true",
   );

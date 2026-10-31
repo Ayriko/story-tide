@@ -72,6 +72,19 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
   (`src/lib/graph-elements.ts`) trace une arête par paire, la relation déclarée
   prioritaire ; les suggestions d'une fiche partent des reflets du texte pour
   proposer une relation déclarée.
+- **La Constellation et sa disposition (KAN-87, ADR-0032)** : la page d'un monde
+  (`/worlds/[slug]`) est la Constellation. Sa disposition vit en base, au niveau
+  du monde : `Board` (tableau par défaut créé à la demande, cadrage `zoom/panX/panY`)
+  et `BoardNode` (place d'une entrée). `board-service.ts` vérifie que chaque entrée
+  appartient au monde du tableau (pas de clé étrangère composite) ; les actions de
+  `src/actions/board.ts` ne revalident aucune page. Côté client, `graph-view.tsx`
+  crée l'instance Cytoscape une fois par montage puis l'actualise par différence
+  (`src/lib/graph-diff.ts`) ; les nouvelles étoiles sont placées par fcose autour
+  des places connues fixées (`src/lib/graph-layout.ts`), dans le champ visible.
+  Filtres, isolement et masquage sont un calcul pur (`src/lib/graph-filters.ts`)
+  partagé par le canvas et la liste accessible, mémorisé dans le navigateur. Le
+  geste de liaison (cytoscape-edgehandles) ouvre une boîte qui crée la relation
+  par l'action existante de KAN-84.
 - **Schéma de contenu partagé client/serveur** : `src/lib/tiptap-extensions.ts` définit
   une seule fois l'allowlist de nodes/marks de l'éditeur, utilisée à la fois par le
   composant client (`EntityEditor`) et par la validation serveur

@@ -51,6 +51,21 @@ export default defineConfig({
     // possible) - "retain-on-failure" capture la trace au premier echec, sans
     // dependre d'un retry, exploitable via l'artefact CI (test-results/).
     trace: "retain-on-failure",
+    // Sidebar DEPLIEE sur la page d'un monde (KAN-87) : elle y est repliee par
+    // defaut pour laisser la Constellation en plein cadre, mais la plupart
+    // des specs creent leurs entrees par son bouton juste apres la creation
+    // du monde. Preference posee une fois ici plutot que dans chaque spec ;
+    // le repli par defaut est verifie par constellation.spec.ts, qui repart
+    // d'un stockage vide.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: baseURL,
+          localStorage: [{ name: "story-tide:sidebar-collapsed:constellation", value: "0" }],
+        },
+      ],
+    },
   },
   // intro-world.spec.ts (KAN-35) enfile 25 jobs de liaison reels sur la MEME
   // file partagee que tous les autres e2e - execute en parallele (workers>1),
@@ -100,6 +115,10 @@ export default defineConfig({
       SMTP_USER: requireEnv("SMTP_USER"),
       SMTP_PASSWORD: requireEnv("SMTP_PASSWORD"),
       MAIL_FROM: requireEnv("MAIL_FROM"),
+      // Crochet de lecture de la Constellation (KAN-87, graph-view.tsx) :
+      // pose UNIQUEMENT ici, jamais en production (absent du Dockerfile et
+      // de compose ; Next inline la variable au build, la branche disparait).
+      NEXT_PUBLIC_E2E_HOOKS: "1",
     },
   },
 });

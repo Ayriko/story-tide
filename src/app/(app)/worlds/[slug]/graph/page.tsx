@@ -1,75 +1,10 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { requireSessionOrRedirect } from "@/lib/auth-session";
-import { WorldNotFoundError, getWorldBySlug } from "@/services/world-service";
-import { listEntities } from "@/services/entity-service";
-import { listWorldRelations } from "@/services/relation-service";
-import { listWorldDeclaredRelations } from "@/services/declared-relation-service";
-import { getWorldTypeCatalog } from "@/services/entity-type-service";
-import { resolveEntityType } from "@/lib/entity-types";
-import { buildAccessibleGraphEntries, buildGraphElements } from "@/lib/graph-elements";
-import { Button } from "@/components/ui/button";
-import { GraphAccessibleDisclosure } from "./graph-accessible-disclosure";
-import { GraphView } from "./graph-view";
+import { permanentRedirect } from "next/navigation";
 
+// /worlds/[slug]/graph (KAN-87) : la Constellation est desormais la page du
+// monde elle-meme. Redirection permanente pour les liens et favoris
+// existants ; un monde d'un autre proprietaire donne la meme 404 que la page
+// cible (aucune lecture ici, la garde reste sur /worlds/[slug]).
 export default async function GraphPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const session = await requireSessionOrRedirect();
-
-  let world;
-  try {
-    world = await getWorldBySlug(session.user.id, slug);
-  } catch (error) {
-    if (error instanceof WorldNotFoundError) {
-      notFound();
-    }
-    throw error;
-  }
-
-  const [entities, relations, typeCatalog, declaredRelations] = await Promise.all([
-    listEntities(session.user.id, world.id),
-    listWorldRelations(session.user.id, world.id),
-    getWorldTypeCatalog(session.user.id, world.id),
-    listWorldDeclaredRelations(session.user.id, world.id),
-  ]);
-
-  const entityInputs = entities.map((entity) => {
-    const resolved = resolveEntityType(entity, typeCatalog);
-    return {
-      id: entity.id,
-      name: entity.name,
-      typeKey: resolved.key,
-      typeLabel: resolved.label,
-      group: resolved.group,
-    };
-  });
-  const elements = buildGraphElements(entityInputs, relations, declaredRelations);
-  const accessibleEntries = buildAccessibleGraphEntries(entityInputs, relations, declaredRelations);
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        {/* Vue "agrandissement plein cadre" (KAN-36 P5a) - bouton retour
-            visible plutot que le lien discret des autres headers (page.tsx de
-            la fiche, KAN-36 P4) : cette vue se comporte comme un mode
-            immersif dedie, pas un document parmi d'autres. */}
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/worlds/${world.slug}`}>
-            <ArrowLeft aria-hidden="true" className="size-4" />
-            {world.name}
-          </Link>
-        </Button>
-        <h1 className="font-heading text-2xl font-medium text-foreground">Constellation</h1>
-      </div>
-
-      <GraphView
-        worldSlug={world.slug}
-        elements={elements}
-        canvasClassName="h-[calc(100vh-20rem)] min-h-[28rem] w-full rounded-lg border border-border"
-      />
-
-      <GraphAccessibleDisclosure worldSlug={world.slug} entries={accessibleEntries} />
-    </div>
-  );
+  permanentRedirect(`/worlds/${encodeURIComponent(slug)}`);
 }

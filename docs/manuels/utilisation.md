@@ -98,13 +98,29 @@ manuelle n'est jamais écrasée par une détection automatique ultérieure.
 
 ### 2.3 La Constellation (graphe de relations)
 
-La page **Constellation** (`/worlds/[slug]/graph`) affiche l'univers comme un
-graphe : chaque entité est un nœud (coloré par famille de type), chaque lien
-une arête. Cliquer un nœud ouvre la fiche correspondante. Le panneau
-**« Filtres »** permet de masquer/afficher les nœuds par type. Pour une
-navigation sans souris, le disclosure **« Observer les fils »** révèle une
-liste de liens accessible au clavier et aux lecteurs d'écran, équivalente au
-graphe.
+La page d'un monde (`/worlds/[slug]`) est la **Constellation** : l'univers en
+plein écran, chaque entrée une étoile (colorée par famille de type), chaque
+lien une arête (trait plein pour une relation déclarée, pointillés pour un
+lien du texte). L'ancienne adresse `/worlds/[slug]/graph` y redirige.
+
+- **Disposition mémorisée** : déplacez une étoile, elle garde sa place ; le
+  zoom et le cadrage sont gardés aussi. Une nouvelle entrée est placée près de
+  ses voisines, dans le champ, sans déplacer les autres.
+- **Contrôles** (bas droite) : bouton rond « Nouvelle entrée », zoom avant et
+  arrière, « Ajuster à l'écran », « Réorganiser automatiquement » (annulable
+  depuis la notification). Quand le graphe a le focus : `+`, `-`, `0` et `N`.
+- **Étoile** : un clic ouvre une carte (ouvrir la fiche, isoler, masquer, avec
+  la profondeur) ; un double-clic ouvre directement la fiche.
+- **Relier deux étoiles** : tirez la petite poignée qui apparaît au survol
+  d'une étoile, ou faites `Shift` + glisser depuis une étoile, jusqu'à une
+  autre. Choisissez le type, puis le sens s'il s'agit d'une relation dirigée.
+  Au clavier, déclarez la relation depuis la section « Relations » de la fiche.
+- **Outils** (haut droite) : **« Filtres »** (types d'entrée avec leur nombre,
+  types de relation, « Liens du texte », réglage de l'isolement), **« Récents »**
+  (dernières entrées modifiées) et **« Fils »**, la liste des liens accessible
+  au clavier et aux lecteurs d'écran, qui applique les mêmes filtres.
+- Les filtres et l'isolement sont mémorisés par monde dans le navigateur ; un
+  badge « Isolé : … » permet d'en sortir.
 
 ### 2.4 La recherche
 

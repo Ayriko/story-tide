@@ -241,13 +241,3 @@ function groupTypes(
 export function selectableTypes(catalog: WorldTypeCatalog, alsoKeep?: string): GroupedEntityTypes {
   return groupTypes(catalog, (type) => !type.isHidden || type.key === alsoKeep);
 }
-
-// Types du filtre de la Constellation : les proposables + tout type masque
-// qui a encore au moins une entree (sinon ses noeuds deviendraient
-// infiltrables).
-export function filterableTypes(
-  catalog: WorldTypeCatalog,
-  usedKeys: ReadonlySet<string>,
-): GroupedEntityTypes {
-  return groupTypes(catalog, (type) => !type.isHidden || usedKeys.has(type.key));
-}

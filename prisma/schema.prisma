@@ -84,6 +84,8 @@ model World {
   customRelationTypes       CustomRelationType[]
   declaredRelations         DeclaredRelation[]
   relationSuggestionIgnores RelationSuggestionIgnore[]
+  // Disposition de la Constellation (KAN-87, ADR-0032).
+  boards                    Board[]
 
   @@unique([ownerId, slug])
   @@index([ownerId])
@@ -136,6 +138,8 @@ model Entity {
   declaredAsTarget      DeclaredRelation[]         @relation("DeclaredTarget")
   suggestionIgnoresFrom RelationSuggestionIgnore[] @relation("SuggestionIgnoreEntity")
   suggestionIgnoresTo   RelationSuggestionIgnore[] @relation("SuggestionIgnoreTarget")
+  // Position de l'etoile sur les tableaux du monde (KAN-87, ADR-0032).
+  boardNodes            BoardNode[]
 
   @@unique([worldId, seedRef])
   @@index([worldId])
@@ -424,4 +428,41 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// Disposition de la Constellation (KAN-87, ADR-0032) : un tableau par monde
+// pour le moment (le tableau par defaut, cree a la demande - plusieurs
+// tableaux = lot D). Un seul tableau par defaut par monde : index unique
+// PARTIEL pose en SQL dans la migration (Prisma ne le declare pas). Cadrage
+// tout null (jamais cadre : ajuster a l'ecran) ou tout renseigne avec
+// zoom > 0 : CHECK SQL.
+model Board {
+  id        String      @id @default(cuid())
+  worldId   String
+  world     World       @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  name      String // « Constellation » pour le tableau par defaut
+  isDefault Boolean     @default(false)
+  zoom      Float?
+  panX      Float?
+  panY      Float?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  nodes     BoardNode[]
+
+  @@index([worldId])
+}
+
+// Position d'une entree sur un tableau. L'entree et le tableau appartiennent
+// au meme monde : verifie dans board-service.ts (pas de FK composite).
+model BoardNode {
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  entityId  String
+  entity    Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  x         Float
+  y         Float
+  updatedAt DateTime @updatedAt
+
+  @@id([boardId, entityId])
+  @@index([entityId])
 }

@@ -35,13 +35,12 @@ function stringField(formData: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
-// Les deux fiches affichent la relation, la Constellation et le mini-graphe
-// du tableau de bord aussi.
+// Les deux fiches affichent la relation, la Constellation (page du monde
+// depuis KAN-87, /graph n'est plus qu'une redirection) aussi.
 function revalidateRelationPages(worldSlug: string, entityIds: string[]) {
   for (const entityId of new Set(entityIds)) {
     revalidatePath(`/worlds/${worldSlug}/entities/${entityId}`);
   }
-  revalidatePath(`/worlds/${worldSlug}/graph`);
   revalidatePath(`/worlds/${worldSlug}`);
 }
 

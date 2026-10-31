@@ -3,7 +3,6 @@ import {
   CUSTOM_TYPE_ICONS,
   GROUP_DEFAULT_ICON,
   customTypeKey,
-  filterableTypes,
   parseTypeKey,
   resolveEntityType,
   selectableTypes,
@@ -147,17 +146,6 @@ describe("selectableTypes", () => {
       .flatMap(({ types }) => types)
       .map(({ key }) => key);
     expect(keys).toContain("prophecy");
-  });
-});
-
-describe("filterableTypes", () => {
-  it("garde un masque encore utilise, retire un masque inutilise", () => {
-    const catalog = { custom: [], hidden: ["prophecy", "era"] };
-    const keys = filterableTypes(catalog, new Set(["prophecy"]))
-      .flatMap(({ types }) => types)
-      .map(({ key }) => key);
-    expect(keys).toContain("prophecy");
-    expect(keys).not.toContain("era");
   });
 });
 

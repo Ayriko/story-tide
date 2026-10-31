@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
   // deja absent du build de prod) : masque - confondait la review visuelle
   // du pied de page KAN-45, qui scrolle desormais jusqu'a cette zone.
   devIndicators: false,
+  // Crochet de lecture e2e de la Constellation (KAN-87, graph-view.tsx) :
+  // Next n'inline une variable NEXT_PUBLIC_* que si elle existe au build.
+  // Declaree ici avec "" par defaut, elle est TOUJOURS inlinee : en
+  // production `"1" === ""` est constant et la branche disparait du bundle
+  // (verifie sur .next/static) ; seul le webServer Playwright la pose a "1".
+  env: {
+    NEXT_PUBLIC_E2E_HOOKS: process.env.NEXT_PUBLIC_E2E_HOOKS ?? "",
+  },
   experimental: {
     serverActions: {
       // BUG-006 : la limite par defaut (1 Mo) etait atteinte avant meme le

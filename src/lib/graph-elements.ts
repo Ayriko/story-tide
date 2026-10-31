@@ -159,6 +159,12 @@ function declaredLabel(declared: GraphDeclaredInput[], viewpointId: string): str
   return [...new Set(labels)].join(" · ");
 }
 
+// Id de l'arete d'une paire, quel que soit l'ordre des extremites : partage
+// par le canvas et la liste accessible filtree (KAN-87).
+export function pairEdgeId(firstId: string, secondId: string): string {
+  return firstId < secondId ? `pair:${firstId}~${secondId}` : `pair:${secondId}~${firstId}`;
+}
+
 export function buildGraphElements(
   entities: GraphEntityInput[],
   relations: GraphRelationInput[],
@@ -172,7 +178,7 @@ export function buildGraphElements(
   // paire masque ses reflets du texte, et AUTO + MANUAL ne font qu'un trait.
   const edges = buildPairEdges(entities, relations, declared).map((edge) => ({
     data: {
-      id: `pair:${edge.a}~${edge.b}`,
+      id: pairEdgeId(edge.a, edge.b),
       source: edge.source,
       target: edge.target,
       kind: edge.kind,

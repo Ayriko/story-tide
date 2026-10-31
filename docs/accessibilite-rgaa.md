@@ -60,6 +60,25 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   texte. Une fois insérée, la mention suit la même règle que le surlignage
   (Ctrl/Cmd+clic = affordance souris, liste « Entités liées »/« Mentionné par »
   = chemin accessible).
+- **Constellation, page d'un monde (KAN-87, 2026-10-24, ADR-0032)** : remplace le
+  tableau de bord (KAN-36 P3) et la page `/graph`, qui redirige. Le canvas reste
+  `aria-hidden` ; une **zone focusable** (`role="group"`, nom « Constellation. Touches
+  + et - : zoom, 0 : ajuster à l'écran, N : nouvelle entrée. ») porte les raccourcis
+  sans modificateur, actifs seulement quand elle a le focus (Ctrl++ / Ctrl+- / Ctrl+0
+  restent au navigateur), focus visible. Contrôles et outils = vrais `<button>` avec
+  libellé accessible et infobulle (« Nouvelle entrée (N) », « Zoom avant (+) »…) ;
+  pilules « Filtres », « Récents », « Fils » en `aria-expanded`/`aria-controls`, un
+  seul panneau ouvert, Échap le ferme et rend le focus à sa pilule. Pastilles de
+  filtre en `aria-pressed`, état lisible sans la couleur (pleine + coche / simple
+  contour). La liste « Fils » (`GraphAccessibleList`) applique les mêmes filtres et
+  l'annonce. Lier deux étoiles est une affordance souris : le chemin clavier reste
+  la section « Relations » de la fiche. Contrastes mesurés : surface « verre »
+  (`--glass-*`) avec texte `--foreground` 10,91:1 sur le canvas et 8,36:1 au pire
+  avec une étoile dessous ; titre posé sur le canvas 13,11:1, la bande réservée par
+  « ajuster » garde les étoiles hors du titre (un déplacement peut en faire passer
+  une derrière : voile prévu en C2). Notifications locales en `role="status"`
+  `aria-live="polite"`. Le h1 est le nom du monde (le fil d'ariane ne le répète
+  plus sur cette page).
 - **Constellation (graphe de relations)** (2026-07-17, ADR-0012, mis à jour
   2026-07-21 KAN-36 P5, `/worlds/[slug]/graph`) : le canvas Cytoscape
   (`graph-view.tsx`) ne peut exposer aucun élément individuel au clavier/lecteur

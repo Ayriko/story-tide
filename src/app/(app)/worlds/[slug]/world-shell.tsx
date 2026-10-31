@@ -2,20 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { EntityListItem, FolderTreeView } from "@/lib/entity-types";
+import { isWorldRootPath } from "@/lib/world-routes";
 import { Footer } from "../../../footer";
 import { LocalClock } from "../../local-clock";
 import { ScrollHint } from "../../../scroll-hint";
 import { TopBar } from "../../top-bar";
 import { UserMenu } from "../../user-menu";
-import { FOCUS_SEARCH_EVENT } from "./entity-search";
 import { Sidebar } from "./sidebar";
 
 const COLLAPSE_STORAGE_KEY = "story-tide:sidebar-collapsed";
+// Page racine du monde (Constellation, KAN-87) : etat de repli PROPRE, replie
+// par defaut tant que l'utilisateur n'a pas deplie la sidebar sur cette page.
+const ROOT_COLLAPSE_STORAGE_KEY = "story-tide:sidebar-collapsed:constellation";
 // Evenement DOM prive (pas "storage", qui ne se declenche que dans les
 // AUTRES onglets, jamais celui qui ecrit) : notifie useSyncExternalStore
 // immediatement apres une ecriture localStorage dans CET onglet.
@@ -25,19 +29,34 @@ function subscribe(callback: () => void) {
   window.addEventListener(COLLAPSE_EVENT, callback);
   return () => window.removeEventListener(COLLAPSE_EVENT, callback);
 }
-function getSnapshot() {
-  return window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === "1";
+// Lecture/ecriture protegees (stockage bloque, navigation privee) : en cas
+// d'echec, la valeur par defaut s'applique, sans erreur.
+function readCollapsed(onWorldRoot: boolean): boolean {
+  let stored: string | null = null;
+  try {
+    stored = window.localStorage.getItem(
+      onWorldRoot ? ROOT_COLLAPSE_STORAGE_KEY : COLLAPSE_STORAGE_KEY,
+    );
+  } catch {
+    stored = null;
+  }
+  return stored === null ? onWorldRoot : stored === "1";
 }
-// Jamais repliee au premier rendu serveur (localStorage n'existe pas cote
-// serveur) - evite un hydration mismatch. useSyncExternalStore est le
-// mecanisme React dedie a une valeur pilotee par un systeme externe (ici :
-// localStorage), sans setState synchrone dans un effet (regle react-hooks/
+// Premier rendu serveur : depliee, sauf sur la page racine du monde (repliee
+// par defaut) - meme valeur que le premier rendu client sans preference,
+// aucun hydration mismatch. useSyncExternalStore est le mecanisme React
+// dedie a une valeur pilotee par un systeme externe (ici : localStorage),
+// sans setState synchrone dans un effet (regle react-hooks/
 // set-state-in-effect, meme raisonnement que local-clock.tsx).
-function getServerSnapshot() {
-  return false;
-}
-function setCollapsedPersisted(next: boolean) {
-  window.localStorage.setItem(COLLAPSE_STORAGE_KEY, next ? "1" : "0");
+function setCollapsedPersisted(onWorldRoot: boolean, next: boolean) {
+  try {
+    window.localStorage.setItem(
+      onWorldRoot ? ROOT_COLLAPSE_STORAGE_KEY : COLLAPSE_STORAGE_KEY,
+      next ? "1" : "0",
+    );
+  } catch {
+    // Stockage indisponible : le choix ne survit pas au rechargement.
+  }
   window.dispatchEvent(new Event(COLLAPSE_EVENT));
 }
 
@@ -71,13 +90,20 @@ export function WorldShell({
   userIsAdmin: boolean;
   children: ReactNode;
 }) {
-  const collapsed = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  // Page racine du monde = la Constellation en plein cadre (KAN-87) : EGALITE
+  // EXACTE sur /worlds/<slug> (world-routes.ts) - fiches et parametres
+  // gardent la coquille normale (carte centrale).
+  const fullBleed = isWorldRootPath(usePathname(), worldSlug);
+  const collapsed = useSyncExternalStore(
+    subscribe,
+    () => readCollapsed(fullBleed),
+    () => fullBleed,
+  );
 
   // Ctrl/Cmd+B replie/deplie (convention vvd §7) - sauf si le focus est dans
   // l'editeur Tiptap (son propre Ctrl+B bascule le gras, cf. entity-editor.tsx
   // useEditor/toggleBold - il ne faut jamais lui voler le raccourci). Lit
-  // `getSnapshot()` au moment du toggle (pas une valeur fermee/perimee) :
-  // pas besoin de re-attacher l'ecouteur a chaque changement d'etat.
+  // `readCollapsed()` au moment du toggle (pas une valeur fermee/perimee).
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const isModB = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b";
@@ -89,25 +115,11 @@ export function WorldShell({
         return;
       }
       event.preventDefault();
-      setCollapsedPersisted(!getSnapshot());
+      setCollapsedPersisted(fullBleed, !readCollapsed(fullBleed));
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  // Chip "Rechercher" du dashboard (KAN-36 P3) : deplie la sidebar si repliee
-  // avant que entity-search.tsx (meme evenement, ecouteur separe) ne mette le
-  // focus dans le champ - sinon le champ reste focusable mais visuellement
-  // clippe (largeur 0) tant que la sidebar est repliee.
-  useEffect(() => {
-    function onFocusSearch() {
-      if (getSnapshot()) {
-        setCollapsedPersisted(false);
-      }
-    }
-    window.addEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
-    return () => window.removeEventListener(FOCUS_SEARCH_EVENT, onFocusSearch);
-  }, []);
+  }, [fullBleed]);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-hidden">
@@ -126,57 +138,69 @@ export function WorldShell({
         />
       </div>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <TopBar
-          left={
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setCollapsedPersisted(!collapsed)}
-                aria-label={
-                  collapsed ? "Afficher la liste des entrées" : "Masquer la liste des entrées"
-                }
-              >
-                {collapsed ? (
-                  <PanelLeftOpen aria-hidden="true" className="size-4" />
-                ) : (
-                  <PanelLeftClose aria-hidden="true" className="size-4" />
-                )}
-              </Button>
-              {/* Fil d'ariane (reference-vvd.md §6) : "Story Tide / <monde>" -
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Page racine du monde (KAN-87) : la barre haute flotte, transparente,
+            au-dessus de la Constellation (qui occupe toute la hauteur) ; seuls
+            ses controles captent le pointeur, le reste laisse passer vers le
+            canvas. */}
+        <div className={cn(fullBleed && "pointer-events-none absolute inset-x-0 top-0 z-30")}>
+          <TopBar
+            left={
+              <div className="pointer-events-auto flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCollapsedPersisted(fullBleed, !collapsed)}
+                  aria-label={
+                    collapsed ? "Afficher la liste des entrées" : "Masquer la liste des entrées"
+                  }
+                >
+                  {collapsed ? (
+                    <PanelLeftOpen aria-hidden="true" className="size-4" />
+                  ) : (
+                    <PanelLeftClose aria-hidden="true" className="size-4" />
+                  )}
+                </Button>
+                {/* Fil d'ariane (reference-vvd.md §6) : "Story Tide / <monde>" -
                   cliquer le nom du monde ramene a son accueil. Pas de <h1> ici,
                   cf. commentaire dans worlds/[slug]/page.tsx. */}
-              <nav
-                aria-label="Fil d'ariane"
-                className="flex items-center gap-1.5 font-heading text-base font-semibold"
-              >
-                <Link
-                  href="/worlds"
-                  className="text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                <nav
+                  aria-label="Fil d'ariane"
+                  className="flex items-center gap-1.5 font-heading text-base font-semibold"
                 >
-                  Story Tide
-                </Link>
-                <span aria-hidden="true" className="text-muted-foreground">
-                  /
-                </span>
-                <Link
-                  href={`/worlds/${worldSlug}`}
-                  className="text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {worldName}
-                </Link>
-              </nav>
-            </div>
-          }
-          right={
-            <>
-              <LocalClock />
-              <UserMenu name={userName} email={userEmail} />
-            </>
-          }
-        />
+                  <Link
+                    href="/worlds"
+                    className="text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    Story Tide
+                  </Link>
+                  {/* Page du monde (KAN-87) : le titre est pose sur le canvas,
+                      le fil d'ariane ne le repete pas. */}
+                  {fullBleed ? null : (
+                    <>
+                      <span aria-hidden="true" className="text-muted-foreground">
+                        /
+                      </span>
+                      <Link
+                        href={`/worlds/${worldSlug}`}
+                        className="text-foreground hover:text-link focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                      >
+                        {worldName}
+                      </Link>
+                    </>
+                  )}
+                </nav>
+              </div>
+            }
+            right={
+              <span className="pointer-events-auto flex items-center gap-3">
+                <LocalClock />
+                <UserMenu name={userName} email={userEmail} />
+              </span>
+            }
+          />
+        </div>
 
         {/* Conteneur defilant (KAN-45) : deplace depuis <main> pour que
             <footer> (rendu apres lui, hors de <main>) reste un landmark
@@ -206,23 +230,31 @@ export function WorldShell({
           data-scroll-container
           className="relative no-scrollbar min-h-0 flex-1 scroll-smooth overflow-y-auto"
         >
-          <main id="main-content" className="min-h-full overflow-visible px-4 pb-10 lg:px-6">
-            {/* min-h-full (retour Aymeric, capture-footer.PNG) : sans
+          {fullBleed ? (
+            // Constellation (KAN-87) : toute la hauteur de l'ecran, sans carte
+            // centrale ; le pied de page reste dessous, atteint par ScrollHint.
+            <main id="main-content" className="h-full overflow-hidden">
+              {children}
+            </main>
+          ) : (
+            <main id="main-content" className="min-h-full overflow-visible px-4 pb-10 lg:px-6">
+              {/* min-h-full (retour Aymeric, capture-footer.PNG) : sans
                 contrainte de hauteur, une fiche courte laissait le footer
                 depasser un peu au premier ecran au lieu de rester hors du
                 cadre par defaut, contrairement a worlds/page.tsx qui a deja
                 ce comportement via son propre <main>. */}
-            {/* overflow-visible (KAN-39 volet 3) : le style de base de Card
+              {/* overflow-visible (KAN-39 volet 3) : le style de base de Card
                 porte overflow-hidden (components/ui/card.tsx) - un ancetre
                 overflow!=visible entre un element sticky et son vrai
                 conteneur defilant (le div ci-dessus) neutralise
                 position:sticky (constate sur la toolbar de l'editeur).
                 Override cible sur cet usage precis uniquement - les autres
                 Card de l'app gardent leur clipping. */}
-            <Card className="mx-auto max-w-[1150px] overflow-visible border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
-              <div className="px-6 py-8 sm:px-8 sm:py-10">{children}</div>
-            </Card>
-          </main>
+              <Card className="mx-auto max-w-[1150px] overflow-visible border-none bg-card/70 shadow-2xl shadow-black/40 backdrop-blur-xl">
+                <div className="px-6 py-8 sm:px-8 sm:py-10">{children}</div>
+              </Card>
+            </main>
+          )}
           <ScrollHint />
           <Footer showAdminLink={userIsAdmin} />
         </div>

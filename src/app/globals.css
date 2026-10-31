@@ -45,6 +45,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-glass-surface: var(--glass-surface);
+  --color-glass-border: var(--glass-border);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -103,6 +105,17 @@
   --accent-foreground: #edf2f2;
   --destructive: #fca5a5;
   --border: oklch(1 0 0 / 10%);
+  /* Surface « verre » des cartes flottantes sur la Constellation (KAN-87) :
+     jetons repris par l'habillage C2. INK a 85 % + flou d'arriere-plan.
+     Contraste mesure (WCAG) : --foreground 10,91:1 sur le canvas NAVY, et
+     8,36:1 au pire avec une etoile pleine dessous (8 teintes du graphe) - le
+     texte de ces cartes reste en --foreground pour garder l'AA partout. */
+  --glass-surface: rgb(28 58 75 / 0.85);
+  --glass-border: oklch(1 0 0 / 14%);
+  --glass-blur: 12px;
+  /* Texte pose directement sur le canvas (titre du monde, KAN-87) : ombre
+     legere pour detacher le texte des etoiles qui passeraient dessous. */
+  --canvas-text-shadow: 0 1px 3px rgb(0 0 0 / 0.7);
   --input: oklch(1 0 0 / 15%);
   --ring: var(--foreground); /* #edf2f2 - focus, cf. commentaire --primary/--link ci-dessus */
   --chart-1: #1fb39a;
@@ -202,32 +215,6 @@
   html {
     @apply font-sans;
   }
-}
-
-/* Fond du canvas de la Constellation (KAN-36 P5, graph-view.tsx) : plus
-   sombre que --background, grille discrete legerement floutee. Un
-   `filter:blur` direct sur le conteneur de montage Cytoscape flouterait
-   aussi les noeuds/labels reels qu'il rend - le fond passe donc par un
-   ::before plutot qu'un calque frere positionne en absolu (essaye d'abord,
-   a casse le rendu du canvas - le ::before est plus sur : toujours peint en
-   PREMIER dans l'element, le <canvas> insere par Cytoscape (enfant reel,
-   ajoute apres coup par JS) peint naturellement par-dessus, sans z-index a
-   gerer). */
-.graph-canvas-backdrop {
-  position: relative;
-  overflow: hidden;
-}
-.graph-canvas-backdrop::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-color: #0d1d29;
-  background-image:
-    linear-gradient(to right, var(--border) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-  background-size: 24px 24px;
-  filter: blur(1px);
-  pointer-events: none;
 }
 
 /* Scrollbar thematisee (retour Aymeric) : la Sidebar et le panneau "Dernieres
