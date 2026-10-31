@@ -297,6 +297,8 @@
 
 ## TST-MND-014 — La page d'un monde est la Constellation (KAN-87)
 
+> **Mise à jour 2026-10-31 (KAN-85)** : les compteurs quittent le ciel. Le total des entrées est sous le titre, la légende par groupe dans le menu du titre (TST-GRF-004). La sidebar dépliée est un panneau en verre posé sur le ciel, sa préférence est gardée dans un cookie (TST-MND-016). Le ciel se fond dans le pied de page (TST-MND-017).
+
 - **Description** : `/worlds/[slug]` affiche la Constellation sur toute la hauteur de l'écran : titre du monde et compteurs posés sur le canvas (haut gauche), outils « Filtres », « Récents », « Fils » (haut droite, un seul panneau ouvert), bouton rond « Nouvelle entrée » et contrôles de vue (bas droite). La barre du haut est transparente et n'affiche que « Story Tide ». La sidebar y est repliée par défaut ; la déplier est mémorisé. Le pied de page reste sous le canvas.
 - **Objectif** : vérifier la nouvelle page, le repli mémorisé de la sidebar, et que les fiches et les paramètres gardent la coquille habituelle.
 - **Préconditions** : un compte connecté, stockage du navigateur vide, un monde avec quelques entrées.
@@ -314,6 +316,26 @@
 - **Résultat attendu** : 1) arrivée sur `/worlds/eldoria` ; 2) et 3) la même page 404 qu'un monde inexistant.
 - **Critères d'acceptation** : `e2e/constellation.spec.ts` et `e2e/graph.spec.ts` (redirection) ; la garde reste celle de `/worlds/[slug]` (TST-SEC-002).
 - **Type** : fonctionnel + sécurité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+
+## TST-MND-016 — Page d'un monde : sidebar en verre, préférence sans saut, clavier (KAN-85)
+
+- **Description** : sur la page d'un monde, la sidebar dépliée est un panneau en verre posé sur le ciel, sous la zone du titre, qui ne pousse plus le canvas. Sa préférence de repli est gardée dans un cookie lu par le serveur : la page arrive directement dans le bon état. Une sidebar repliée est inerte : aucun de ses liens n'est tabulable.
+- **Objectif** : vérifier l'absence de saut à l'hydratation, la reprise de l'ancienne préférence et l'ordre de tabulation (non-régression du correctif `fix(a11y)`, BUG-017).
+- **Préconditions** : un compte connecté, un monde de plusieurs dizaines d'entrées.
+- **Étapes** : 1) Déplier la sidebar, recharger. 2) Replier la sidebar, puis tabuler depuis le haut de la page. 3) Déplier la sidebar, y placer le focus, `Ctrl+B`. 4) Déplier la sidebar, replier le groupe « Personnages », ouvrir une fiche, revenir à la page du monde. **Cas d'échec** : 5) mettre une valeur altérée dans le cookie, recharger ; 6) ancienne préférence `localStorage` seule (navigateur d'avant KAN-85).
+- **Résultat attendu** : 1) la sidebar est dépliée dès l'affichage, aucune étoile ne bouge après l'hydratation, le titre reste en place ; 2) quelques Tab suffisent pour atteindre le ciel, aucun lien de la sidebar n'est traversé ; 3) la sidebar se replie et le focus revient au bouton qui la déplie ; 4) colonne sur la fiche, panneau en verre sur la page du monde, et le groupe « Personnages » reste replié dans les deux (une seule sidebar, jamais remontée) ; 5) défaut de la page, aucune erreur ; 6) la préférence est reprise une fois puis gardée en cookie.
+- **Critères d'acceptation** : `sidebar-preference.test.ts` (0 / 1 seuls acceptés, défaut par page, attributs du cookie) ; `e2e/sidebar-collapsed-keyboard.spec.ts` (Tab jusqu'au ciel, focus rendu au bouton) ; `e2e/constellation.spec.ts` (« sidebar ouverte en preference : aucune variation de position des etoiles apres hydratation », sidebar repliée par défaut puis mémorisée) ; `e2e/dashboard-create-entity.spec.ts` et `e2e/folder-organization.spec.ts` (état des groupes et dossiers conservé entre une fiche et la page du monde).
+- **Type** : fonctionnel + accessibilité (RGAA 12.8) + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-MND-017 — Page d'un monde : du ciel au pied de page (KAN-85)
+
+- **Description** : le ciel se fond dans le pied de page, sans bordure ni graduation au bord bas. La flèche « aller au pied de page » est posée dans le ciel, au-dessus du fondu ; sa bande invisible ne capte pas le pointeur.
+- **Objectif** : vérifier la jointure et la non-régression du correctif `fix(constellation)` (BUG-018) : « Réorganiser automatiquement » restait sans effet sous la bande de la flèche.
+- **Préconditions** : un compte connecté, un monde de quelques entrées.
+- **Étapes** : 1) Ouvrir le monde, observer le bas de l'écran. 2) Cliquer « Réorganiser automatiquement ». 3) Cliquer la flèche. **Cas d'échec** : 4) cliquer juste à côté de la flèche, sur le ciel.
+- **Résultat attendu** : 1) aucune coupure franche entre le ciel et le pied de page ; 2) la boîte de confirmation s'ouvre, sans défilement de la page ; 3) la page défile jusqu'au pied de page ; 4) le clic atteint le ciel, pas la bande.
+- **Critères d'acceptation** : `scroll-hint.test.tsx` (bande `pointer-events-none`, bouton `pointer-events-auto`) ; `e2e/scroll-hint-controls.spec.ts` (« Reorganiser automatiquement » n'est recouvert par rien).
+- **Type** : fonctionnel + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
 
 ## TST-SEC-002 — Accès à un monde d'autrui via URL directe
 
@@ -576,6 +598,16 @@
 - **Critères d'acceptation** : `board.test.ts` (Zod avant session, introuvable identique, session expirée) ; `board-service.test.ts` (monde d'autrui, entrée d'un autre monde refusée sans écriture) ; `docs/securite-owasp.md` A01.
 - **Type** : cas d'échec / sécurité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
 
+## TST-SEC-019 — Cookie de préférence altéré et seed de performance hors développement (KAN-85)
+
+- **Description** : la préférence de repli de la sidebar est le seul cookie non `HttpOnly` de l'application ; elle ne porte que `"0"` ou `"1"`. Le script `seed:perf`, qui supprime puis recrée un monde, refuse de tourner hors d'une base locale de développement.
+- **Objectif** : vérifier qu'une valeur forgée n'a aucun effet et qu'un script destructif ne peut pas viser la production (OWASP A05).
+- **Préconditions** : un compte connecté ; un fichier d'environnement de test.
+- **Étapes** : 1) Écrire `story-tide-sidebar-collapsed-constellation=<script>` puis `=2` dans le navigateur, ouvrir un monde. 2) Lire les attributs du cookie après un basculement en HTTPS (staging). 3) Lancer `seed:perf` avec `NODE_ENV=production`. 4) Le lancer avec une `DATABASE_URL` distante. 5) Le lancer sans `DATABASE_URL`.
+- **Résultat attendu** : 1) valeur ignorée, défaut de la page, rien n'est réinjecté dans la page ; 2) `Path=/`, `SameSite=Lax`, `Secure`, un an ; 3) à 5) refus explicite avant toute requête, aucune écriture.
+- **Critères d'acceptation** : `sidebar-preference.test.ts` (seules `0` et `1` acceptées, nom exact, attributs) ; `dev-script-guard.test.ts` (production, hôte distant, URL absente ou invalide, cause chaînée) ; `docs/securite-owasp.md` A05.
+- **Type** : sécurité / cas d'échec · **Statut** : ✅ (tests unitaires verts, 2026-10-31) — ⬜ étape 2 à passer à la recette staging.
+
 ## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
 
 - **Description** : depuis le dialog « Insérer une image » de l'éditeur (KAN-39, remplace l'ancienne popover maison), un utilisateur importe un fichier (au lieu de saisir une URL), l'insère avec une légende (texte alternatif RGAA), sauvegarde, puis recharge la page.
@@ -808,35 +840,41 @@
 - **Critères d'acceptation** : `graph-elements.test.ts` (`buildGraphElements` : nœuds/arêtes corrects, arêtes AUTO/MANUAL distinguées par id, arête omise silencieusement si une extrémité a disparu ; **mise à jour 2026-10-22, KAN-84** : AUTO et MANUAL d'une même paire ne forment plus qu'une arête, d'id `pair:<a>~<b>`, cf. TST-GRF-005), `relation-service.test.ts` (`listWorldRelations`) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, vrai navigateur Chromium, vraie base Postgres isolée).
 - **Type** : fonctionnel (bout en bout) · **Statut** : ✅ (`graph-elements.test.ts`, `relation-service.test.ts`, `e2e/graph.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : canvas Cytoscape visible, clic sur un nœud navigue vers la fiche correspondante. Capture prise.
 
-## TST-GRF-002 — Constellation : filtrage par type (chips repliables, KAN-36 P5b)
+## TST-GRF-002 — Constellation : filtre « Étoiles sans lien » (KAN-85)
 
-- **Description** : un panneau flottant en overlay, à droite du canvas de la Constellation, replié/déplié via un bouton d'en-tête (`aria-expanded`), regroupe des chips à état (`<button aria-pressed>`, un par type d'entité) permettant de masquer/afficher les nœuds d'un type donné, sans recréer le graphe (zoom/pan conservés). Remplace les cases à cocher du MVP KAN-25.
-- **Objectif** : vérifier que chaque type d'entité a bien une chip dédiée, pressée par défaut (tout visible), que la basculer ne casse pas la page, et que le panneau reste entièrement clavier (chips = vrais boutons, focus MINT visible).
-- **Préconditions** : un monde contient au moins une entité de chaque type visé par le test.
-- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'une chip existe pour chaque type présent, pressée. 3) Cliquer une chip.
-- **Résultat attendu** : chaque chip est pressée (`aria-pressed="true"`) par défaut ; cliquer la fait passer à `aria-pressed="false"` sans erreur ni rechargement de page.
-- **Critères d'acceptation** : vérifié en conditions réelles (`e2e/graph.spec.ts` : chip « Lieu » présente, pressée, puis dépressée après clic — `getByRole("button", { name, exact: true, pressed })`).
-- **Type** : fonctionnel + accessibilité (boutons natifs, focus visible) · **Statut** : ✅ (`e2e/graph.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : chips pressées par défaut, bascule sans erreur ni rechargement.
+> **Réécrit le 2026-10-31 (KAN-85).** L'ancien scénario (pastilles repliables à droite du canvas, page `/graph`, KAN-36 P5b) décrivait une interface remplacée par l'outil « Filtres » de KAN-87 ; le filtrage par type est désormais couvert par TST-GRF-009. Historique : ✅ recette staging v1.2.0-rc.1 (2026-07-23) sur l'ancienne interface.
 
-## TST-GRF-003 — Constellation : liste accessible derrière « Observer les fils » (clavier/lecteur d'écran)
+- **Description** : dans l'outil « Filtres », la pastille « Étoiles sans lien · N » masque ou affiche les entrées qui n'ont aucune relation ni aucun lien du texte. Visibles, elles forment un arc sous le ciel après « Réorganiser » ou au premier affichage. Une entrée devenue sans arête visible à cause d'un autre filtre n'est pas une étoile sans lien.
+- **Objectif** : vérifier le compte, le masquage, la mémorisation par monde et l'indépendance vis-à-vis des autres filtres.
+- **Préconditions** : un monde avec au moins deux entrées liées et deux entrées sans aucun lien.
+- **Étapes** : 1) Ouvrir « Filtres ». 2) Désactiver « Étoiles sans lien · 2 ». 3) Ouvrir « Fils ». 4) Recharger. 5) Réactiver la pastille, puis « Réorganiser automatiquement ». **Cas d'échec** : 6) désactiver le seul type de relation qui relie une entrée : elle ne doit pas être comptée comme sans lien. 7) Remplacer la valeur mémorisée du monde par une valeur d'avant KAN-85 (sans ce filtre), recharger.
+- **Résultat attendu** : 1) pastille « Étoiles sans lien · 2 », pressée ; 2) les deux étoiles disparaissent, les autres ne bougent pas ; 3) la liste ne les cite pas ; 4) filtre conservé ; 5) elles réapparaissent, puis se rangent sur un arc sous le ciel ; 6) le compte reste « · 2 » ; 7) étoiles sans lien affichées, aucune erreur.
+- **Critères d'acceptation** : `graph-filters.test.ts` (`isolatedEntryIds`, entrée isolée par un filtre de relation non comptée, valeur mémorisée avant KAN-85) ; `graph-layout.test.ts` (`isolatedArcPositions` : arc sous le ciel, espacement, aucun chevauchement) . La pastille (`graph-filters-panel.tsx`, libellé + nombre, `aria-pressed`) suit le patron de TST-GRF-009 : validation visuelle Aymeric.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
 
-- **Description** : sous la Constellation, un disclosure « Observer les fils » (`<button aria-expanded>`, FERMÉ par défaut, KAN-36 P5, retour Aymeric) révèle une liste accessible (`<nav>` + vrais `<Link>`) énumérant chaque entité ayant au moins une relation sortante et ses cibles — chemin de navigation clavier/lecteur d'écran équivalent au canvas (affordance souris uniquement, cf. ADR-0012). Une paire d'entités qui se mentionnent **mutuellement** (relation dans les deux sens) n'apparaît qu'**une seule fois** (lien « ↔ », jamais deux lignes distinctes pour la même paire) ; de même une cible reliée à la fois par AUTO et MANUEL (même sens) n'apparaît qu'une fois.
-- **Objectif** : vérifier que le disclosure masque la liste par défaut sans la retirer du DOM une fois ouvert, que la liste reflète fidèlement les relations réelles du monde sans jamais dupliquer une paire, et permet une navigation clavier complète vers les entrées liées.
-- **Préconditions** : un monde contient au moins une entité avec une relation sortante.
-- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Cliquer « Observer les fils ». 3) Localiser la région « Liste des liens de la constellation ». 4) Suivre un lien vers une entité cible.
-- **Résultat attendu** : la liste est absente du DOM tant que le disclosure n'est pas ouvert ; une fois ouverte, elle affiche l'entité source et un lien vers chaque cible (une seule fois par paire, même en cas de mention mutuelle ou de double origine AUTO+MANUEL) ; suivre le lien navigue vers la bonne entrée (`<h1>` de l'entrée cible).
-- **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement par source, tri, entité sans relation sortante absente de la liste mais atteignable comme cible, extrémité disparue omise silencieusement, dédoublonnage AUTO+MANUEL même sens, dédoublonnage d'une paire mutuelle rangée sous l'entité canonique, départage déterministe par id si noms identiques) ; vérifié en conditions réelles bout en bout (`e2e/graph.spec.ts`, ouverture du disclosure puis navigation clavier/lecteur d'écran).
-- **Type** : accessibilité (élim.) · **Statut** : ✅ gates automatisés (`graph-elements.test.ts`, `e2e/graph.spec.ts`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : liste absente du DOM fermée, disclosure fonctionnel, paire mutuelle testée sans doublon (« ↔ »).
+## TST-GRF-003 — Constellation : liste accessible « Fils » (clavier et lecteur d'écran)
 
-## TST-GRF-004 — Constellation : couleur et filtre par famille de types (KAN-18, chips KAN-36 P5b)
+> **Réécrit le 2026-10-31 (KAN-85).** L'ancien scénario visait le disclosure « Observer les fils » sous le canvas de `/graph` ; depuis KAN-87, la liste s'ouvre par la pilule « Fils » de la page du monde. Historique : ✅ recette staging v1.2.0-rc.1 (2026-07-23) sur l'ancienne interface.
 
-- **Description** : avec 26 types d'entités désormais regroupés en 8 familles, les nœuds de la Constellation sont colorés par famille (pas par type individuel, illisible à 26 teintes) et les chips de filtre sont regroupées par famille (`<fieldset>` imbriqué par groupe, en-tête « Tout »/« Rien » par famille) plutôt qu'en 26 chips à plat.
-- **Objectif** : vérifier que le filtre par type reste fonctionnel pendant la coexistence des 26 types, que chaque famille a bien sa propre teinte, que « Tout »/« Rien » bascule bien tous les types d'une famille d'un coup, et que la couleur n'est jamais le seul moyen de distinguer un type (libellés textuels toujours présents).
-- **Préconditions** : un monde contient des entités d'au moins deux types de familles différentes.
-- **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Vérifier qu'une chip existe pour chaque type, regroupée sous l'en-tête de sa famille. 3) Cliquer une chip, puis « Rien » sur une famille.
-- **Résultat attendu** : chaque famille a son propre en-tête (`<legend>`) regroupant ses chips et ses boutons « Tout »/« Rien » ; cliquer une chip masque bien les nœuds de ce type précis (pas toute la famille) ; « Rien » dépresse toutes les chips de la famille d'un coup ; le libellé texte du type reste visible au clic/survol d'un nœud (couleur = famille, hover MINT, jamais l'unique moyen d'identifier le type précis).
-- **Critères d'acceptation** : palette à 8 teintes validée par le skill `dataviz` du projet (`node scripts/validate_palette.js`, bande de luminosité/chroma/CVD/contraste, toutes passantes en mode sombre) ; vérifié en conditions réelles (`e2e/graph.spec.ts` : chip « Lieu » présente, pressée, dépressée après clic, entrée créée via le combobox de type KAN-18) ; vérification manuelle Aymeric du « Tout »/« Rien » par famille et du hover MINT (non couvert par e2e).
-- **Type** : fonctionnel + accessibilité (couleur jamais seule, C2.2.3) · **Statut** : ⚠️ Recette staging v1.2.0-rc.1 (2026-07-23) : familles regroupées (`<legend>`), chip individuelle isole bien son type, « Rien » bascule toute la famille — ❌ mais le type d'un nœud n'est identifiable que par sa couleur, aucun libellé au survol/clic. Capture prise (illustre aussi le défaut). → `plan-correction-bogues.md` BUG-012, arbitré P2/report, ne bloque pas le tag v1.2.0.
+- **Description** : la pilule « Fils » (`<button aria-expanded aria-controls>`) ouvre un panneau en verre contenant la navigation « Liste des liens de la constellation » : chaque entrée qui a au moins un lien, avec un vrai lien vers chacune de ses cibles (« Parent de → Aldric », « → Mira », « ↔ Port-Brume » pour une paire mutuelle). C'est l'équivalent textuel du canvas, qui reste `aria-hidden` : une paire n'y apparaît qu'une fois, et la liste applique les mêmes filtres que le ciel.
+- **Objectif** : vérifier que tout ce que montre le ciel est atteignable au clavier, sans doublon, et que l'habillage du ciel (KAN-85) n'a rien retiré de la liste.
+- **Préconditions** : un monde où Selyne déclare « Parent de » vers Aldric et cite Mira, et où Mira et Port-Brume se citent mutuellement.
+- **Étapes** : 1) Tabuler jusqu'à la pilule « Fils », Entrée. 2) Parcourir la liste au clavier. 3) Désactiver « Lieu » dans « Filtres », revenir à « Fils ». 4) Suivre le lien « Parent de → Aldric ». **Cas d'échec** : 5) Échap dans le panneau. 6) Monde sans aucun lien.
+- **Résultat attendu** : 1) le panneau s'ouvre, la pilule passe à `aria-expanded="true"` ; 2) sous Selyne : « Parent de → Aldric » et « → Mira », la paire Mira–Port-Brume une seule fois avec « ↔ » ; 3) Port-Brume disparaît de la liste, qui annonce le filtre ; 4) la fiche d'Aldric s'ouvre ; 5) le panneau se ferme, le focus revient à la pilule ; 6) la liste dit qu'il n'y a aucun lien, sans erreur.
+- **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement, tri, paire mutuelle et double origine sans doublon, extrémité disparue omise) ; `graph-filters.test.ts` (mêmes filtres que le canvas) ; `e2e/graph.spec.ts` (étape 7 : pilule « Fils », lien `→ cible`, navigation vers la fiche) ; `e2e/declared-relations.spec.ts` scénario 3.
+- **Type** : accessibilité (élim.) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-004 — Constellation : couleur par groupe, jamais seule (KAN-18, KAN-85)
+
+> **Réécrit le 2026-10-31 (KAN-85).** L'ancien scénario (26 types, pastilles par famille sous `<fieldset>`) avait relevé que le type d'une étoile n'était identifiable que par sa couleur (BUG-012, P2 reporté). Ce défaut est levé : la carte de sélection affiche le type et son icône (KAN-87, icône ajoutée par KAN-85) et la légende du ciel associe chaque couleur à un nom et une icône. Historique : ⚠️ recette staging v1.2.0-rc.1 (2026-07-23).
+
+- **Description** : chaque étoile prend la couleur de son groupe (huit jetons `--sky-star-*`). Trois chemins donnent le type sans la couleur : la carte de sélection (clic sur une étoile : libellé du type et son icône), la **légende du ciel** dans le panneau du menu du titre (une ligne par groupe non vide : pastille, icône, nom, nombre) et la liste « Fils ». La légende est une liste `<ul aria-label="Légende du ciel">`, hors du `role="menu"`.
+- **Objectif** : vérifier que la couleur n'est jamais le seul moyen d'identifier un type (RGAA 3.1, WCAG 1.4.1) et que la légende est juste et correctement exposée aux lecteurs d'écran.
+- **Préconditions** : un monde avec des personnages et un lieu, dont un type personnalisé rangé dans « Lieux ».
+- **Étapes** : 1) Cliquer une étoile de lieu. 2) Ouvrir le menu du titre au clavier (Entrée). 3) Lire la légende au lecteur d'écran, puis descendre aux flèches. 4) Comparer la couleur d'une pastille à celle des étoiles du groupe. **Cas d'échec** : 5) monde vide ; 6) groupe sans entrée.
+- **Résultat attendu** : 1) la carte affiche le type (type personnalisé compris) avec son icône ; 2) le panneau montre la légende puis les deux actions, focus sur « Paramètres du monde » ; 3) la liste est annoncée « Légende du ciel », une ligne par groupe avec son nombre ; les flèches ne parcourent que les deux actions ; 4) même couleur (même jeton) ; 5) ni légende ni total ; 6) le groupe n'a pas de ligne.
+- **Critères d'acceptation** : `world-title-menu.test.tsx` (liste hors du menu, pastille au jeton du ciel, flèches sur les actions, monde vide) ; `e2e/graph.spec.ts` (étape 5 ter : liste « Légende du ciel », menu à deux éléments sans liste) ; `sky-stylesheet.test.ts` (couleur par groupe) ; audit axe du panneau ouvert : 0 violation (2026-10-31).
+- **Type** : fonctionnel + accessibilité (élim., C2.2.3) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
 
 ## TST-GRF-005 — Constellation : une arête par paire, relation déclarée prioritaire (KAN-84)
 
@@ -898,6 +936,76 @@
 - **Résultat attendu** : 1) seules Selyne, Aldric et Kael restent ; 2) Mira absente de la liste ; 3) isolement conservé ; 4) Mira réapparaît ; 5) Kael disparaît (parcours sur les arêtes visibles) ; 6) Selyne et ses voisins disparaissent ; 7) tout revient ; 8) le filtre est ignoré, aucune erreur.
 - **Critères d'acceptation** : `graph-filters.test.ts` (isoler et masquer à 1, 2 et tous, parcours sur arêtes filtrées, entrée disparue ou filtrée ignorée) ; `e2e/constellation.spec.ts` (« isoler une entree a 1 saut »).
 - **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-011 — Ciel d'histoires : arrivée dans un monde (KAN-85)
+
+- **Description** : à l'ouverture d'un monde, les étoiles s'allument par paquets, des plus liées aux moins liées, puis les relations déclarées se tracent d'une étoile à l'autre, puis les liens du texte apparaissent en fondu. L'arrivée dure environ 1 s quelle que soit la taille du monde. Avec `prefers-reduced-motion: reduce`, le ciel est affiché d'emblée dans son état final.
+- **Objectif** : vérifier que l'animation respecte le réglage du système, ne bloque jamais l'interaction et ne laisse jamais voir un ciel plein avant de s'éteindre.
+- **Préconditions** : un monde d'au moins 20 entrées avec des relations déclarées et des liens du texte.
+- **Étapes** : 1) Ouvrir le monde. 2) Pendant l'arrivée, cliquer une étoile déjà allumée. 3) Activer « réduire les animations » dans le système, recharger. **Cas d'échec** : 4) recharger plusieurs fois de suite rapidement ; 5) ouvrir un monde vide.
+- **Résultat attendu** : 1) aucune étoile visible avant le début, puis allumage par paquets et tracé des lignes ; aucun décalage de mise en page (CLS 0) ; 2) la carte de l'étoile s'ouvre immédiatement ; 3) toutes les étoiles visibles immédiatement, aucune transition ; 4) aucune étoile restée éteinte ; 5) aucune erreur.
+- **Critères d'acceptation** : `sky-arrival.test.ts` (ordre par éclat, au plus 8 paquets d'étoiles, fin avant ~1 s, reduced-motion = calendrier vide) ; `e2e/constellation.spec.ts` (« a l'arrivee, toutes les etoiles sont visibles immediatement » en reduced-motion, « un clic sur une etoile pendant l'arrivee animee ouvre sa carte ») ; banc de performance (TST-GRF-016).
+- **Type** : fonctionnel + accessibilité (RGAA 13.8) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-012 — Ciel d'histoires : éclairage d'une constellation au survol (KAN-85)
+
+- **Description** : au survol d'une étoile, elle, ses voisins et leurs lignes restent lumineux et nommés ; le reste du ciel s'atténue (fondu de 300 ms, retour en 200 ms). Les libellés des lignes éclairées s'affichent. L'éclairage est suspendu pendant un glisser.
+- **Objectif** : vérifier que l'éclairage suit le pointeur, n'éteint jamais une étoile liée, et ne gêne pas le glisser.
+- **Préconditions** : un monde où Selyne est reliée à Aldric, et Kael n'est relié à aucun des deux.
+- **Étapes** : 1) Survoler Selyne. 2) Quitter Selyne. 3) Glisser Selyne en passant sur d'autres étoiles. **Cas d'échec** : 4) survoler rapidement une dizaine d'étoiles ; 5) reduced-motion actif.
+- **Résultat attendu** : 1) Selyne et Aldric lumineux et nommés, libellé de leur ligne visible, Kael atténué ; 2) tout le ciel revient ; 3) aucun éclairage pendant le glisser ; 4) l'éclairage suit la dernière étoile survolée, aucune étoile ne reste atténuée ; 5) changement immédiat, sans fondu.
+- **Critères d'acceptation** : `sky-stylesheet.test.ts` (durées 300 / 200 ms, 0 en reduced-motion, classes `is-lit` / `is-dimmed`) ; `e2e/constellation.spec.ts` (« survol d'une etoile : ses voisins restent lumineux, une etoile non liee s'attenue », voisin nommé).
+- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-013 — Ciel d'histoires : tracé d'une relation créée depuis le ciel (KAN-85)
+
+- **Description** : après « Créer » dans la boîte « Nouvelle relation » (geste de TST-GRF-008), la nouvelle ligne se dessine de la source vers la cible, puis la cible lance un bref éclat. Aucune étoile ne bouge.
+- **Objectif** : vérifier que la création est visible, qu'elle ne relance pas la mise en page et qu'un échec ne laisse aucune ligne.
+- **Préconditions** : un monde contenant Selyne et Aldric, non reliés.
+- **Étapes** : 1) `Shift` + glisser de Selyne vers Aldric, « Allié », « Créer ». 2) Observer la ligne et l'éclat. **Cas d'échec** : 3) recréer la même relation ; 4) reduced-motion actif.
+- **Résultat attendu** : 1) et 2) la ligne se trace de Selyne vers Aldric, Aldric brille un instant, puis la ligne prend son style normal ; aucune étoile n'a bougé ; 3) « Cette relation existe déjà. », aucun tracé ; 4) la ligne apparaît directement.
+- **Critères d'acceptation** : `e2e/constellation.spec.ts` (« Shift + glisser de Selyne vers Aldric » : relation créée, aucune étoile déplacée) ; banc de performance, scénario « relation » (TST-GRF-016). Le tracé lui-même n'est pas lisible par l'e2e : validation visuelle Aymeric.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-014 — Ciel d'histoires : éclat des étoiles et noms selon le zoom (KAN-85)
+
+- **Description** : l'éclat d'une étoile (taille du cœur et lueur) dépend de son nombre de voisins distincts : palier 0 sans voisin, 1 à partir de 1, 2 à partir de 5, 3 à partir de 12. Au-delà de 50 étoiles visibles, les noms suivent le zoom relatif au cadrage « ajuster » : palier 3 seul en vue d'ensemble, palier 2 à ×1,4, palier 1 à ×2, tous à ×2,8. Jusqu'à 50 étoiles visibles, tous les noms s'affichent. Les libellés de relation s'affichent au survol et à la sélection, et au zoom seulement si 40 lignes visibles ou moins.
+- **Objectif** : vérifier que le ciel reste lisible sur un grand monde sans jamais retirer un nom en zoomant.
+- **Préconditions** : le monde « Ciel de test · 300 » (`npm run seed:perf`) et le monde Atheraus.
+- **Étapes** : 1) Ouvrir le monde de 300, « Ajuster ». 2) Zoomer par crans jusqu'à ×3. 3) Cliquer une étoile peu liée en vue d'ensemble. 4) Ouvrir Atheraus. **Cas d'échec** : 5) filtrer jusqu'à 50 étoiles visibles ou moins sur le monde de 300 ; 6) dézoomer au minimum.
+- **Résultat attendu** : 1) seuls les astres (palier 3) sont nommés ; 2) les paliers apparaissent un par un, aucun nom ne disparaît en zoomant ; 3) l'étoile sélectionnée est nommée, les libellés de ses lignes sont visibles ; 4) tous les noms ; 5) tous les noms reviennent ; 6) aucune erreur, les astres restent nommés.
+- **Critères d'acceptation** : `star-brightness.test.ts` (paliers, voisins distincts) ; `sky-detail.test.ts` (zoom relatif borné, monotonie, petit monde, seuil des libellés) ; `sky-stylesheet.test.ts` (image d'étoile à dégradé radial, aucun rayon, opacité nulle au bord, croissance par palier).
+- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-015 — Ciel d'histoires : constellations et « Ajuster à l'écran » (KAN-85)
+
+- **Description** : au premier affichage d'un monde et à « Réorganiser », les étoiles sont regroupées en constellations (communautés de leurs relations, une relation déclarée comptant double), chacune disposée à part, orientée vers ses voisines puis rangée près d'elles ; les étoiles sans lien forment un arc sous le ciel. « Ajuster à l'écran » évite les seuls coins occupés par l'interface (titre et total, pilules, contrôles, sidebar en verre ouverte) et remplit 85 % de l'espace libre.
+- **Objectif** : vérifier que les constellations déclarées ressortent, que la disposition est déterministe et qu'une disposition mémorisée n'est jamais recalculée.
+- **Préconditions** : les mondes « Ciel de test · 300 » et Atheraus.
+- **Étapes** : 1) Ouvrir le monde de 300 juste après `npm run seed:perf` (aucune disposition). 2) « Ajuster ». 3) Ouvrir la sidebar, « Ajuster ». 4) Sur Atheraus, « Réorganiser automatiquement » deux fois. **Cas d'échec** : 5) déplacer une étoile, recharger ; 6) créer une entrée.
+- **Résultat attendu** : 1) des groupes d'étoiles distincts, reliés surtout à l'intérieur, sans chevauchement ; 2) aucune étoile sous le titre, les pilules ou les contrôles, le ciel occupe l'écran (zoom ≈ 0,64 sur le monde de 300 en 1920×1080) ; 3) le ciel se décale hors de la sidebar ; 4) deux fois la même disposition ; 5) l'étoile reste où on l'a lâchée, rien n'est recalculé ; 6) seule la nouvelle étoile est placée.
+- **Critères d'acceptation** : `sky-communities.test.ts` (Louvain déterministe, poids 2 / 1) ; `graph-layout.test.ts` (`packCommunities`, `orientBlocks`, `isolatedArcPositions`, `freeRects`, `fitViewport` à 85 %) ; `sky-arrange.test.ts` (vrai fcose, cas Atheraus, monde de 300, déterminisme) ; `e2e/constellation.spec.ts` (« Reorganiser puis Annuler », « deplacer une etoile puis recharger »).
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+
+## TST-GRF-016 — Ciel d'histoires : performance sur 300 entrées (KAN-85)
+
+- **Description** : le banc `npm run perf:constellation` mesure la Constellation sur le monde « Ciel de test · 300 » dans un build de production (Chromium visible, 1920×1080) : premier affichage, arrivée, repos, zoom, déplacement, glisser, survol, création d'une relation, à CPU ×1 et ×4.
+- **Objectif** : vérifier la cible de la vision visuelle (60 images/s sur 300 entrées) sur le poste de référence, et documenter l'écart sur machine modeste.
+- **Préconditions** : un compte de développement, `npm run seed:perf -- <email>`, build lancé avec `NEXT_PUBLIC_E2E_HOOKS=1`, serveur de développement arrêté.
+- **Étapes** : 1) `npm run perf:constellation -- <email> <mdp> --reseed --runs=5`. 2) Même commande avec `--runs=3 --cpu=4`. **Cas d'échec** : 3) lancer sans le crochet ; 4) lancer `seed:perf` sur une base distante.
+- **Résultat attendu** : 1) à ×1 : déplacement et glisser 59,9 images/s, zoom ≈ 57, survol ≈ 54, création d'une relation ≈ 54, CLS 0 ; 2) à ×4 : sous 60 pour le zoom, le glisser et le survol, comme C1 (limite connue acceptée le 2026-10-31) ; 3) arrêt explicite « Crochet e2e absent » ; 4) refus avant toute requête (TST-SEC-019).
+- **Critères d'acceptation** : tableau avant / après dans `docs/performance-constellation.md` ; `perf-world-generator.test.ts` et `perf-world-service.test.ts` (monde déterministe, 300 entrées, 600 liens, 150 relations).
+- **Type** : performance (C2.1.1) · **Statut** : ✅ à ×1 (mesure du 2026-10-31) — ⚠️ à ×4 : limite connue et acceptée, ticket d'optimisation proposé.
+
+## TST-GRF-017 — Constellation : une nouvelle étoile ne se pose jamais sur une autre (BUG-019)
+
+- **Description** : une entrée créée sans lien est placée automatiquement dans le champ, autour des étoiles existantes figées. Si cette place est déjà occupée, l'étoile est décalée vers la place libre la plus proche, toujours dans le champ.
+- **Objectif** : vérifier qu'aucune étoile n'en cache une autre après des créations successives (non-régression de BUG-019).
+- **Préconditions** : un compte connecté, un monde vide.
+- **Étapes** : 1) Créer Astrid, ouvrir la page du monde. 2) Créer Brann, revenir à la page du monde. 3) Créer Cael, revenir à la page du monde. 4) Cliquer chaque étoile. **Cas d'échec** : 5) créer une dizaine d'entrées sans lien de suite, en revenant chaque fois à la page du monde.
+- **Résultat attendu** : 1) à 3) chaque nouvelle étoile est visible, à l'écart des autres, et aucune étoile existante n'a bougé ; 4) chaque clic ouvre la carte de l'étoile cliquée ; 5) toutes les étoiles sont visibles et distinctes, aucune hors champ.
+- **Critères d'acceptation** : `graph-layout.test.ts` (« separateFromStars (BUG-019) ») ; `e2e/constellation.spec.ts` (« un clic sur une etoile pendant l'arrivee animee ouvre sa carte » : trois étoiles créées une par une, la carte de l'étoile visée s'ouvre).
+- **Type** : fonctionnel + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-31) — ⬜ à repasser à la recette staging.
 
 ## TST-QOT-001 — Quota de mondes : blocage au-delà de 3 mondes gratuits
 

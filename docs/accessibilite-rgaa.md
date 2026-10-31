@@ -79,6 +79,42 @@ Sur le groupe `(app)` (`/worlds`, `/worlds/[slug]`, `/worlds/[slug]/entities/[en
   une derrière : voile prévu en C2). Notifications locales en `role="status"`
   `aria-live="polite"`. Le h1 est le nom du monde (le fil d'ariane ne le répète
   plus sur cette page).
+- **Ciel d'histoires (KAN-85, 2026-10-31, ADR-0033)** : habillage de la
+  Constellation, sans changer son modèle d'accessibilité (canvas `aria-hidden`,
+  zone focusable, liste « Fils » équivalente).
+  - **Contrastes mesurés.** Le total, les noms et le texte du verre sont
+    calculés dans `sky-theme.test.ts`, qui échoue sous 4,5:1. Le titre a été
+    mesuré par script, sur le ciel rendu :
+    - titre posé sur son voile radial (`.sky-title-veil`) : 12,94:1, même avec
+      une étoile dessous (le voile prévu par KAN-87 est livré) ;
+    - total des entrées sous le titre (`--sky-total`) : 7,38:1 sur le ciel et
+      6,57:1 au pire sous le voile ;
+    - noms des étoiles : 14,2:1 ;
+    - texte secondaire des panneaux en verre (`--glass-text-muted`, sidebar
+      comprise) : 5,62:1.
+  - **Couleur jamais seule (1.4.1)** : la couleur d'une étoile dit son groupe.
+    La carte de sélection affiche le type et son icône. La **légende du ciel**
+    (menu du titre) donne pour chaque groupe une pastille, l'icône, le nom et
+    le nombre. C'est une vraie liste `<ul aria-label="Légende du ciel">`,
+    placée dans le panneau du menu mais **hors du `role="menu"`** (ARIA
+    strict : un menu ne contient que des éléments de menu). Le `role="menu"`
+    ne porte que sur les deux actions, toujours parcourues aux flèches. axe :
+    0 violation sur le panneau ouvert.
+  - **Animations (13.8)** : arrivée, éclairage au survol et tracé d'une
+    relation ne touchent qu'à l'opacité, la taille et le trait, ne bloquent
+    jamais un clic, et sont supprimées avec `prefers-reduced-motion: reduce`
+    (état final directement ; e2e « reduced-motion »).
+  - **Focus visible (10.7)** : le contour de la zone du ciel apparaît au
+    clavier et jamais après un clic (`data-pointer-focus`). Un `outline-none`
+    global aurait cassé le clavier (e2e « contour de focus »).
+  - **Sidebar repliée (12.8, ordre de tabulation)** : correctif. Ses liens
+    restaient tabulables une fois repliée (jusqu'à 300). Elle est désormais
+    `inert` ou absente, et le focus revient au bouton qui la déplie
+    (`e2e/sidebar-collapsed-keyboard.spec.ts`). Sur la page du monde, la
+    sidebar dépliée est un panneau en verre posé sur le ciel, sous le titre.
+  - **Pied de page** : la flèche « aller au pied de page » reste un vrai
+    `<button>`. Sa bande invisible ne capte plus le pointeur : elle
+    recouvrait « Réorganiser automatiquement » (`e2e/scroll-hint-controls.spec.ts`).
 - **Constellation (graphe de relations)** (2026-07-17, ADR-0012, mis à jour
   2026-07-21 KAN-36 P5, `/worlds/[slug]/graph`) : le canvas Cytoscape
   (`graph-view.tsx`) ne peut exposer aucun élément individuel au clavier/lecteur

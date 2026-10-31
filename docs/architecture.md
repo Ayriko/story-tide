@@ -85,6 +85,34 @@ Réutiliser/adapter le diagramme C4 du Bloc 1 (archi.png / archi.js) — pas enc
   partagé par le canvas et la liste accessible, mémorisé dans le navigateur. Le
   geste de liaison (cytoscape-edgehandles) ouvre une boîte qui crée la relation
   par l'action existante de KAN-84.
+- **Le ciel d'histoires (KAN-85, ADR-0033)** : habillage de la Constellation,
+  sans changement de modèle ni de couche serveur.
+  - **Thème** : les jetons CSS `--sky-*` (`globals.css`) sont lus une fois au
+    montage par `readSkyPalette` (`src/lib/sky-theme.ts`), validés, avec
+    repli sur des valeurs sûres. La feuille Cytoscape est construite par une
+    fonction pure (`src/lib/sky-stylesheet.ts`), sans fonction de style :
+    sélecteurs constants par groupe et par palier, pour un recalcul de style
+    peu coûteux.
+  - **Fond** : semis et arcs déterministes par monde (`src/lib/sky-backdrop.ts`),
+    en masques SVG posés en variables CSS et peints en `::before` sous le
+    canvas. Aucun coût par image.
+  - **Modules purs**, chacun testé : `star-brightness.ts` (paliers d'éclat),
+    `sky-detail.ts` (noms et libellés selon le zoom relatif),
+    `sky-arrival.ts` (calendrier de l'arrivée), `sky-communities.ts`
+    (Louvain), `graph-layout.ts` (rangement, orientation, arc, `fitViewport`
+    par coins réservés) et `sky-arrange.ts` (orchestration de la disposition
+    sur une instance Cytoscape).
+  - **Composants** : `graph-view.tsx` applique ces calculs, et
+    `graph/sky-animations.ts` applique les animations (arrivée, éclairage
+    incrémental, tracé). `constellation.tsx` mesure les coins occupés par
+    l'interface.
+  - **Préférence de la sidebar** : un cookie lu par le layout du monde
+    (`cookies()`), puis par `useSyncExternalStore` côté client
+    (`src/lib/sidebar-preference.ts`). Plus de saut à l'hydratation.
+  - **Monde de test et banc de performance** : `prisma/seed/perf.ts`,
+    `src/services/perf-world-service.ts` et `src/lib/perf-world-generator.ts`
+    (garde `src/lib/dev-script-guard.ts`), `scripts/perf-constellation.ts`
+    (`docs/performance-constellation.md`).
 - **Schéma de contenu partagé client/serveur** : `src/lib/tiptap-extensions.ts` définit
   une seule fois l'allowlist de nodes/marks de l'éditeur, utilisée à la fois par le
   composant client (`EntityEditor`) et par la validation serveur
