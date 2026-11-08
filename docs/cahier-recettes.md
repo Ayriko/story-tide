@@ -600,13 +600,13 @@
 
 ## TST-SEC-019 — Cookie de préférence altéré et seed de performance hors développement (KAN-85)
 
-- **Description** : la préférence de repli de la sidebar est le seul cookie non `HttpOnly` de l'application ; elle ne porte que `"0"` ou `"1"`. Le script `seed:perf`, qui supprime puis recrée un monde, refuse de tourner hors d'une base locale de développement.
+- **Description** : la préférence de repli de la sidebar est le seul cookie non `HttpOnly` de l'application ; elle ne porte que `"0"` ou `"1"`. Les scripts `seed:perf` (qui supprime puis recrée un monde), `seed:intro` et `admin:promote` refusent de tourner hors d'une base locale de développement.
 - **Objectif** : vérifier qu'une valeur forgée n'a aucun effet et qu'un script destructif ne peut pas viser la production (OWASP A05).
 - **Préconditions** : un compte connecté ; un fichier d'environnement de test.
-- **Étapes** : 1) Écrire `story-tide-sidebar-collapsed-constellation=<script>` puis `=2` dans le navigateur, ouvrir un monde. 2) Lire les attributs du cookie après un basculement en HTTPS (staging). 3) Lancer `seed:perf` avec `NODE_ENV=production`. 4) Le lancer avec une `DATABASE_URL` distante. 5) Le lancer sans `DATABASE_URL`.
+- **Étapes** : 1) Écrire `story-tide-sidebar-collapsed-constellation=<script>` puis `=2` dans le navigateur, ouvrir un monde. 2) Lire les attributs du cookie après un basculement en HTTPS (staging). 3) Lancer `seed:perf`, `seed:intro` et `admin:promote` avec `NODE_ENV=production`. 4) Les lancer avec une `DATABASE_URL` distante. 5) Les lancer sans `DATABASE_URL`.
 - **Résultat attendu** : 1) valeur ignorée, défaut de la page, rien n'est réinjecté dans la page ; 2) `Path=/`, `SameSite=Lax`, `Secure`, un an ; 3) à 5) refus explicite avant toute requête, aucune écriture.
-- **Critères d'acceptation** : `sidebar-preference.test.ts` (seules `0` et `1` acceptées, nom exact, attributs) ; `dev-script-guard.test.ts` (production, hôte distant, URL absente ou invalide, cause chaînée) ; `docs/securite-owasp.md` A05.
-- **Type** : sécurité / cas d'échec · **Statut** : ✅ (tests unitaires verts, 2026-10-31) — ⬜ étape 2 à passer à la recette staging.
+- **Critères d'acceptation** : `sidebar-preference.test.ts` (seules `0` et `1` acceptées, nom exact, attributs) ; `dev-script-guard.test.ts` (production, hôte distant, URL absente ou invalide, cause chaînée) ; `dev-script-guard.scripts.test.ts` (`seed:intro` et `admin:promote` : refus en production et sur hôte distant, aucune requête) ; `docs/securite-owasp.md` A05.
+- **Type** : sécurité / cas d'échec · **Statut** : ✅ (tests unitaires verts, 2026-10-31 ; garde étendue à `seed:intro` et `admin:promote`, 2026-11-08) — ⬜ étape 2 à passer à la recette staging.
 
 ## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
 
