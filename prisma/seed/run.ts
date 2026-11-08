@@ -7,7 +7,11 @@
 // Auth gere seul la creation de compte) puis delegue tout le travail a
 // seedIntroWorld (src/services/intro-world-service.ts), la meme fonction que
 // celle branchee sur l'inscription (KAN-35, cf. registerAction).
+//
+// Garde : refus net si NODE_ENV=production ou si la base n'est pas locale,
+// AVANT toute requete (src/lib/dev-script-guard.ts).
 import { prisma } from "@/db/client";
+import { assertLocalDevDatabase } from "@/lib/dev-script-guard";
 import { jobQueue } from "@/lib/queue";
 import { seedIntroWorld } from "@/services/intro-world-service";
 
@@ -21,6 +25,11 @@ function parseOwnerEmail(): string {
 }
 
 async function main(): Promise<void> {
+  assertLocalDevDatabase({
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL,
+  });
+
   const email = parseOwnerEmail();
   const user = await prisma.user.findUnique({
     where: { email },

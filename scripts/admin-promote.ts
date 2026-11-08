@@ -6,10 +6,19 @@
 //
 // En production, pas de script dans le conteneur : les deux requetes SQL
 // equivalentes sont dans docs/manuels/exploitation-vps.md §4.
+//
+// Garde : refus net si NODE_ENV=production ou si la base n'est pas locale,
+// AVANT toute requete (src/lib/dev-script-guard.ts).
 import { prisma } from "@/db/client";
+import { assertLocalDevDatabase } from "@/lib/dev-script-guard";
 import { AdminUserNotFoundError, promoteToAdmin } from "@/services/admin-user-service";
 
 async function main(): Promise<void> {
+  assertLocalDevDatabase({
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL,
+  });
+
   const email = process.argv[2];
   if (!email) {
     throw new Error("Usage : npm run admin:promote -- <email d'un compte existant>");
