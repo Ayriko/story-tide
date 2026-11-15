@@ -21,12 +21,17 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 - Page d'un monde (KAN-87) : le tableau de bord laisse place à la Constellation. Le titre du monde et ses compteurs sont posés sur le canvas, la sidebar y est repliée par défaut (le choix de la déplier est mémorisé), la barre du haut devient transparente et le pied de page reste accessible sous le canvas. `/worlds/[slug]/graph` redirige vers la page du monde. Le fond quadrillé du graphe disparaît (fond uni) ; les libellés des relations ne s'affichent plus qu'au survol ou à partir d'un zoom de 1. Le bouton « Rechercher » du tableau de bord et l'astuce du jour sont retirés (la recherche reste dans la sidebar et la palette Ctrl+K).
 - Disposition de la Constellation (KAN-85) : au premier affichage d'un monde et à « Réorganiser », les étoiles sont regroupées en constellations (communautés de leurs relations, les relations déclarées comptant double), chacune disposée à part puis rangée près de ses voisines ; les étoiles sans lien forment un arc sous le ciel. Une disposition déjà enregistrée n'est jamais recalculée. « Ajuster à l'écran » n'évite plus qu'une bande en haut, mais les seuls coins occupés par l'interface, et remplit l'écran à 85 %.
 - Page d'un monde (KAN-85) : la sidebar dépliée devient un panneau en verre posé sur le ciel, sous le titre, au lieu de le pousser. Sa préférence est désormais gardée dans un cookie lu par le serveur (la page arrive dans le bon état, sans saut) ; l'ancienne préférence du navigateur est reprise une fois. Le titre est posé sur un voile qui le garde lisible quand une étoile passe dessous ; les compteurs quittent le ciel pour la légende du menu du titre. Le ciel se fond dans le pied de page, sans bordure.
+- Scripts de développement `seed:intro` et `admin:promote` : même garde « base locale » que `seed:perf`, refus avant toute requête si `NODE_ENV=production` ou si la base n'est pas locale.
 
 ### Corrigé
 
 - Sidebar d'un monde repliée encore atteignable au clavier (KAN-85) : ses liens restaient dans l'ordre de tabulation (jusqu'à 300 sur un grand monde) ; elle est désormais inerte une fois repliée et, si le focus y était, il revient au bouton qui la déplie.
 - Constellation (KAN-85) : la bande invisible de la flèche « aller au pied de page » recouvrait « Réorganiser automatiquement », dont le clic n'avait aucun effet ; seule la flèche capte désormais le pointeur.
 - Constellation (KAN-85) : une entrée créée sans lien pouvait être placée exactement sur une étoile existante, qui devenait invisible et impossible à cliquer ; une nouvelle étoile est désormais décalée vers la place libre la plus proche, toujours dans le champ.
+
+### Supprimé
+
+- DevDependency `@types/cytoscape` : Cytoscape fournit ses propres types (`cytoscape/index.d.ts`).
 
 ### Limites connues
 
