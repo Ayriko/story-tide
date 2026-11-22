@@ -37,6 +37,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 - Performance de la Constellation sur machine modeste (KAN-85) : sur le poste de référence, 55 à 60 images/s dans toutes les interactions sur 300 entrées ; avec le processeur ralenti ×4, le zoom, le glisser et le survol descendent entre 15 et 32 images/s (déjà sous 60 en C1 : zoom 20,9, glisser 20,1). Limite acceptée le 2026-10-31, KAN-88 (`docs/performance-constellation.md`).
 - Couleurs proches à petite taille dans le ciel (Écologie et Magie, Lieux et Divers) : la couleur n'est jamais seule (nom et icône dans la légende et la carte de sélection) ; KAN-90.
+- « Réorganiser automatiquement » ne donne pas deux fois la même disposition : la mise en page part d'un tirage aléatoire (recette de la v1.7.0-rc.1, KAN-91).
+- « Nouveau type » d'entrée : après une erreur de validation, le groupe choisi repasse sur « Personnages » (recette de la v1.7.0-rc.1, KAN-92).
 
 ## [1.6.0] - 2026-10-18
 
