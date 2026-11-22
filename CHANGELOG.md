@@ -5,6 +5,8 @@ Ce projet suit [SemVer](https://semver.org/lang/fr/).
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-22
+
 ### Ajouté
 
 - Types d'entrées personnalisés par monde (KAN-81, ADR-0030). Une nouvelle page `/worlds/[slug]/settings`, avec les sous-onglets « Général » et « Types d'entrées », permet de créer, modifier et supprimer un type personnalisé (libellé, groupe, icône) et de masquer les types natifs inutilisés. Une entrée d'un type masqué garde son type et l'affiche toujours. La suppression d'un type utilisé passe par une réaffectation de ses entrées, faite dans une seule transaction. Les types personnalisés apparaissent partout : sélecteur de type, sidebar, recherche, fiche, tableau de bord et filtre de la Constellation. Côté modèle, une migration additive ajoute la table `CustomEntityType`, la colonne `Entity.customTypeId` (clé étrangère `NO ACTION` et contrainte `CHECK`) et la colonne `World.hiddenEntityTypes`.
