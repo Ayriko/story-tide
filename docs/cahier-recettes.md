@@ -272,7 +272,7 @@
 - **Étapes** : 1) Ouvrir le menu du titre du monde (clavier : Entrée), choisir « Types d'entrées » ; vérifier aussi le lien « Paramètres du monde » en pied de sidebar. 2) « Nouveau type » : libellé « Vaisseau », groupe « Objets », icône « Navire », « Créer le type ». 3) « Modifier » ce type : libellé « Navire stellaire ». 4) Désactiver « Proposer le type » de « Prophétie » d'un seul clic, puis recharger la page. 5) Ouvrir « Nouvelle entrée », chercher « Prophétie ». 6) Ouvrir l'entrée existante de type Prophétie. **Cas d'échec** : 7) créer un type « personnagé » ; 8) créer un second type « NAVIRE STELLAIRE » ; 9) libellé vide, puis 41 caractères ; 10) masquer les 26 natifs sans type personnalisé ; 11) parcourir toute la page au clavier seul (Tab, Espace sur les curseurs, flèches dans la grille d'icônes).
 - **Résultat attendu** : 2) le type apparaît dans « Types personnalisés » avec son groupe et « aucune entrée » ; 3) le nouveau libellé s'affiche partout ; 4) le curseur se désactive dès le premier clic (état annoncé par le lecteur d'écran) et le reste après rechargement ; 5) « Aucun type trouvé. » ; 6) le badge affiche toujours « Prophétie » ; 7)-8) « Ce libellé est déjà utilisé dans ce monde. », relié au champ ; 9) « Le libellé est requis. » / « 40 caractères maximum. » ; 10) le dernier curseur revient en arrière avec le message « Au moins un type doit rester proposé dans ce monde. » ; 11) chaque contrôle est atteignable, focus visible, noms accessibles distincts (« Proposer le type Prophétie », « Modifier le type Vaisseau »).
 - **Critères d'acceptation** : `entity-type-service.test.ts` (NFC, `labelKey`, collision native et personnalisée, P2002 converti avec cause, garde du dernier type proposable) ; `world-settings.test.ts` (Zod, sans session, monde d'autrui) ; `custom-type-form.test.tsx`, `native-types-section.test.tsx` (dont la non-régression « bascule au premier clic », bug constaté en vérification manuelle : case à cocher contrôlée réinitialisée par React 19 après l'action) ; `world-title-menu.test.tsx` ; `entity-type-combobox.test.tsx` (masqué absent sauf type courant) ; `e2e/world-settings.spec.ts` scénario 2.
-- **Type** : fonctionnel / accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-20) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel / accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-20) — ❌ Recette staging v1.7.0-rc.1 (2026-11-22) : après une erreur de validation, le groupe repasse sur « Personnages » ; KAN-92 (BUG-021), publié en limite connue de la v1.7.0. Étapes 2 à 9 conformes.
 
 ## TST-MND-012 — Supprimer un type personnalisé avec réaffectation de ses entrées (KAN-81)
 
@@ -282,7 +282,7 @@
 - **Étapes** : 1) « Supprimer le type Vaisseau ». 2) Observer le bouton « Supprimer le type ». 3) Choisir « Objet » dans le choix global, puis « Besace (perso) » pour la seconde entrée. 4) Confirmer. 5) Ouvrir les deux entrées. **Cas d'échec** : 6) ouvrir la fenêtre, puis, dans un autre onglet, créer une troisième entrée « Vaisseau » ; confirmer dans le premier onglet. 7) Rejouer la requête en remplaçant une cible par `custom:<id d'un type d'un autre monde>`. 8) Supprimer un type sans entrée.
 - **Résultat attendu** : 2) désactivé tant qu'une entrée n'a pas de cible ; 3) les types natifs masqués restent proposés comme cibles, le type supprimé n'y figure pas ; 4) le type disparaît de la liste ; 5) l'une est « Objet », l'autre « Besace » ; 6) refus « La liste a changé, recharge la page. », rien n'est modifié ; 7) « Type introuvable. », rien n'est modifié ; 8) confirmation simple, sans liste.
 - **Critères d'acceptation** : `entity-type-service.test.ts` (carte complète en transaction, carte incomplète ou périmée refusée, cible d'un autre monde ou type lui-même refusés, natif masqué accepté comme cible, FK `P2003` convertie en carte périmée) ; `delete-custom-type-dialog.test.tsx` (bouton désactivé, pré-remplissage global, cibles proposées) ; `world-settings.test.ts` ; `e2e/world-settings.spec.ts` scénarios 3 et 4 (suppression d'un monde contenant des entrées de type personnalisé : FK `NO ACTION`, preuve SQL du 2026-10-20 dans ADR-0030).
-- **Type** : fonctionnel + sécurité (cf. `docs/securite-owasp.md` A01) · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-20) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + sécurité (cf. `docs/securite-owasp.md` A01) · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-20) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-MND-013 — Types de relation d'un monde : créer, masquer, supprimer avec réaffectation (KAN-84)
 
@@ -292,7 +292,7 @@
 - **Étapes** : 1) Ouvrir l'onglet « Types de relations ». 2) « Nouveau type » : « Suzerain de », sens « Dirigée », inverse « Vassal de », « Créer le type ». 3) Sur la fiche de Selyne, déclarer « Suzerain de (perso) » vers Aldric, puis « Dirige » vers Aldric. 4) Désactiver « Proposer le type Allié », recharger, ouvrir le select « Type de relation » d'une fiche. 5) « Supprimer le type Suzerain de », choisir « Dirige / Dirigé par » dans « Réaffecter toutes ces relations à… », confirmer. 6) Ouvrir les fiches de Selyne et d'Aldric. **Cas d'échec** : 7) créer un type « vassal DE » ; 8) créer un type « Enfant de » ; 9) créer un type dirigé « Gardien de » / « Gardien de » ; 10) créer un type dirigé sans inverse ; 11) passer « Suzerain de » en symétrique alors qu'il est utilisé (avant l'étape 5) ; 12) masquer tous les natifs sans type personnalisé ; 13) parcourir la page au clavier seul.
 - **Résultat attendu** : 2) le type apparaît dans « Types personnalisés » (« Suzerain de / Vassal de », « aucune relation ») ; 3) sur la fiche d'Aldric, « Vassal de : Selyne » et « Dirigé par : Selyne » ; 4) « Allié » n'est plus proposé, une relation « Allié » existante s'affiche toujours ; 5) seuls des types dirigés sont proposés (natifs masqués compris, jamais « Suzerain de » lui-même), la ligne annonce « Déjà présente : sera supprimée. » et un message de statut le résume avant validation ; le type disparaît de la liste ; 6) une seule relation « Dirige » / « Dirigé par », plus aucune « Suzerain de » ; 7)-8) « Ce libellé est déjà utilisé dans ce monde. » sur le bon champ ; 9) « Le libellé inverse doit différer du libellé. » ; 10) « Le libellé inverse est requis pour une relation dirigée. » ; 11) refus « Ce type est déjà utilisé : son sens ne peut plus changer. Crée un nouveau type puis réaffecte les relations. » ; 12) « Au moins un type de relation doit rester proposé dans ce monde. » ; 13) chaque contrôle est atteignable, focus visible, noms distincts (« Proposer le type Allié », « Supprimer le type Suzerain de »).
 - **Critères d'acceptation** : `relation-type-service.test.ts` (NFC et `labelKey`, collision native ou personnalisée sur le libellé comme sur l'inverse, inverse égal au libellé, P2002 converti avec cause, changement de nature d'un type utilisé refusé, garde du dernier type proposable, réaffectation en transaction, doublon supprimé, cible d'autre nature ou d'un autre monde refusée, carte périmée, P2003 converti) ; `relation-types.test.ts` (schéma Zod : inverse requis ou interdit selon le sens) ; `world-settings.test.ts` (bloc KAN-84 : sans session, monde d'autrui, Zod, erreurs de champ) ; `custom-relation-type-form.test.tsx` (inverse rendu seulement pour un type dirigé) ; `delete-custom-relation-type-dialog.test.tsx` (cibles de même nature, annonce du doublon) ; `e2e/declared-relations.spec.ts` scénario 4. Preuve SQL des contraintes (2026-10-22) : ADR-0031.
-- **Type** : fonctionnel + accessibilité + sécurité (cf. `docs/securite-owasp.md` A01) · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité + sécurité (cf. `docs/securite-owasp.md` A01) · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 
 ## TST-MND-014 — La page d'un monde est la Constellation (KAN-87)
@@ -305,7 +305,7 @@
 - **Étapes** : 1) Ouvrir la page du monde. 2) Déplier la sidebar, recharger. 3) Ouvrir « Récents », puis « Fils », puis appuyer sur Échap. 4) Appuyer sur `N` avec le focus dans le graphe. 5) Défiler jusqu'au pied de page. 6) Ouvrir une fiche, puis les paramètres du monde. **Cas d'échec** : 7) Ctrl++ avec le focus dans le graphe.
 - **Résultat attendu** : 1) aucune barre de défilement visible au premier écran, sidebar repliée ; 2) sidebar toujours dépliée ; 3) un seul panneau ouvert à la fois, Échap le ferme et rend le focus à la pilule ; 4) la boîte « Nouvelle entrée » s'ouvre ; 5) pied de page présent ; 6) carte centrale et pied de page habituels, fil d'ariane complet ; 7) c'est le navigateur qui zoome, pas le graphe.
 - **Critères d'acceptation** : `world-routes.test.ts` (égalité exacte sur `/worlds/<slug>`, jamais un préfixe) ; `e2e/constellation.spec.ts` (sidebar repliée par défaut puis mémorisée) ; `e2e/dashboard-create-entity.spec.ts` (création par le bouton rond, sidebar à jour sans rechargement, BUG-004).
-- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-MND-015 — `/worlds/[slug]/graph` redirigé vers la page du monde (KAN-87)
 
@@ -315,7 +315,7 @@
 - **Étapes** : 1) Connecté avec A, ouvrir `/worlds/eldoria/graph`. **Cas d'échec** : 2) connecté avec B, ouvrir `/worlds/eldoria/graph`. 3) Ouvrir `/worlds/inexistant/graph`.
 - **Résultat attendu** : 1) arrivée sur `/worlds/eldoria` ; 2) et 3) la même page 404 qu'un monde inexistant.
 - **Critères d'acceptation** : `e2e/constellation.spec.ts` et `e2e/graph.spec.ts` (redirection) ; la garde reste celle de `/worlds/[slug]` (TST-SEC-002).
-- **Type** : fonctionnel + sécurité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + sécurité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-MND-016 — Page d'un monde : sidebar en verre, préférence sans saut, clavier (KAN-85)
 
@@ -325,7 +325,7 @@
 - **Étapes** : 1) Déplier la sidebar, recharger. 2) Replier la sidebar, puis tabuler depuis le haut de la page. 3) Déplier la sidebar, y placer le focus, `Ctrl+B`. 4) Déplier la sidebar, replier le groupe « Personnages », ouvrir une fiche, revenir à la page du monde. **Cas d'échec** : 5) mettre une valeur altérée dans le cookie, recharger ; 6) ancienne préférence `localStorage` seule (navigateur d'avant KAN-85).
 - **Résultat attendu** : 1) la sidebar est dépliée dès l'affichage, aucune étoile ne bouge après l'hydratation, le titre reste en place ; 2) quelques Tab suffisent pour atteindre le ciel, aucun lien de la sidebar n'est traversé ; 3) la sidebar se replie et le focus revient au bouton qui la déplie ; 4) colonne sur la fiche, panneau en verre sur la page du monde, et le groupe « Personnages » reste replié dans les deux (une seule sidebar, jamais remontée) ; 5) défaut de la page, aucune erreur ; 6) la préférence est reprise une fois puis gardée en cookie.
 - **Critères d'acceptation** : `sidebar-preference.test.ts` (0 / 1 seuls acceptés, défaut par page, attributs du cookie) ; `e2e/sidebar-collapsed-keyboard.spec.ts` (Tab jusqu'au ciel, focus rendu au bouton) ; `e2e/constellation.spec.ts` (« sidebar ouverte en preference : aucune variation de position des etoiles apres hydratation », sidebar repliée par défaut puis mémorisée) ; `e2e/dashboard-create-entity.spec.ts` et `e2e/folder-organization.spec.ts` (état des groupes et dossiers conservé entre une fiche et la page du monde).
-- **Type** : fonctionnel + accessibilité (RGAA 12.8) + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité (RGAA 12.8) + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : reprise de l'ancienne préférence localStorage vérifiée.
 
 ## TST-MND-017 — Page d'un monde : du ciel au pied de page (KAN-85)
 
@@ -335,7 +335,7 @@
 - **Étapes** : 1) Ouvrir le monde, observer le bas de l'écran. 2) Cliquer « Réorganiser automatiquement ». 3) Cliquer la flèche. **Cas d'échec** : 4) cliquer juste à côté de la flèche, sur le ciel.
 - **Résultat attendu** : 1) aucune coupure franche entre le ciel et le pied de page ; 2) la boîte de confirmation s'ouvre, sans défilement de la page ; 3) la page défile jusqu'au pied de page ; 4) le clic atteint le ciel, pas la bande.
 - **Critères d'acceptation** : `scroll-hint.test.tsx` (bande `pointer-events-none`, bouton `pointer-events-auto`) ; `e2e/scroll-hint-controls.spec.ts` (« Reorganiser automatiquement » n'est recouvert par rien).
-- **Type** : fonctionnel + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-SEC-002 — Accès à un monde d'autrui via URL directe
 
@@ -345,7 +345,7 @@
 - **Étapes** : 1) Se connecter avec le premier compte. 2) Naviguer vers l'URL du monde du second compte.
 - **Résultat attendu** : page 404 (`notFound()`), identique à celle d'un monde réellement inexistant.
 - **Critères d'acceptation** : aucune information ne permet de distinguer « monde inexistant » de « monde d'autrui » ; `getWorldBySlug` filtre systématiquement sur `ownerId`.
-- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : compte B → URL du monde « Eldoria » (compte A) → 404 confirmée. Capture prise.
+- **Type** : sécurité · **Statut** : ✅ (vérifié en conditions réelles : deux comptes créés via l'API Better Auth, `GET /worlds/<slug-d-autrui>` → `404`) — ✅ Recette staging v1.2.0-rc.1 (2026-07-23) : compte B → URL du monde « Eldoria » (compte A) → 404 confirmée. Capture prise. — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-ENT-001 — Création d'une entrée avec type et alias
 
@@ -596,7 +596,7 @@
 - **Étapes** : 1) Connecté avec A, appeler la sauvegarde des positions sur le monde de B. 2) Sur le monde de A, envoyer un lot contenant l'entrée de B. 3) Envoyer une coordonnée infinie, une coordonnée au-delà de ±1e6, 1 001 positions, un zoom de 0 ou de 10. 4) Appeler sans session.
 - **Résultat attendu** : 1) et 2) « Entrée introuvable. », aucune ligne écrite (même réponse qu'une entrée inexistante) ; 3) « Disposition invalide. » avant toute lecture de session ; 4) « Session expirée. Reconnectez-vous. ».
 - **Critères d'acceptation** : `board.test.ts` (Zod avant session, introuvable identique, session expirée) ; `board-service.test.ts` (monde d'autrui, entrée d'un autre monde refusée sans écriture) ; `docs/securite-owasp.md` A01.
-- **Type** : cas d'échec / sécurité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : cas d'échec / sécurité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : rejeux hors monde, valeurs invalides (avant la session) et sans session conformes ; aucune écriture.
 
 ## TST-SEC-019 — Cookie de préférence altéré et seed de performance hors développement (KAN-85)
 
@@ -606,7 +606,7 @@
 - **Étapes** : 1) Écrire `story-tide-sidebar-collapsed-constellation=<script>` puis `=2` dans le navigateur, ouvrir un monde. 2) Lire les attributs du cookie après un basculement en HTTPS (staging). 3) Lancer `seed:perf`, `seed:intro` et `admin:promote` avec `NODE_ENV=production`. 4) Les lancer avec une `DATABASE_URL` distante. 5) Les lancer sans `DATABASE_URL`.
 - **Résultat attendu** : 1) valeur ignorée, défaut de la page, rien n'est réinjecté dans la page ; 2) `Path=/`, `SameSite=Lax`, `Secure`, un an ; 3) à 5) refus explicite avant toute requête, aucune écriture.
 - **Critères d'acceptation** : `sidebar-preference.test.ts` (seules `0` et `1` acceptées, nom exact, attributs) ; `dev-script-guard.test.ts` (production, hôte distant, URL absente ou invalide, cause chaînée) ; `dev-script-guard.scripts.test.ts` (`seed:intro` et `admin:promote` : refus en production et sur hôte distant, aucune requête) ; `docs/securite-owasp.md` A05.
-- **Type** : sécurité / cas d'échec · **Statut** : ✅ (tests unitaires verts, 2026-10-31 ; garde étendue à `seed:intro` et `admin:promote`, 2026-11-08) — ⬜ étape 2 à passer à la recette staging.
+- **Type** : sécurité / cas d'échec · **Statut** : ✅ (tests unitaires verts, 2026-10-31 ; garde étendue à `seed:intro` et `admin:promote`, 2026-11-08) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : étapes 1 et 2 (Path=/, SameSite=Lax, Secure, un an).
 
 ## TST-ENT-010 — Upload d'image depuis l'éditeur : insertion et persistance (KAN-16)
 
@@ -716,7 +716,7 @@
 - **Étapes** : 1) « Nouvelle entrée », chercher « Vaiss », choisir « Vaisseau », créer « Aube Grise ». 2) Observer le badge de la fiche. 3) Dans la sidebar (vue Types), ouvrir le groupe « Objets ». 4) Rechercher « Aube » dans la sidebar. 5) Tableau de bord : « Dernières entrées » et compteurs de pied de carte. 6) Constellation : « Filtres », puis basculer « Vaisseau ». 7) Changer le type de l'entrée pour « Arme » puis revenir à « Vaisseau ». **Cas d'échec** : 8) rejouer la création en postant le `customTypeId` du type du second compte.
 - **Résultat attendu** : 1) l'option est annoncée « Vaisseau (type personnalisé) » ; 2) badge « Vaisseau » avec l'icône choisie ; 3)-4) la ligne affiche « Vaisseau » et son icône ; 5) l'entrée apparaît, comptée dans les objets ; 6) la puce « Vaisseau » est présente dans le groupe Objets et masque le nœud, de la couleur du groupe Objets ; 7) les deux changements sont enregistrés ; 8) erreur « Type introuvable. » sur le champ type, aucune entrée créée.
 - **Critères d'acceptation** : `entity-types.test.ts` (natif, natif masqué, personnalisé, orphelin) ; `entity-service.test.ts` (`customTypeId` d'un autre monde → introuvable) ; `entity.test.ts` (action : erreur de type sur le champ, sans log) ; `entity-type-combobox.test.tsx` ; `graph-elements.test.ts` ; `e2e/world-settings.spec.ts` scénario 1.
-- **Type** : fonctionnel + sécurité · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-20) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + sécurité · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-20) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : rejeu de la création avec un type inconnu refusé (« Type introuvable. »).
 
 ## TST-LNK-001 — Une mention détectée crée une Relation origin=AUTO
 
@@ -816,7 +816,7 @@
 - **Étapes** : 1) Sur la fiche de Selyne, choisir « Parent de », chercher et choisir « Aldric », « Ajouter la relation ». 2) Ouvrir la fiche d'Aldric. 3) Sur la fiche d'Aldric, ajouter « Allié » vers Selyne. 4) Revenir sur Selyne, modifier le texte sans aucune mention `@`, attendre « Enregistré. », recharger. 5) « Supprimer la relation Allié Aldric » sur la fiche de Selyne, confirmer. **Cas d'échec** : 6) rajouter « Parent de » vers Aldric depuis Selyne, puis « Enfant de » vers Selyne depuis Aldric ; 7) ajouter « Allié » depuis Aldric vers Selyne puis depuis Selyne vers Aldric ; 8) valider sans type, puis sans entrée ; 9) rejouer la requête d'ajout avec l'id d'une entrée du second compte, puis avec `custom:<id>` d'un type du second compte ; 10) rejouer avec un type natif masqué dans le monde ; 11) parcourir la section au clavier seul.
 - **Résultat attendu** : 1) « Parent de » : Aldric (lien vers sa fiche) ; 2) « Enfant de » : Selyne ; 3) « Allié » : Selyne sur Aldric et « Allié » : Aldric sur Selyne ; 4) les deux relations sont toujours là ; 5) la fenêtre annonce que la relation disparaîtra des deux fiches sans toucher au texte, elle disparaît des deux fiches ; 6)-7) « Cette relation existe déjà. » (« Enfant de » depuis Aldric est la même relation que « Parent de » depuis Selyne ; une symétrique est la même quel que soit le sens de saisie) ; 8) « Choisis un type de relation. » / « Choisis une entrée. », reliés aux champs ; 9) « Entrée introuvable. » puis « Type de relation introuvable. », rien n'est écrit ; 10) « Ce type de relation n'est plus proposé dans ce monde. » ; 11) select, champ de recherche (flèches, Entrée, Échap), bouton d'ajout et boutons « Supprimer » au nom complet atteignables, focus visible.
 - **Critères d'acceptation** : `declared-relation-service.test.ts` (sens selon le point de vue, symétrique ordonnée par id, P2002 converti avec cause, auto-relation, entrée ou type d'un autre monde, type masqué, suppression hors monde) ; `relation-service.test.ts` et `linker-service.test.ts` (non-interférence : `reconcileManualMentions` et `scanAndLinkEntity` n'appellent jamais `prisma.declaredRelation`) ; `declared-relations.test.ts` (Zod avant session, revalidation des deux fiches et des graphes, repli générique tracé) ; `declared-relations.test.tsx` (groupement par libellé, noms de suppression distincts) ; `e2e/declared-relations.spec.ts` scénario 1.
-- **Type** : fonctionnel + sécurité (cf. `docs/securite-owasp.md` A01) + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + sécurité (cf. `docs/securite-owasp.md` A01) + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : étapes 9 et 10 par requêtes rejouées, refus sans écriture.
 
 ## TST-LNK-011 — Suggestions : une entrée citée devient une relation en un clic, ou est ignorée (KAN-84)
 
@@ -826,7 +826,7 @@
 - **Étapes** : 1) Sur Selyne, citer `@Port-Brume` et `@Mira`, attendre « Enregistré. », recharger. 2) Observer le select de Port-Brume, puis celui de Mira. 3) « Ajouter la relation avec Port-Brume ». 4) « Ignorer la suggestion Mira », recharger. 5) Déplier « 1 suggestion ignorée », « Ne plus ignorer la suggestion Mira ». 6) Sur « Lame d'Argent », citer `@Selyne`, recharger. 7) Citer six entrées sans relation depuis une même fiche. 8) Masquer « Situé dans » dans les paramètres, puis citer un nouveau lieu depuis Selyne.
 - **Résultat attendu** : 2) « Situé dans » pré-sélectionné pour Port-Brume ; « Choisir un type… » pour Mira ; 3) « Situé dans » : Port-Brume apparaît dans la liste, la suggestion disparaît ; 4) Mira ne revient pas, « 1 suggestion ignorée » ; 5) Mira revient dans les suggestions ; 6) « Appartient à » pré-sélectionné (la relation créée va de Selyne vers l'objet : « Possède » lu depuis Selyne) ; 7) la liste est repliée sous « 6 entrées citées sans relation » (élément natif `<details>`, clavier et lecteur d'écran sans ARIA) ; 8) aucune pré-sélection pour ce lieu.
 - **Critères d'acceptation** : `relation-suggestions.test.ts` (table des pré-sélections, type personnalisé compté comme son groupe, type masqué non proposé) ; `declared-relation-service.test.ts` (`listRelationSuggestions` : AUTO + MANUAL sans doublon, moins les relations déclarées dans les deux sens et les ignorées ; ignorer une entrée d'un autre monde refusé) ; `declared-relations.test.ts` (ignorer / ne plus ignorer) ; `relation-suggestions.test.tsx` (pré-sélection, noms d'action, repli au-delà de 5, ignorées repliées) ; `e2e/declared-relations.spec.ts` scénario 2.
-- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-001 — Constellation : rendu Cytoscape + navigation cliquable
 
@@ -850,7 +850,7 @@
 - **Étapes** : 1) Ouvrir « Filtres ». 2) Désactiver « Étoiles sans lien · 2 ». 3) Ouvrir « Fils ». 4) Recharger. 5) Réactiver la pastille, puis « Réorganiser automatiquement ». **Cas d'échec** : 6) désactiver le seul type de relation qui relie une entrée : elle ne doit pas être comptée comme sans lien. 7) Remplacer la valeur mémorisée du monde par une valeur d'avant KAN-85 (sans ce filtre), recharger.
 - **Résultat attendu** : 1) pastille « Étoiles sans lien · 2 », pressée ; 2) les deux étoiles disparaissent, les autres ne bougent pas ; 3) la liste ne les cite pas ; 4) filtre conservé ; 5) elles réapparaissent, puis se rangent sur un arc sous le ciel ; 6) le compte reste « · 2 » ; 7) étoiles sans lien affichées, aucune erreur.
 - **Critères d'acceptation** : `graph-filters.test.ts` (`isolatedEntryIds`, entrée isolée par un filtre de relation non comptée, valeur mémorisée avant KAN-85) ; `graph-layout.test.ts` (`isolatedArcPositions` : arc sous le ciel, espacement, aucun chevauchement) . La pastille (`graph-filters-panel.tsx`, libellé + nombre, `aria-pressed`) suit le patron de TST-GRF-009 : validation visuelle Aymeric.
-- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-003 — Constellation : liste accessible « Fils » (clavier et lecteur d'écran)
 
@@ -862,7 +862,7 @@
 - **Étapes** : 1) Tabuler jusqu'à la pilule « Fils », Entrée. 2) Parcourir la liste au clavier. 3) Désactiver « Lieu » dans « Filtres », revenir à « Fils ». 4) Suivre le lien « Parent de → Aldric ». **Cas d'échec** : 5) Échap dans le panneau. 6) Monde sans aucun lien.
 - **Résultat attendu** : 1) le panneau s'ouvre, la pilule passe à `aria-expanded="true"` ; 2) sous Selyne : « Parent de → Aldric » et « → Mira », la paire Mira–Port-Brume une seule fois avec « ↔ » ; 3) Port-Brume disparaît de la liste, qui annonce le filtre ; 4) la fiche d'Aldric s'ouvre ; 5) le panneau se ferme, le focus revient à la pilule ; 6) la liste dit qu'il n'y a aucun lien, sans erreur.
 - **Critères d'acceptation** : `graph-elements.test.ts` (`buildAccessibleGraphEntries` : regroupement, tri, paire mutuelle et double origine sans doublon, extrémité disparue omise) ; `graph-filters.test.ts` (mêmes filtres que le canvas) ; `e2e/graph.spec.ts` (étape 7 : pilule « Fils », lien `→ cible`, navigation vers la fiche) ; `e2e/declared-relations.spec.ts` scénario 3.
-- **Type** : accessibilité (élim.) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : accessibilité (élim.) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-004 — Constellation : couleur par groupe, jamais seule (KAN-18, KAN-85)
 
@@ -874,17 +874,19 @@
 - **Étapes** : 1) Cliquer une étoile de lieu. 2) Ouvrir le menu du titre au clavier (Entrée). 3) Lire la légende au lecteur d'écran, puis descendre aux flèches. 4) Comparer la couleur d'une pastille à celle des étoiles du groupe. **Cas d'échec** : 5) monde vide ; 6) groupe sans entrée.
 - **Résultat attendu** : 1) la carte affiche le type (type personnalisé compris) avec son icône ; 2) le panneau montre la légende puis les deux actions, focus sur « Paramètres du monde » ; 3) la liste est annoncée « Légende du ciel », une ligne par groupe avec son nombre ; les flèches ne parcourent que les deux actions ; 4) même couleur (même jeton) ; 5) ni légende ni total ; 6) le groupe n'a pas de ligne.
 - **Critères d'acceptation** : `world-title-menu.test.tsx` (liste hors du menu, pastille au jeton du ciel, flèches sur les actions, monde vide) ; `e2e/graph.spec.ts` (étape 5 ter : liste « Légende du ciel », menu à deux éléments sans liste) ; `sky-stylesheet.test.ts` (couleur par groupe) ; audit axe du panneau ouvert : 0 violation (2026-10-31).
-- **Type** : fonctionnel + accessibilité (élim., C2.2.3) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité (élim., C2.2.3) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-005 — Constellation : une arête par paire, relation déclarée prioritaire (KAN-84)
+
+> **Mise à jour 2026-11-22 (KAN-85)** : depuis le ciel d'histoires, les liens du texte n'ont plus de flèche (`sky-stylesheet.ts`, décision de validation C2) ; leur sens reste lisible dans la liste « Fils » et sur la fiche. Seules les relations déclarées orientées portent une flèche.
 
 - **Description** : depuis KAN-84, chaque paire d'entrées liées n'a plus qu'**une** arête, quels que soient le nombre et l'origine des liens (mention AUTO, mention `@`, relations déclarées). Une paire qui porte au moins une relation déclarée est tracée en trait plein avec le libellé déclaré (plusieurs types joints par « · »), lu depuis la source de l'arête ; une paire seulement citée reste en pointillés, sans libellé. L'arête porte une flèche si et seulement si tous ses liens orientés vont dans le même sens (une relation symétrique n'oriente rien). La liste accessible « Observer les fils » suit la même règle.
 - **Objectif** : vérifier qu'aucune paire n'est dessinée deux fois, que la relation déclarée prime sur la simple citation, que la flèche dit vrai, et que la liste accessible reste l'équivalent exact du canvas (aucune information portée par le seul trait).
 - **Préconditions** : un monde contenant Selyne, Aldric, Mira et Port-Brume ; Selyne cite Aldric par `@` et déclare « Parent de » vers Aldric ; Selyne cite Mira sans relation ; Mira et Port-Brume se citent mutuellement ; Aldric et Mira sont « Alliés ».
 - **Étapes** : 1) Ouvrir `/worlds/[slug]/graph`. 2) Observer les arêtes Selyne–Aldric, Selyne–Mira, Mira–Port-Brume et Aldric–Mira. 3) Ouvrir « Observer les fils ». 4) Sur la fiche de Selyne, ajouter « Mentor de » vers Aldric, revenir à la Constellation.
-- **Résultat attendu** : 2) Selyne–Aldric : une seule arête, trait plein, libellé « Parent de », flèche vers Aldric ; Selyne–Mira : pointillés, flèche vers Mira ; Mira–Port-Brume : pointillés, sans flèche ; Aldric–Mira : trait plein « Allié », sans flèche ; 3) sous Selyne : « Parent de → Aldric » et « → Mira » (aucun second lien vers Aldric) ; la paire mutuelle apparaît une seule fois avec « ↔ » ; 4) une seule arête Selyne–Aldric, libellé « Parent de · Mentor de ».
+- **Résultat attendu** : 2) Selyne–Aldric : une seule arête, trait plein, libellé « Parent de », flèche vers Aldric ; Selyne–Mira : pointillés, sans flèche ; Mira–Port-Brume : pointillés, sans flèche ; Aldric–Mira : trait plein « Allié », sans flèche ; 3) sous Selyne : « Parent de → Aldric » et « → Mira » (aucun second lien vers Aldric) ; la paire mutuelle apparaît une seule fois avec « ↔ » ; 4) une seule arête Selyne–Aldric, libellé « Parent de · Mentor de ».
 - **Critères d'acceptation** : `graph-elements.test.ts` (bloc « relations déclarées (KAN-84) » : paire AUTO + déclarée fusionnée, libellés joints, sens opposés sans flèche, symétrique sans sens, mentions mutuelles, liste accessible lue depuis la source ou le premier nom) ; `graph-view.tsx` : sélecteurs statiques `edge[kind = "declared"]` / `edge[kind = "text"]`, aucune valeur utilisateur dans un sélecteur ; `e2e/declared-relations.spec.ts` scénario 3 (liste accessible : un seul lien « Parent de → Aldric », aucun « → Aldric » ni « ↔ Aldric »). Le tracé (plein ou pointillé, flèche) n'est pas lisible par l'e2e : vérification manuelle Aymeric.
-- **Type** : fonctionnel + accessibilité (élim.) · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité (élim.) · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-22) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : liens du texte sans flèche (voir la mise à jour ci-dessus).
 
 
 ## TST-GRF-006 — Constellation : mémoire de la disposition (KAN-87)
@@ -895,7 +897,7 @@
 - **Étapes** : 1) Ouvrir la page du monde. 2) Déplacer une étoile, attendre une seconde, recharger. 3) Zoomer et déplacer la vue, attendre une seconde, recharger. 4) Créer une entrée par le bouton rond « Nouvelle entrée », revenir sur la page du monde. 5) Appuyer sur `0` (focus dans le graphe). **Cas d'échec** : 6) couper le réseau, déplacer une étoile. 7) Envoyer à l'action de sauvegarde une position d'une entrée d'un autre monde (voir TST-SEC-018).
 - **Résultat attendu** : 2) l'étoile est à la place où on l'a lâchée ; 3) même zoom, même cadrage ; 4) la nouvelle étoile est dans le champ, près de ses voisines si elle en a, et aucune autre n'a bougé ; 5) le graphe tient dans l'écran avec un cran de recul, aucune étoile sous le titre ; 6) une notification discrète signale l'échec, l'étoile reste où elle a été lâchée ; 7) refus « Entrée introuvable. », rien n'est écrit.
 - **Critères d'acceptation** : `graph-layout.test.ts` (nouvelles vs fixées, fcose réel sans déplacement des étoiles fixées, ramené dans le champ, ajustement sous la bande réservée) ; `graph-diff.test.ts` (ajout, retrait, mise à jour sans retrait, arête dont le sens s'inverse) ; `board-service.test.ts`, `board.test.ts` (aucun `revalidatePath`) ; `e2e/constellation.spec.ts` (« deplacer une etoile puis recharger : meme place ») ; preuve SQL des contraintes (ADR-0032).
-- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-007 — Constellation : réorganiser puis annuler (KAN-87)
 
@@ -905,7 +907,7 @@
 - **Étapes** : 1) Cliquer « Réorganiser automatiquement ». 2) Annuler la confirmation. 3) Recommencer et confirmer « Réorganiser ». 4) Cliquer « Annuler » dans la notification « Disposition réorganisée ». 5) Recharger. **Cas d'échec** : 6) laisser passer la notification sans cliquer, recharger.
 - **Résultat attendu** : 2) rien ne bouge ; 3) toutes les étoiles sont replacées, notification « Disposition réorganisée » avec « Annuler » ; 4) chaque étoile revient à sa place d'origine ; 5) places d'origine conservées ; 6) la nouvelle disposition est conservée.
 - **Critères d'acceptation** : `board-service.test.ts` (`replaceLayout` remplace tout en transaction, entrée d'un autre monde refusée sans écriture) ; `e2e/constellation.spec.ts` (« Reorganiser puis Annuler »).
-- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-008 — Constellation : lier deux étoiles par un geste (KAN-87)
 
@@ -915,7 +917,7 @@
 - **Étapes** : 1) `Shift` + glisser de Selyne vers Aldric. 2) Choisir « Parent de », sens « Aldric — Parent de → Selyne », « Créer ». 3) Ouvrir la fiche de Selyne. 4) Tirer la poignée de Selyne vers Port-Brume. **Cas d'échec** : 5) recommencer l'étape 1 et la création à l'identique ; 6) lâcher dans le vide ; 7) lâcher sur l'étoile de départ ; 8) ouvrir la boîte puis « Annuler » ou Échap ; 9) glisser une étoile sans `Shift`.
 - **Résultat attendu** : 1) une seule ligne pendant le tracé, Selyne puis Aldric mis en avant, aucune ligne fantôme au lâcher ; 2) l'arête « Parent de » apparaît, aucune étoile ne bouge ; 3) « Enfant de : Aldric » ; 4) « Situé dans » pré-sélectionné, sens Selyne → Port-Brume ; 5) « Cette relation existe déjà. » dans la boîte, type et sens conservés ; 6) à 8) rien n'est créé ; 9) l'étoile est déplacée, aucune boîte.
 - **Critères d'acceptation** : `graph-link.test.ts` (une option par type dirigé, pré-sélection dans les deux orientations, sens → source/cible) ; `relation-from-graph-dialog.test.tsx` (sens choisi, symétrique sans sens, doublon affiché avec choix conservés, Annuler et Échap sans action) ; `e2e/constellation.spec.ts` (« Shift + glisser de Selyne vers Aldric »). Le chemin clavier reste la section « Relations » de la fiche (TST-LNK-010).
-- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-009 — Constellation : filtres par type d'entrée et par type de relation (KAN-87)
 
@@ -925,7 +927,7 @@
 - **Étapes** : 1) Ouvrir « Filtres ». 2) Désactiver « Lieu · 1 ». 3) Désactiver « Parent de », puis « Mentor de ». 4) Désactiver « Liens du texte ». 5) Recharger. 6) Ouvrir « Fils ». **Cas d'échec** : 7) mettre une valeur illisible dans le stockage du navigateur pour ce monde, recharger.
 - **Résultat attendu** : 2) les lieux et leurs arêtes disparaissent ; 3) l'arête de la paire reste après « Parent de » seul, disparaît quand les deux sont désactivés ; 4) les arêtes en pointillés disparaissent ; 5) filtres conservés ; 6) la liste n'affiche que les entrées et liens visibles et l'annonce ; 7) filtres par défaut, aucune erreur.
 - **Critères d'acceptation** : `graph-filters.test.ts` (types d'entrée, multi-types, liens du texte, comptes par type et groupes non vides, valeur stockée invalide) ; `e2e/graph.spec.ts` et `e2e/world-settings.spec.ts` (pastilles nommées libellé + nombre, état `pressed`).
-- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-010 — Constellation : isoler ou masquer une entrée et ses voisins (KAN-87)
 
@@ -935,7 +937,7 @@
 - **Étapes** : 1) Cliquer Selyne, « Isoler » à 1 saut. 2) Ouvrir « Fils ». 3) Recharger. 4) Passer la profondeur à « tous les sauts » dans « Filtres ». 5) Désactiver « Rival » dans les types de relation. 6) Passer en « Masquer », 1 saut. 7) Cliquer ✕ sur le badge. **Cas d'échec** : 8) isoler Mira puis supprimer sa fiche, revenir sur la page du monde.
 - **Résultat attendu** : 1) seules Selyne, Aldric et Kael restent ; 2) Mira absente de la liste ; 3) isolement conservé ; 4) Mira réapparaît ; 5) Kael disparaît (parcours sur les arêtes visibles) ; 6) Selyne et ses voisins disparaissent ; 7) tout revient ; 8) le filtre est ignoré, aucune erreur.
 - **Critères d'acceptation** : `graph-filters.test.ts` (isoler et masquer à 1, 2 et tous, parcours sur arêtes filtrées, entrée disparue ou filtrée ignorée) ; `e2e/constellation.spec.ts` (« isoler une entree a 1 saut »).
-- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, vérification manuelle Aymeric, 2026-10-24) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-011 — Ciel d'histoires : arrivée dans un monde (KAN-85)
 
@@ -945,7 +947,7 @@
 - **Étapes** : 1) Ouvrir le monde. 2) Pendant l'arrivée, cliquer une étoile déjà allumée. 3) Activer « réduire les animations » dans le système, recharger. **Cas d'échec** : 4) recharger plusieurs fois de suite rapidement ; 5) ouvrir un monde vide.
 - **Résultat attendu** : 1) aucune étoile visible avant le début, puis allumage par paquets et tracé des lignes ; aucun décalage de mise en page (CLS 0) ; 2) la carte de l'étoile s'ouvre immédiatement ; 3) toutes les étoiles visibles immédiatement, aucune transition ; 4) aucune étoile restée éteinte ; 5) aucune erreur.
 - **Critères d'acceptation** : `sky-arrival.test.ts` (ordre par éclat, au plus 8 paquets d'étoiles, fin avant ~1 s, reduced-motion = calendrier vide) ; `e2e/constellation.spec.ts` (« a l'arrivee, toutes les etoiles sont visibles immediatement » en reduced-motion, « un clic sur une etoile pendant l'arrivee animee ouvre sa carte ») ; banc de performance (TST-GRF-016).
-- **Type** : fonctionnel + accessibilité (RGAA 13.8) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + accessibilité (RGAA 13.8) · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : CLS ≈ 0 sur Atheraus.
 
 ## TST-GRF-012 — Ciel d'histoires : éclairage d'une constellation au survol (KAN-85)
 
@@ -955,7 +957,7 @@
 - **Étapes** : 1) Survoler Selyne. 2) Quitter Selyne. 3) Glisser Selyne en passant sur d'autres étoiles. **Cas d'échec** : 4) survoler rapidement une dizaine d'étoiles ; 5) reduced-motion actif.
 - **Résultat attendu** : 1) Selyne et Aldric lumineux et nommés, libellé de leur ligne visible, Kael atténué ; 2) tout le ciel revient ; 3) aucun éclairage pendant le glisser ; 4) l'éclairage suit la dernière étoile survolée, aucune étoile ne reste atténuée ; 5) changement immédiat, sans fondu.
 - **Critères d'acceptation** : `sky-stylesheet.test.ts` (durées 300 / 200 ms, 0 en reduced-motion, classes `is-lit` / `is-dimmed`) ; `e2e/constellation.spec.ts` (« survol d'une etoile : ses voisins restent lumineux, une etoile non liee s'attenue », voisin nommé).
-- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-013 — Ciel d'histoires : tracé d'une relation créée depuis le ciel (KAN-85)
 
@@ -965,7 +967,7 @@
 - **Étapes** : 1) `Shift` + glisser de Selyne vers Aldric, « Allié », « Créer ». 2) Observer la ligne et l'éclat. **Cas d'échec** : 3) recréer la même relation ; 4) reduced-motion actif.
 - **Résultat attendu** : 1) et 2) la ligne se trace de Selyne vers Aldric, Aldric brille un instant, puis la ligne prend son style normal ; aucune étoile n'a bougé ; 3) « Cette relation existe déjà. », aucun tracé ; 4) la ligne apparaît directement.
 - **Critères d'acceptation** : `e2e/constellation.spec.ts` (« Shift + glisser de Selyne vers Aldric » : relation créée, aucune étoile déplacée) ; banc de performance, scénario « relation » (TST-GRF-016). Le tracé lui-même n'est pas lisible par l'e2e : validation visuelle Aymeric.
-- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-GRF-014 — Ciel d'histoires : éclat des étoiles et noms selon le zoom (KAN-85)
 
@@ -975,7 +977,7 @@
 - **Étapes** : 1) Ouvrir le monde de 300, « Ajuster ». 2) Zoomer par crans jusqu'à ×3. 3) Cliquer une étoile peu liée en vue d'ensemble. 4) Ouvrir Atheraus. **Cas d'échec** : 5) filtrer jusqu'à 50 étoiles visibles ou moins sur le monde de 300 ; 6) dézoomer au minimum.
 - **Résultat attendu** : 1) seuls les astres (palier 3) sont nommés ; 2) les paliers apparaissent un par un, aucun nom ne disparaît en zoomant ; 3) l'étoile sélectionnée est nommée, les libellés de ses lignes sont visibles ; 4) tous les noms ; 5) tous les noms reviennent ; 6) aucune erreur, les astres restent nommés.
 - **Critères d'acceptation** : `star-brightness.test.ts` (paliers, voisins distincts) ; `sky-detail.test.ts` (zoom relatif borné, monotonie, petit monde, seuil des libellés) ; `sky-stylesheet.test.ts` (image d'étoile à dégradé radial, aucun rayon, opacité nulle au bord, croissance par palier).
-- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : Atheraus (étapes 4 et 6) ; monde de 300 hors staging.
 
 ## TST-GRF-015 — Ciel d'histoires : constellations et « Ajuster à l'écran » (KAN-85)
 
@@ -985,7 +987,7 @@
 - **Étapes** : 1) Ouvrir le monde de 300 juste après `npm run seed:perf` (aucune disposition). 2) « Ajuster ». 3) Ouvrir la sidebar, « Ajuster ». 4) Sur Atheraus, « Réorganiser automatiquement » deux fois. **Cas d'échec** : 5) déplacer une étoile, recharger ; 6) créer une entrée.
 - **Résultat attendu** : 1) des groupes d'étoiles distincts, reliés surtout à l'intérieur, sans chevauchement ; 2) aucune étoile sous le titre, les pilules ou les contrôles, le ciel occupe l'écran (zoom ≈ 0,64 sur le monde de 300 en 1920×1080) ; 3) le ciel se décale hors de la sidebar ; 4) deux fois la même disposition ; 5) l'étoile reste où on l'a lâchée, rien n'est recalculé ; 6) seule la nouvelle étoile est placée.
 - **Critères d'acceptation** : `sky-communities.test.ts` (Louvain déterministe, poids 2 / 1) ; `graph-layout.test.ts` (`packCommunities`, `orientBlocks`, `isolatedArcPositions`, `freeRects`, `fitViewport` à 85 %) ; `sky-arrange.test.ts` (vrai fcose, cas Atheraus, monde de 300, déterminisme) ; `e2e/constellation.spec.ts` (« Reorganiser puis Annuler », « deplacer une etoile puis recharger »).
-- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + cas d'échec · **Statut** : ✅ (tests unitaires et e2e verts, validation visuelle Aymeric, 2026-10-31) — ❌ Recette staging v1.7.0-rc.1 (2026-11-22) : deux « Réorganiser » successifs donnent deux dispositions différentes (étape 4) ; KAN-91 (BUG-020), publié en limite connue de la v1.7.0. Étapes 1 et 2 conformes.
 
 ## TST-GRF-016 — Ciel d'histoires : performance sur 300 entrées (KAN-85)
 
@@ -995,7 +997,7 @@
 - **Étapes** : 1) `npm run perf:constellation -- <email> <mdp> --reseed --runs=5`. 2) Même commande avec `--runs=3 --cpu=4`. **Cas d'échec** : 3) lancer sans le crochet ; 4) lancer `seed:perf` sur une base distante.
 - **Résultat attendu** : 1) à ×1 : déplacement et glisser 59,9 images/s, zoom ≈ 57, survol ≈ 54, création d'une relation ≈ 54, CLS 0 ; 2) à ×4 : sous 60 pour le zoom, le glisser et le survol, comme C1 (limite connue acceptée le 2026-10-31) ; 3) arrêt explicite « Crochet e2e absent » ; 4) refus avant toute requête (TST-SEC-019).
 - **Critères d'acceptation** : tableau avant / après dans `docs/performance-constellation.md` ; `perf-world-generator.test.ts` et `perf-world-service.test.ts` (monde déterministe, 300 entrées, 600 liens, 150 relations).
-- **Type** : performance (C2.1.1) · **Statut** : ✅ à ×1 (mesure du 2026-10-31) — ⚠️ à ×4 : limite connue et acceptée, ticket d'optimisation proposé.
+- **Type** : performance (C2.1.1) · **Statut** : ✅ à ×1 (mesure du 2026-10-31) — ⚠️ à ×4 : limite connue et acceptée, optimisation : KAN-88. Hors staging (le monde de 300 n'existe qu'en développement).
 
 ## TST-GRF-017 — Constellation : une nouvelle étoile ne se pose jamais sur une autre (BUG-019)
 
@@ -1005,7 +1007,7 @@
 - **Étapes** : 1) Créer Astrid, ouvrir la page du monde. 2) Créer Brann, revenir à la page du monde. 3) Créer Cael, revenir à la page du monde. 4) Cliquer chaque étoile. **Cas d'échec** : 5) créer une dizaine d'entrées sans lien de suite, en revenant chaque fois à la page du monde.
 - **Résultat attendu** : 1) à 3) chaque nouvelle étoile est visible, à l'écart des autres, et aucune étoile existante n'a bougé ; 4) chaque clic ouvre la carte de l'étoile cliquée ; 5) toutes les étoiles sont visibles et distinctes, aucune hors champ.
 - **Critères d'acceptation** : `graph-layout.test.ts` (« separateFromStars (BUG-019) ») ; `e2e/constellation.spec.ts` (« un clic sur une etoile pendant l'arrivee animee ouvre sa carte » : trois étoiles créées une par une, la carte de l'étoile visée s'ouvre).
-- **Type** : fonctionnel + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-31) — ⬜ à repasser à la recette staging.
+- **Type** : fonctionnel + non-régression · **Statut** : ✅ (tests unitaires et e2e verts, 2026-10-31) — ✅ Recette staging v1.7.0-rc.1 (2026-11-22).
 
 ## TST-QOT-001 — Quota de mondes : blocage au-delà de 3 mondes gratuits
 
@@ -1065,4 +1067,4 @@
 - **Étapes** : 1) Ouvrir `/admin` et noter les chiffres. 2) Jouer les requêtes de contrôle suivantes **une par une via le raccourci `q` en heredoc** (`q <<'SQL'` … `SQL`, manuel d'exploitation §4 — jamais par `-c`, qui casse sur les guillemets) et comparer : comptes `select count(*) from "user";` · inscrits 7 j / 30 j `select count(*) filter (where "createdAt" >= now() - interval '7 days'), count(*) filter (where "createdAt" >= now() - interval '30 days') from "user";` · actifs 30 j `select count(distinct w."ownerId") from "Entity" e join "World" w on w.id = e."worldId" where w.origin = 'USER' and e."updatedAt" >= now() - interval '30 days';` · mondes `select count(*) filter (where origin = 'USER'), count(*) from "World";` · entrées `select count(*) from "Entity";` · liens `select origin, count(*) from "Relation" group by origin;` · relations déclarées (KAN-84) `select count(*) from "DeclaredRelation";` · liens ignorés `select count(*) from "LinkIgnore";` · images `select count(*), round(coalesce(sum(size), 0) / 1048576.0, 1) from "Image";` · proches du plafond `select u.email, count(*) as mondes, max(c.n) as entrees_max from "user" u join "World" w on w."ownerId" = u.id and w.origin = 'USER' left join lateral (select count(*) as n from "Entity" e where e."worldId" = w.id) c on true where u.plan = 'FREE' group by u.email having count(*) >= 3 or max(c.n) >= 40;` · version `curl -s https://<hôte>/api/health`. 3) Ouvrir « Voir les données du graphique » et comparer une journée à `select count(*) from "Entity" e join "World" w on w.id = e."worldId" where w.origin = 'USER' and (e."createdAt" at time zone 'UTC' at time zone 'Europe/Paris')::date = date '<AAAA-MM-JJ>';`.
 - **Résultat attendu** : chaque chiffre de la page est égal au résultat de sa requête ; un compte qui n'a que son monde d'exemple n'apparaît ni dans « Actifs sur 30 jours » ni dans « Quotas » ; la version affichée est celle de `/api/health`.
 - **Critères d'acceptation** : `admin-stats-service.test.ts` (compteur « Relations déclarées » ajouté par KAN-84 ; filtre exact de « actifs 30 j » sur les mondes `USER`, seuils 3 mondes / 40 entrées sur des comptes de référence dont un juste en dessous, somme nulle des images rendue 0, seuls `createdAt` / `updatedAt` sélectionnés pour la courbe) ; `activity-buckets.test.ts` (30 jours consécutifs, jour civil de Paris, changement d'heure) ; comparaison manuelle ci-dessus sans écart.
-- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires) — ✅ Comparaison staging v1.6.0-rc.1 (2026-10-18) : chaque indicateur égal à sa requête de contrôle, version affichée = `/api/health`. Premier essai bloqué par les guillemets de `psql -c` (shell), d'où le passage au heredoc dans l'étape 2.
+- **Type** : fonctionnel · **Statut** : ✅ (tests unitaires) — ✅ Comparaison staging v1.6.0-rc.1 (2026-10-18) : chaque indicateur égal à sa requête de contrôle, version affichée = `/api/health`. Premier essai bloqué par les guillemets de `psql -c` (shell), d'où le passage au heredoc dans l'étape 2. — ✅ Recette staging v1.7.0-rc.1 (2026-11-22) : indicateurs égaux aux requêtes, relations déclarées comprises.
